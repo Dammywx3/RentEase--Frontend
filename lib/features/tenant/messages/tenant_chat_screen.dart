@@ -13,12 +13,6 @@ import 'messages_screen.dart';
 
 /* ---------------------------------------------------------
    Chat Screen (Tenant)
-   - Header: back, name + verified badge, call icon
-   - Listing mini card pinned at top (tap -> listing details hook)
-   - Bubbles + date separators
-   - Composer with attach + send
-   - Quick action chips above composer
-   - System messages: Viewing requested/confirmed, Application submitted
 ---------------------------------------------------------- */
 
 class TenantChatScreen extends StatefulWidget {
@@ -31,14 +25,9 @@ class TenantChatScreen extends StatefulWidget {
   });
 
   final ConversationVM conversation;
-
-  /// ✅ No hardcode: pass messages from backend/state
   final List<ChatMessageVM> initialMessages;
 
-  /// Optional: wire later to open Listing Details
   final VoidCallback? onOpenListing;
-
-  /// Optional: wire later for call action
   final VoidCallback? onCall;
 
   @override
@@ -74,7 +63,6 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
       _ctrl.clear();
     });
 
-    // scroll to bottom
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_sc.hasClients) return;
       _sc.animateTo(
@@ -90,46 +78,62 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
     return loc.formatFullDate(DateTime(dt.year, dt.month, dt.day));
   }
 
+  String _timeLabel(BuildContext context, DateTime dt) {
+    final loc = MaterialLocalizations.of(context);
+    return loc.formatTimeOfDay(TimeOfDay.fromDateTime(dt), alwaysUse24HourFormat: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = widget.conversation;
 
     return AppScaffold(
       backgroundColor: Colors.transparent,
-      safeAreaTop: true,
+
+      // ✅ important: let our gradient reach the top (we handle SafeArea ourselves)
+      safeAreaTop: false,
       safeAreaBottom: false,
-      topBar: AppTopBar(
-        title: c.displayName,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.screenH),
-            child: InkWell(
-              onTap: widget.onCall,
-              borderRadius: BorderRadius.circular(AppRadii.pill),
-              child: Container(
-                height: AppSizes.iconButtonBox,
-                width: AppSizes.iconButtonBox,
-                decoration: BoxDecoration(
-                  color: AppColors.surface(context).withValues(alpha: 0.92),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.overlay(context, 0.06)),
-                  boxShadow: AppShadows.soft(
-                    context,
-                    blur: AppSpacing.xxxl,
-                    y: AppSpacing.lg,
-                    alpha: 0.10,
-                  ),
-                ),
-                child: Icon(Icons.call_rounded, color: AppColors.textMuted(context)),
-              ),
-            ),
-          ),
-        ],
-      ),
+
+      // ✅ remove topBar slot so it doesn't paint outside the gradient
+      topBar: null,
+
       child: DecoratedBox(
         decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
         child: Column(
           children: [
+            // ✅ AppTopBar is now INSIDE the gradient
+            SafeArea(
+              bottom: false,
+              child: AppTopBar(
+                title: c.displayName,
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppSpacing.screenH),
+                    child: InkWell(
+                      onTap: widget.onCall,
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                      child: Container(
+                        height: AppSizes.iconButtonBox,
+                        width: AppSizes.iconButtonBox,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface(context).withValues(alpha: 0.92),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.overlay(context, 0.06)),
+                          boxShadow: AppShadows.soft(
+                            context,
+                            blur: AppSpacing.xxxl,
+                            y: AppSpacing.lg,
+                            alpha: 0.10,
+                          ),
+                        ),
+                        child: Icon(Icons.call_rounded, color: AppColors.textMuted(context)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             // verified badge line under topbar (like mock)
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -141,7 +145,10 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.s6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.s6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surface(context).withValues(alpha: 0.60),
                       borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -196,7 +203,6 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                 itemBuilder: (_, i) {
                   final m = _messages[i];
 
-                  // date separator
                   final showDay = i == 0 ||
                       (_messages[i - 1].at.year != m.at.year ||
                           _messages[i - 1].at.month != m.at.month ||
@@ -224,7 +230,7 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
               ),
             ),
 
-            // quick actions (optional)
+            // quick actions
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenV,
@@ -258,20 +264,13 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
             // composer
             _Composer(
               controller: _ctrl,
-              onAttach: () {
-                // wire later
-              },
+              onAttach: () {},
               onSend: () => _send(_ctrl.text),
             ),
           ],
         ),
       ),
     );
-  }
-
-  String _timeLabel(BuildContext context, DateTime dt) {
-    final loc = MaterialLocalizations.of(context);
-    return loc.formatTimeOfDay(TimeOfDay.fromDateTime(dt), alwaysUse24HourFormat: false);
   }
 }
 
@@ -347,11 +346,13 @@ class _ListingMiniCard extends StatelessWidget {
                   color: AppColors.tenantPanel.withValues(alpha: 0.85),
                   child: thumbAsset.trim().isEmpty
                       ? const Icon(Icons.photo_rounded, color: AppColors.textMutedLight)
-                      : Image.asset(thumbAsset, fit: BoxFit.cover, errorBuilder: (_, __, ___) {
-                          return const Center(
+                      : Image.asset(
+                          thumbAsset,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Center(
                             child: Icon(Icons.photo_rounded, color: AppColors.textMutedLight),
-                          );
-                        }),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -451,7 +452,10 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isMe ? AppColors.brandBlueSoft.withValues(alpha: 0.45) : AppColors.surface(context).withValues(alpha: 0.58);
+    final bg = isMe
+        ? AppColors.brandBlueSoft.withValues(alpha: 0.45)
+        : AppColors.surface(context).withValues(alpha: 0.58);
+
     final border = isMe ? AppColors.brandBlueSoft.withValues(alpha: 0.35) : AppColors.overlay(context, 0.06);
 
     return Row(
