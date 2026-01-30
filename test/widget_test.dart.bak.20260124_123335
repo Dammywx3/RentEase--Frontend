@@ -1,0 +1,13 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+
+// Adjust this import if your root widget path is different:
+import 'package:rentease_frontend/app/app.dart';
+
+void main() {
+  testWidgets('App smoke test', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: App()));
+    await tester.pumpAndSettle();
+    expect(find.byType(App), findsOneWidget);
+  });
+}

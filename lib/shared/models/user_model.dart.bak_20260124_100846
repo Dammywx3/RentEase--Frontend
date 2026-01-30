@@ -1,0 +1,33 @@
+class UserModel {
+  final String id;
+  final String fullName;
+  final String email;
+  final String? phone;
+  final String role; // tenant | landlord | agent | admin
+  final String token;
+
+  const UserModel({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    required this.role,
+    required this.token,
+    this.phone,
+  });
+
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    String s(dynamic v) => (v ?? '').toString();
+
+    return UserModel(
+      id: s(json['id']),
+      // backend: full_name ; frontend: fullName
+      fullName: s(json['fullName'] ?? json['full_name']),
+      email: s(json['email']),
+      // backend: phone can be null
+      phone: (json['phone'] == null) ? null : s(json['phone']),
+      role: s(json['role']),
+      // token is not inside user object in backend response, we inject it from AuthRepo
+      token: s(json['token']),
+    );
+  }
+}

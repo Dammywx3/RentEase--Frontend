@@ -1,0 +1,142 @@
+import 'package:flutter/material.dart';
+import '../../../../core/constants/enums.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/ui/scaffold/app_scaffold.dart';
+import '../../../../core/ui/scaffold/app_top_bar.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../../shared/services/toast_service.dart';
+import '../../../../shared/widgets/form_field.dart';
+import '../../../../shared/widgets/primary_button.dart';
+import 'register_controller.dart';
+
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _name = TextEditingController();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+
+  UserRole _role = UserRole.tenant;
+  bool _obscure = true;
+
+  late final RegisterController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = RegisterController()..addListener(_listen);
+  }
+
+  void _listen() {
+    final err = _controller.state.error;
+    if (err != null && err.trim().isNotEmpty) {
+      ToastService.error(context, err);
+    }
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_listen);
+    _controller.dispose();
+    _name.dispose();
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final user = await _controller.register(
+      fullName: _name.text.trim(),
+      emailOrPhone: _email.text.trim(),
+      password: _password.text,
+      role: _role.value,
+    );
+
+    if (user != null) {
+      ToastService.show(context, 'Account created. Please verify if required.', success: true);
+      if (mounted) Navigator.of(context).pop(true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loading = _controller.state.loading;
+
+    return AppScaffold(
+      topBar: const AppTopBar(title: 'Register', subtitle: 'Create your RentEase account'),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            AppFormField(
+              controller: _name,
+              label: 'Full name',
+              hint: 'Your name',
+              validator: (v) => Validators.requiredField(v),
+              prefixIcon: Icons.person_rounded,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppFormField(
+              controller: _email,
+              label: 'Email / Phone',
+              hint: 'you@example.com',
+              validator: (v) => Validators.requiredField(v),
+              prefixIcon: Icons.alternate_email_rounded,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Role selection
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Account type', style: Theme.of(context).textTheme.labelLarge),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            DropdownButtonFormField<UserRole>(
+              value: _role,
+              items: const [
+                DropdownMenuItem(value: UserRole.tenant, child: Text('Tenant')),
+                DropdownMenuItem(value: UserRole.landlord, child: Text('Landlord')),
+                DropdownMenuItem(value: UserRole.agent, child: Text('Agent')),
+              ],
+              onChanged: loading ? null : (v) => setState(() => _role = v ?? UserRole.tenant),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+            AppFormField(
+              controller: _password,
+              label: 'Password',
+              hint: 'Minimum 6 characters',
+              obscureText: _obscure,
+              validator: (v) => Validators.minLen(v, 6),
+              prefixIcon: Icons.lock_rounded,
+              suffixIcon: IconButton(
+                onPressed: () => setState(() => _obscure = !_obscure),
+                icon: Icon(_obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded),
+              ),
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            PrimaryButton(
+              label: loading ? 'Creating...' : 'Create account',
+              loading: loading,
+              onPressed: loading ? null : _submit,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

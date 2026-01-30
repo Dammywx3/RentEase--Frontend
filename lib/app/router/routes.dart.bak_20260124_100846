@@ -1,0 +1,26 @@
+class AppRoutes {
+  AppRoutes._();
+
+  // Auth
+  static const login = '/login';
+  static const register = '/register';
+  static const forgotPassword = '/forgot-password';
+  static const verifyOtp = '/verify-otp';
+
+  // Tenant shell + tabs
+  static const tenant = '/tenant';
+  static const tenantHome = '/tenant/home';
+  static const tenantApplications = '/tenant/applications';
+  static const tenantViewings = '/tenant/viewings';
+  static const tenantPayments = '/tenant/payments';
+  static const tenantProfile = '/tenant/profile';
+
+  // Agent/Landlord shell + tabs
+  static const agent = '/agent';
+  static const agentListings = '/agent/listings';
+  static const agentApplications = '/agent/applications';
+  static const agentViewings = '/agent/viewings';
+  static const agentTenancies = '/agent/tenancies';
+  static const agentPayments = '/agent/payments';
+  static const agentVerification = '/agent/verification';
+}

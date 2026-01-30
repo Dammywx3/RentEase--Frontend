@@ -1,0 +1,9 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "scripts/**"
+    - "**/scripts/**"
+    - "scripts/_backups/**"
+    - "**/scripts/_backups/**"
+    - "**/_backups/**"
