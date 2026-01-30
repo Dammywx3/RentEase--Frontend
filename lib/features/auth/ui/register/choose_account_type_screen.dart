@@ -12,7 +12,7 @@ import 'register_screen.dart';
 class ChooseAccountTypeScreen extends StatefulWidget {
   const ChooseAccountTypeScreen({
     super.key,
-    this.brandName = 'RentEase', // ✅ remove HomeStead hardcode
+    this.brandName = 'RentEase',
     this.brandIcon = Icons.home_rounded,
   });
 
@@ -53,7 +53,6 @@ class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
               children: [
                 const SizedBox(height: AppSpacing.sm),
 
-                // ✅ Clean top row: back + perfectly centered brand (no “two lines” odd spacing)
                 SizedBox(
                   height: 48,
                   child: Stack(
@@ -79,7 +78,6 @@ class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
 
                 const SizedBox(height: AppSpacing.lg),
 
-                // ✅ Fix: prevent the title from wrapping into 2 lines
                 Align(
                   alignment: Alignment.centerLeft,
                   child: FittedBox(
@@ -108,21 +106,18 @@ class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
                   role: UserRole.tenant,
                   selected: _selected == UserRole.tenant,
                   onTap: () => setState(() => _selected = UserRole.tenant),
-                  leadingIcon: Icons.key_rounded,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _RoleCard(
                   role: UserRole.agent,
                   selected: _selected == UserRole.agent,
                   onTap: () => setState(() => _selected = UserRole.agent),
-                  leadingIcon: Icons.apartment_rounded,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _RoleCard(
                   role: UserRole.landlord,
                   selected: _selected == UserRole.landlord,
                   onTap: () => setState(() => _selected = UserRole.landlord),
-                  leadingIcon: Icons.assignment_rounded,
                 ),
 
                 const SizedBox(height: AppSpacing.lg),
@@ -182,20 +177,17 @@ class _RoleCard extends StatelessWidget {
     required this.role,
     required this.selected,
     required this.onTap,
-    required this.leadingIcon,
   });
 
   final UserRole role;
   final bool selected;
   final VoidCallback onTap;
-  final IconData leadingIcon;
 
   @override
   Widget build(BuildContext context) {
     final bg = AppColors.surface2(context).withValues(alpha: 0.70);
     final baseBorder = AppColors.border(context).withValues(alpha: 0.60);
 
-    // “Premium” selected feel without hardcoded colors
     final selectedBorder = AppColors.brandBlueSoft.withValues(alpha: 0.75);
     final selectedTint = AppColors.overlay(context, 0.06);
 
@@ -220,12 +212,9 @@ class _RoleCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadii.lg),
                 border: Border.all(color: baseBorder),
               ),
-              child: Center(
-                child: Icon(
-                  leadingIcon,
-                  size: 30,
-                  color: AppColors.textSecondary(context),
-                ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadii.lg - 2),
+                child: _RoleAssetIcon(role: role),
               ),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -271,6 +260,57 @@ class _RoleCard extends StatelessWidget {
                   : null,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleAssetIcon extends StatelessWidget {
+  const _RoleAssetIcon({required this.role});
+  final UserRole role;
+
+  String _assetForRole() {
+    // ✅ If your folder is assets/image, change to: assets/image/tenant.png etc.
+    switch (role) {
+      case UserRole.tenant:
+        return 'assets/images/tenant.png';
+      case UserRole.agent:
+        return 'assets/images/agent.png';
+      case UserRole.landlord:
+        return 'assets/images/landlord.png';
+    }
+  }
+
+  IconData _fallbackIcon() {
+    switch (role) {
+      case UserRole.tenant:
+        return Icons.key_rounded;
+      case UserRole.agent:
+        return Icons.apartment_rounded;
+      case UserRole.landlord:
+        return Icons.assignment_rounded;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // ✅ Premium: big image, no stretching, fills the box nicely
+    return Padding(
+      padding: const EdgeInsets.all(8), // smaller = bigger image
+      child: SizedBox.expand(
+        child: Image.asset(
+          _assetForRole(),
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) {
+            return Center(
+              child: Icon(
+                _fallbackIcon(),
+                size: 34,
+                color: AppColors.textSecondary(context),
+              ),
+            );
+          },
         ),
       ),
     );

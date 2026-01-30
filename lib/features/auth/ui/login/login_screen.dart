@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:rentease_frontend/core/theme/app_colors.dart';
 import 'package:rentease_frontend/core/theme/app_radii.dart';
@@ -201,8 +202,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: AppSpacing.lg),
                         const _OrDivider(),
                         const SizedBox(height: AppSpacing.lg),
+
+                        // ✅ Google sign-in button with real Google "G" icon (Option A)
                         _GhostButton(
-                          icon: Icons.g_mobiledata_rounded,
+                          icon: FaIcon(
+                            FontAwesomeIcons.google,
+                            size: 18,
+                            color: AppColors.textSecondary(context),
+                          ),
                           text: 'Continue with Google',
                           onPressed: _loading
                               ? null
@@ -485,13 +492,15 @@ class _GhostButton extends StatelessWidget {
     required this.onPressed,
   });
 
-  final IconData icon;
+  // ✅ Changed from IconData to Widget so we can pass FaIcon (Google icon)
+  final Widget icon;
   final String text;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     final border = AppColors.border(context);
+
     return SizedBox(
       width: double.infinity,
       height: 52,
@@ -503,7 +512,7 @@ class _GhostButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadii.lg),
           ),
         ),
-        icon: Icon(icon, color: AppColors.textSecondary(context)),
+        icon: icon,
         label: Text(
           text,
           style: AppTypography.body(context).copyWith(

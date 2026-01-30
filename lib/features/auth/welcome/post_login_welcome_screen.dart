@@ -16,11 +16,17 @@ class PostLoginWelcomeScreen extends StatelessWidget {
     required this.fullName,
     required this.role,
     this.lastLogin,
+    this.brandName = 'RentEase',
+    this.brandIcon = Icons.home_rounded,
   });
 
   final String fullName;
   final UserRole role;
   final DateTime? lastLogin;
+
+  // ✅ brand (remove HomeStead hardcode)
+  final String brandName;
+  final IconData brandIcon;
 
   void _go(BuildContext context) {
     Navigator.of(context).pushReplacementNamed(role.toRoute());
@@ -47,7 +53,7 @@ class PostLoginWelcomeScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: AppSpacing.sm),
-                const _HomeSteadMark(),
+                _BrandMark(name: brandName, icon: brandIcon),
                 const SizedBox(height: AppSpacing.xl),
                 Text(
                   'Welcome, ${_firstName(fullName)} 👋',
@@ -61,6 +67,7 @@ class PostLoginWelcomeScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.xl),
+
                 _GlassCard(
                   child: Column(
                     children: [
@@ -75,28 +82,24 @@ class PostLoginWelcomeScreen extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppSpacing.lg),
+
+                      // ✅ Role image card (PNG) — now fills the card
                       Container(
-                        height: 150,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface(context).withValues(alpha: 0.70),
-                          borderRadius: BorderRadius.circular(AppRadii.xl),
-                          border: Border.all(
-                            color: AppColors.border(context).withValues(alpha: 0.70),
-                          ),
-                        ),
-                        child: Center(
-                          child: Icon(
-                            role == UserRole.tenant
-                                ? Icons.key_rounded
-                                : (role == UserRole.agent
-                                    ? Icons.apartment_rounded
-                                    : Icons.assignment_rounded),
-                            size: 54,
-                            color: AppColors.textSecondary(context),
-                          ),
-                        ),
-                      ),
+  height: 150,
+  width: double.infinity,
+  decoration: BoxDecoration(
+    color: AppColors.surface(context).withValues(alpha: 0.70),
+    borderRadius: BorderRadius.circular(AppRadii.xl),
+    border: Border.all(
+      color: AppColors.border(context).withValues(alpha: 0.70),
+    ),
+  ),
+  child: ClipRRect(
+    borderRadius: BorderRadius.circular(AppRadii.xl),
+    child: _RoleImage(role: role),
+  ),
+),
+
                       const SizedBox(height: AppSpacing.lg),
                       _PrimaryButton(
                         text: role.primaryCta,
@@ -150,24 +153,76 @@ class PostLoginWelcomeScreen extends StatelessWidget {
   }
 }
 
-class _HomeSteadMark extends StatelessWidget {
-  const _HomeSteadMark();
+class _BrandMark extends StatelessWidget {
+  const _BrandMark({required this.name, required this.icon});
+  final String name;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.home_rounded, color: AppColors.brandGreen, size: 26),
+        Icon(icon, color: AppColors.brandGreen, size: 26),
         const SizedBox(width: AppSpacing.sm),
         Text(
-          'HomeStead',
+          name,
           style: AppTypography.h3(context).copyWith(
             color: AppColors.textPrimary(context),
             fontWeight: FontWeight.w900,
           ),
         ),
       ],
+    );
+  }
+}
+
+class _RoleImage extends StatelessWidget {
+  const _RoleImage({required this.role});
+  final UserRole role;
+
+  String _roleAsset() {
+    // ✅ Change this to assets/image/... if your folder is singular.
+    switch (role) {
+      case UserRole.tenant:
+        return 'assets/images/tenant.png';
+      case UserRole.agent:
+        return 'assets/images/agent.png';
+      case UserRole.landlord:
+        return 'assets/images/landlord.png';
+    }
+  }
+
+  IconData _fallbackIcon() {
+    switch (role) {
+      case UserRole.tenant:
+        return Icons.key_rounded;
+      case UserRole.agent:
+        return Icons.apartment_rounded;
+      case UserRole.landlord:
+        return Icons.assignment_rounded;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // ✅ Fill the entire card
+    return SizedBox.expand(
+      child: Image.asset(
+        _roleAsset(),
+        fit: BoxFit.contain, // fills the box (may crop a little)
+        alignment: Alignment.center,
+        errorBuilder: (_, __, ___) {
+          // ✅ fallback so you never get a red screen
+          return Center(
+            child: Icon(
+              _fallbackIcon(),
+              size: 54,
+              color: AppColors.textSecondary(context),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -217,7 +272,6 @@ class _GlassCard extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(AppRadii.xl),
         border: Border.all(color: border),
-        // ✅ FIX
         boxShadow: AppShadows.card(context),
       ),
       padding: const EdgeInsets.all(AppSpacing.lg),
