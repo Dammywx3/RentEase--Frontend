@@ -51,3 +51,14 @@ rentease_debug_bundle_*/
 scripts/_backups/
 **/_backups/
 **/.backups/
+
+# Local backups / generated copies
+.bak_*
+*.bak
+*.bak.*
+*.before_fix.*
+*.broken.*
+
+# Flutter build outputs
+build/
+.dart_tool/
