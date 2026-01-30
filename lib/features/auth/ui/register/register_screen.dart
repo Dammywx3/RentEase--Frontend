@@ -9,7 +9,7 @@ import 'package:rentease_frontend/core/theme/app_shadows.dart';
 import 'package:rentease_frontend/core/theme/app_spacing.dart';
 import 'package:rentease_frontend/core/theme/app_typography.dart';
 
-import 'verify_email_screen.dart';
+import '../verify_email/verify_email_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({

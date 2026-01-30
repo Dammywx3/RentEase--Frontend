@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:rentease_frontend/core/constants/user_role.dart';
 import 'package:rentease_frontend/core/theme/app_colors.dart';
 import 'package:rentease_frontend/core/theme/app_radii.dart';
 import 'package:rentease_frontend/core/theme/app_shadows.dart';
@@ -8,79 +9,104 @@ import 'package:rentease_frontend/core/theme/app_typography.dart';
 
 import 'package:rentease_frontend/app/router/app_router.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({
+// ✅ correct relative path (register -> welcome)
+import '../../welcome/post_login_welcome_screen.dart';
+
+// NEW: purpose
+import 'verify_purpose.dart';
+
+class VerifyEmailScreen extends StatefulWidget {
+  const VerifyEmailScreen({
     super.key,
-    this.prefillEmail,
+    required this.email,
+    required this.role,
+    required this.fullName,
+
+    // NEW: why are we verifying?
+    this.purpose = VerifyPurpose.register,
+
+    // ✅ remove HomeStead hardcode
     this.brandName = 'RentEase',
     this.brandIcon = Icons.home_rounded,
   });
 
-  final String? prefillEmail;
+  final String email;
+  final UserRole role;
+  final String fullName;
+
+  final VerifyPurpose purpose;
+
   final String brandName;
   final IconData brandIcon;
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
-  final _emailFocus = FocusNode();
-
+class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
+  final _codeCtrl = TextEditingController();
   bool _loading = false;
-
-  static final RegExp _emailRx = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.prefillEmail != null && widget.prefillEmail!.trim().isNotEmpty) {
-      _emailCtrl.text = widget.prefillEmail!.trim();
-    }
-  }
+  String? _error;
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
-    _emailFocus.dispose();
+    _codeCtrl.dispose();
     super.dispose();
   }
 
-  String? _validateEmail(String? v) {
-    final email = (v ?? '').trim();
-    if (email.isEmpty) return 'Enter your email address.';
-    if (!_emailRx.hasMatch(email)) return 'Enter a valid email address.';
-    return null;
+  void _validate() {
+    final v = _codeCtrl.text.trim();
+    setState(() {
+      _error = v.length == 6 ? null : 'Enter the 6-digit code.';
+    });
   }
 
-  Future<void> _sendCode() async {
-    final ok = _formKey.currentState?.validate() ?? false;
-    if (!ok) return;
+  Future<void> _verify() async {
+    _validate();
+    if (_error != null) return;
 
-    FocusScope.of(context).unfocus();
     setState(() => _loading = true);
 
     try {
-      // TODO: call backend endpoint: POST /auth/forgot-password {email}
-      await Future.delayed(const Duration(milliseconds: 650));
+      // TODO:
+      // - if purpose == register: verify email code for new account
+      // - if purpose == login: verify login OTP code
+      await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 
-      // Premium/security copy: don't confirm account exists.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('If an account exists for this email, we’ve sent a 6-digit code.'),
-        ),
-      );
+      // ✅ routing based on purpose
+      if (widget.purpose == VerifyPurpose.register) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => PostLoginWelcomeScreen(
+              fullName: widget.fullName.trim().isEmpty ? 'User' : widget.fullName.trim(),
+              role: widget.role,
+            ),
+          ),
+          (r) => false,
+        );
+        return;
+      }
 
-      Navigator.of(context).pushNamed(
-        AppRoutes.resetVerifyCode,
-        arguments: {'email': _emailCtrl.text.trim()},
-      );
+      // purpose == login
+      // after OTP, go to correct shell
+      final target = switch (widget.role) {
+        UserRole.tenant => AppRoutes.tenant,
+        UserRole.agent => AppRoutes.agent,
+        UserRole.landlord => AppRoutes.landlord,
+      };
+
+      Navigator.of(context).pushNamedAndRemoveUntil(target, (r) => false);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String get _subtitle {
+    if (widget.purpose == VerifyPurpose.login) {
+      return 'We sent a 6-digit code to\n${widget.email}';
+    }
+    return 'We sent a verification code to\n${widget.email}';
   }
 
   @override
@@ -101,7 +127,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               children: [
                 const SizedBox(height: AppSpacing.sm),
 
-                // top row: back + centered brand
+                // ✅ Clean top row: back + perfectly centered brand
                 SizedBox(
                   height: 48,
                   child: Stack(
@@ -129,7 +155,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Forgot password',
+                    'Verify your email',
                     style: AppTypography.h1(context).copyWith(color: textPrimary),
                   ),
                 ),
@@ -137,61 +163,76 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    "Enter your email and we’ll send a reset code.",
+                    _subtitle,
                     style: AppTypography.body(context).copyWith(color: textMuted),
                   ),
                 ),
 
                 const SizedBox(height: AppSpacing.xl),
                 _GlassCard(
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Email address',
-                          style: AppTypography.label(context).copyWith(color: textPrimary),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        _AuthField(
-                          controller: _emailCtrl,
-                          focusNode: _emailFocus,
-                          hintText: 'michael@email.com',
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.done,
-                          prefixIcon: Icons.mail_outline_rounded,
-                          enabled: !_loading,
-                          validator: _validateEmail,
-                          onSubmitted: (_) => _sendCode(),
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-                        _PrimaryButton(
-                          text: 'Send reset code',
-                          loading: _loading,
-                          onPressed: _loading ? null : _sendCode,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Center(
-                          child: TextButton(
-                            onPressed: _loading
-                                ? null
-                                : () => Navigator.of(context).pop(), // back to login
-                            child: Text(
-                              'Back to Sign in',
-                              style: AppTypography.body(context).copyWith(
-                                color: AppColors.brandBlueSoft,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 110,
+                        width: 110,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface(context).withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(AppRadii.xl),
+                          border: Border.all(
+                            color: AppColors.border(context).withValues(alpha: 0.70),
                           ),
                         ),
-                      ],
-                    ),
+                        child: Icon(
+                          Icons.mail_outline_rounded,
+                          size: 44,
+                          color: AppColors.textSecondary(context),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      _CodeField(
+                        controller: _codeCtrl,
+                        errorText: _error,
+                        onChanged: (_) => _validate(),
+                      ),
+
+                      const SizedBox(height: AppSpacing.lg),
+                      _PrimaryButton(
+                        text: 'Verify',
+                        loading: _loading,
+                        onPressed: _loading ? null : _verify,
+                      ),
+
+                      const SizedBox(height: AppSpacing.md),
+                      TextButton(
+                        onPressed: _loading
+                            ? null
+                            : () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Resend code (todo)')),
+                                );
+                              },
+                        child: Text(
+                          'Resend code',
+                          style: AppTypography.body(context).copyWith(
+                            color: AppColors.brandBlueSoft,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _loading ? null : () => Navigator.of(context).pop(),
+                        child: Text(
+                          'Change email',
+                          style: AppTypography.body(context).copyWith(
+                            color: AppColors.textSecondary(context),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-
-                const SizedBox(height: AppSpacing.lg),
               ],
             ),
           ),
@@ -250,59 +291,41 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-class _AuthField extends StatelessWidget {
-  const _AuthField({
+class _CodeField extends StatelessWidget {
+  const _CodeField({
     required this.controller,
-    required this.focusNode,
-    required this.hintText,
-    this.keyboardType,
-    this.textInputAction,
-    this.prefixIcon,
-    this.enabled = true,
-    this.validator,
-    this.onSubmitted,
+    required this.onChanged,
+    this.errorText,
   });
 
   final TextEditingController controller;
-  final FocusNode focusNode;
-
-  final String hintText;
-  final TextInputType? keyboardType;
-  final TextInputAction? textInputAction;
-
-  final IconData? prefixIcon;
-  final bool enabled;
-
-  final String? Function(String?)? validator;
-  final ValueChanged<String>? onSubmitted;
+  final ValueChanged<String> onChanged;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
     final fill = AppColors.surface(context).withValues(alpha: 0.85);
     final border = AppColors.border(context);
 
-    return TextFormField(
+    return TextField(
       controller: controller,
-      focusNode: focusNode,
-      enabled: enabled,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      onFieldSubmitted: onSubmitted,
-      autofillHints: const [AutofillHints.email],
-      style: AppTypography.body(context).copyWith(
+      keyboardType: TextInputType.number,
+      maxLength: 6,
+      onChanged: onChanged,
+      style: AppTypography.h3(context).copyWith(
         color: AppColors.textPrimary(context),
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 2.0,
       ),
-      validator: validator,
       decoration: InputDecoration(
+        counterText: '',
         filled: true,
         fillColor: fill,
-        hintText: hintText,
-        hintStyle: AppTypography.body(context).copyWith(
+        hintText: '••••••',
+        hintStyle: AppTypography.h3(context).copyWith(
           color: AppColors.textMuted(context),
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w800,
         ),
-        prefixIcon: prefixIcon == null ? null : Icon(prefixIcon, color: AppColors.textMuted(context)),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.md,
@@ -317,9 +340,11 @@ class _AuthField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: const BorderSide(color: AppColors.brandBlueSoft, width: 1.4),
+          borderSide: BorderSide(color: AppColors.brandBlueSoft, width: 1.4),
         ),
+        errorText: errorText,
       ),
+      textAlign: TextAlign.center,
     );
   }
 }

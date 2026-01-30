@@ -6,12 +6,14 @@ import 'package:rentease_frontend/core/theme/app_shadows.dart';
 import 'package:rentease_frontend/core/theme/app_spacing.dart';
 import 'package:rentease_frontend/core/theme/app_typography.dart';
 
+import 'package:rentease_frontend/app/router/app_router.dart';
+
 import '../register/choose_account_type_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,
-    this.brandName = 'RentEase', // ✅ no more hardcoded HomeStead
+    this.brandName = 'RentEase',
     this.brandIcon = Icons.home_rounded,
   });
 
@@ -34,7 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
   bool _loading = false;
 
-  // simple email pattern (good enough for UI validation)
   static final RegExp _emailRx = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   @override
@@ -61,7 +62,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    // ✅ Validate via Form, not manual setState errors on every change
     final ok = _formKey.currentState?.validate() ?? false;
     if (!ok) return;
 
@@ -69,11 +69,20 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
 
     try {
+      // TODO: call backend: auth/login (email + password)
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 
-      // TODO: wire to backend later (auth + route by role)
-      Navigator.of(context).pushReplacementNamed('/tenant');
+      // ✅ After sign-in: send OTP code (backend) then go to VerifyEmailScreen in LOGIN mode
+      Navigator.of(context).pushNamed(
+        AppRoutes.verifyEmail,
+        arguments: {
+          'email': _emailCtrl.text.trim(),
+          'fullName': 'User', // TODO: backend returns full name
+          'role': 'tenant', // TODO: backend returns role: tenant/agent/landlord
+          'purpose': 'login', // ✅ critical: makes VerifyEmailScreen route to shell after OTP
+        },
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -113,7 +122,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: AppTypography.body(context).copyWith(color: textMuted),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-
                   _GlassCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,7 +144,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           onSubmitted: (_) => _passFocus.requestFocus(),
                         ),
                         const SizedBox(height: AppSpacing.lg),
-
                         Text(
                           'Password',
                           style: AppTypography.label(context).copyWith(color: textPrimary),
@@ -148,7 +155,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           hintText: '••••••••',
                           obscureText: _obscure,
                           prefixIcon: Icons.lock_outline_rounded,
-                          suffixIcon: _obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                          suffixIcon: _obscure
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
                           onSuffixTap: () => setState(() => _obscure = !_obscure),
                           textInputAction: TextInputAction.done,
                           autofillHints: const [AutofillHints.password],
@@ -156,7 +165,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           validator: _validatePass,
                           onSubmitted: (_) => _submit(),
                         ),
-
                         const SizedBox(height: AppSpacing.md),
                         Row(
                           children: [
@@ -169,9 +177,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: _loading
                                   ? null
                                   : () {
-                                      // TODO: forgot password screen
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Forgot password (todo)')),
+                                      Navigator.of(context).pushNamed(
+                                        AppRoutes.forgotPassword,
+                                        arguments: {'email': _emailCtrl.text.trim()},
                                       );
                                     },
                               child: Text(
@@ -184,17 +192,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ],
                         ),
-
                         const SizedBox(height: AppSpacing.md),
                         _PrimaryButton(
                           text: 'Sign In',
                           loading: _loading,
                           onPressed: _loading ? null : _submit,
                         ),
-
                         const SizedBox(height: AppSpacing.lg),
                         const _OrDivider(),
-
                         const SizedBox(height: AppSpacing.lg),
                         _GhostButton(
                           icon: Icons.g_mobiledata_rounded,
@@ -202,7 +207,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: _loading
                               ? null
                               : () {
-                                  // TODO: Google auth later
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('Google sign-in (todo)')),
                                   );
@@ -211,7 +215,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: AppSpacing.xl),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -283,7 +286,6 @@ class _BrandMark extends StatelessWidget {
 
 class _GlassCard extends StatelessWidget {
   const _GlassCard({required this.child});
-
   final Widget child;
 
   @override
@@ -366,7 +368,9 @@ class _AuthField extends StatelessWidget {
           color: AppColors.textMuted(context),
           fontWeight: FontWeight.w600,
         ),
-        prefixIcon: prefixIcon == null ? null : Icon(prefixIcon, color: AppColors.textMuted(context)),
+        prefixIcon: prefixIcon == null
+            ? null
+            : Icon(prefixIcon, color: AppColors.textMuted(context)),
         suffixIcon: suffixIcon == null
             ? null
             : IconButton(
@@ -396,7 +400,6 @@ class _AuthField extends StatelessWidget {
 
 class _RememberMe extends StatelessWidget {
   const _RememberMe({required this.value, required this.onChanged});
-
   final bool value;
   final ValueChanged<bool>? onChanged;
 

@@ -1,0 +1,4 @@
+enum VerifyPurpose {
+  register,
+  login,
+}

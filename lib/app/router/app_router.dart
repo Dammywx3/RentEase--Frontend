@@ -5,9 +5,14 @@ import '../../core/constants/user_role.dart';
 // AUTH
 import '../../features/auth/ui/login/login_screen.dart' as login;
 import '../../features/auth/ui/register/register_screen.dart' as reg;
-import '../../features/auth/ui/register/verify_email_screen.dart' as verify;
+import '../../features/auth/ui/verify_email/verify_email_screen.dart' as verify;
 import '../../features/auth/ui/register/choose_account_type_screen.dart' as choose;
 import '../../features/auth/welcome/post_login_welcome_screen.dart' as welcome;
+
+// FORGOT PASSWORD (new)
+import '../../features/auth/ui/forgot_password/forgot_password_screen.dart' as fp;
+import '../../features/auth/ui/forgot_password/reset_verify_code_screen.dart' as fpverify;
+import '../../features/auth/ui/forgot_password/reset_new_password_screen.dart' as fpnew;
 
 // SHELLS
 import '../../features/tenant/shell/tenant_shell.dart';
@@ -77,6 +82,34 @@ class AppRouter {
           ),
         );
 
+      // ---- Forgot password flow (new) ----
+      case AppRoutes.forgotPassword:
+        final args = settings.arguments;
+        final email =
+            (args is Map && args['email'] is String) ? args['email'] as String : null;
+
+        return MaterialPageRoute(
+          builder: (_) => fp.ForgotPasswordScreen(prefillEmail: email),
+        );
+
+      case AppRoutes.resetVerifyCode:
+        final args = settings.arguments;
+        final email =
+            (args is Map && args['email'] is String) ? args['email'] as String : '';
+
+        return MaterialPageRoute(
+          builder: (_) => fpverify.ResetVerifyCodeScreen(email: email),
+        );
+
+      case AppRoutes.resetNewPassword:
+        final args = settings.arguments;
+        final email =
+            (args is Map && args['email'] is String) ? args['email'] as String : '';
+
+        return MaterialPageRoute(
+          builder: (_) => fpnew.ResetNewPasswordScreen(email: email),
+        );
+
       // ---- Role shells ----
       case AppRoutes.tenant:
         return MaterialPageRoute(builder: (_) => const TenantShell());
@@ -101,6 +134,11 @@ class AppRoutes {
   static const register = '/register';
   static const verifyEmail = '/verify-email';
   static const welcome = '/welcome';
+
+  // forgot password (new)
+  static const forgotPassword = '/forgot-password';
+  static const resetVerifyCode = '/forgot-password/verify';
+  static const resetNewPassword = '/forgot-password/new';
 
   // shells
   static const tenant = '/tenant';
