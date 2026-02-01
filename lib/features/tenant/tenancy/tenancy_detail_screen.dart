@@ -15,16 +15,15 @@ import '../../../shared/widgets/secondary_button.dart';
 import 'pay_rent/pay_rent_sheet.dart';
 
 class TenancyDetailScreen extends StatelessWidget {
-  const TenancyDetailScreen({
-    super.key,
-    required this.tenancy,
-  });
+  const TenancyDetailScreen({super.key, required this.tenancy});
 
   final TenancyVM tenancy;
 
   @override
   Widget build(BuildContext context) {
-    final title = tenancy.title.trim().isEmpty ? 'Tenancy Detail' : tenancy.title;
+    final title = tenancy.title.trim().isEmpty
+        ? 'Tenancy Detail'
+        : tenancy.title;
 
     return AppScaffold(
       topBar: AppTopBar(
@@ -47,10 +46,10 @@ class TenancyDetailScreen extends StatelessWidget {
               onPressed: tenancy.leaseDocName == null
                   ? null
                   : () => ToastService.show(
-                        context,
-                        'Open lease doc (wire later)',
-                        success: true,
-                      ),
+                      context,
+                      'Open lease doc (wire later)',
+                      success: true,
+                    ),
               icon: const Icon(Icons.picture_as_pdf_rounded),
               label: Text(tenancy.leaseDocName ?? 'No document'),
             ),
@@ -102,7 +101,10 @@ class TenancyDetailScreen extends StatelessWidget {
             const Spacer(),
 
             // Optional: subtle footer spacing (token-only)
-            SizedBox(height: AppSizes.screenBottomPad / (AppSpacing.xxxl / AppSpacing.md)),
+            SizedBox(
+              height:
+                  AppSizes.screenBottomPad / (AppSpacing.xxxl / AppSpacing.md),
+            ),
           ],
         ),
       ),
@@ -140,9 +142,9 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary(context),
-          ),
+        fontWeight: FontWeight.w900,
+        color: AppColors.textPrimary(context),
+      ),
     );
   }
 }

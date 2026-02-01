@@ -1,3 +1,4 @@
+// lib/features/auth/ui/forgot_password/reset_verify_code_screen.dart
 import 'package:flutter/material.dart';
 
 import 'package:rentease_frontend/core/theme/app_colors.dart';
@@ -7,103 +8,94 @@ import 'package:rentease_frontend/core/theme/app_spacing.dart';
 import 'package:rentease_frontend/core/theme/app_typography.dart';
 
 import 'package:rentease_frontend/app/router/app_router.dart';
+import 'package:rentease_frontend/features/auth/data/auth_di.dart';
+
+import 'reset_verify_code_controller.dart';
+import 'reset_verify_code_state.dart';
 
 class ResetVerifyCodeScreen extends StatefulWidget {
-  const ResetVerifyCodeScreen({
-    super.key,
-    required this.email,
-    this.brandName = 'RentEase',
-    this.brandIcon = Icons.home_rounded,
-  });
-
+  const ResetVerifyCodeScreen({super.key, required this.email});
   final String email;
-  final String brandName;
-  final IconData brandIcon;
 
   @override
   State<ResetVerifyCodeScreen> createState() => _ResetVerifyCodeScreenState();
 }
 
 class _ResetVerifyCodeScreenState extends State<ResetVerifyCodeScreen> {
-  final _codeCtrl = TextEditingController();
+  late final ResetVerifyCodeController _c;
 
-  bool _loading = false;
-  bool _resendLocked = true;
-  int _resendSeconds = 45;
-
-  String? _error;
+  // ✅ Local banners (so we don't need _c.setError)
+  String? _localError;
+  String? _localInfo;
 
   @override
   void initState() {
     super.initState();
-    _startResendTimer();
+    _c = ResetVerifyCodeController(email: widget.email)..addListener(_onChanged);
+  }
+
+  void _onChanged() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   @override
   void dispose() {
-    _codeCtrl.dispose();
+    _c.removeListener(_onChanged);
+    _c.dispose();
     super.dispose();
   }
 
-  void _startResendTimer() {
-    _resendLocked = true;
-    _resendSeconds = 45;
-
-    // simple timer without Timer class (keeps file simple)
-    Future.doWhile(() async {
-      if (!mounted) return false;
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return false;
-
+  void _clearLocalBanners() {
+    if (_localError != null || _localInfo != null) {
       setState(() {
-        _resendSeconds = (_resendSeconds - 1).clamp(0, 999);
-        if (_resendSeconds == 0) _resendLocked = false;
+        _localError = null;
+        _localInfo = null;
       });
-
-      return _resendSeconds > 0;
-    });
+    }
   }
 
-  void _validate() {
-    final v = _codeCtrl.text.trim();
-    setState(() {
-      _error = v.length == 6 ? null : 'Enter the 6-digit code.';
-    });
-  }
+  String _prettyErr(Object e) =>
+      e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
 
-  Future<void> _verify() async {
-    _validate();
-    if (_error != null) return;
+  Future<void> _goNext() async {
+    FocusScope.of(context).unfocus();
 
-    setState(() => _loading = true);
+    _clearLocalBanners();
+
+    // Validate code locally first (uses your controller)
+    final code = _c.getValidCodeOrNull();
+    if (code == null) return;
+
     try {
-      // TODO: backend verify reset code
-      await Future.delayed(const Duration(milliseconds: 650));
+      // ✅ verify reset code -> returns resetToken
+      final result = await AuthDI.authRepo.verifyPasswordResetCode(
+        email: _c.state.email,
+        code: code,
+      );
+
       if (!mounted) return;
 
       Navigator.of(context).pushNamed(
         AppRoutes.resetNewPassword,
-        arguments: {'email': widget.email.trim()},
+        arguments: {
+          'email': _c.state.email,
+          'resetToken': result.resetToken,
+        },
       );
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (!mounted) return;
+      final msg = _prettyErr(e);
+      setState(() {
+        _localError = msg.isEmpty ? 'Invalid code. Try again.' : msg;
+      });
     }
-  }
-
-  Future<void> _resend() async {
-    if (_resendLocked) return;
-
-    setState(() => _resendLocked = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Code resent.')),
-    );
-
-    // TODO: backend resend reset code
-    _startResendTimer();
   }
 
   @override
   Widget build(BuildContext context) {
+    final ResetVerifyCodeState s = _c.state;
+
     final textPrimary = AppColors.textPrimary(context);
     final textMuted = AppColors.textMuted(context);
 
@@ -117,115 +109,143 @@ class _ResetVerifyCodeScreenState extends State<ResetVerifyCodeScreen> {
               vertical: AppSpacing.lg,
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: AppSpacing.sm),
-
-                SizedBox(
-                  height: 48,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          onPressed: _loading ? null : () => Navigator.of(context).pop(),
-                          icon: Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: AppColors.textSecondary(context),
-                          ),
-                        ),
-                      ),
-                      _BrandMarkSmall(
-                        name: widget.brandName,
-                        icon: widget.brandIcon,
-                      ),
-                    ],
-                  ),
+                // ✅ No brand: back + centered screen name
+                _TopBarCentered(
+                  title: 'Verify code',
+                  disabled: s.disabled,
+                  onBack: () => Navigator.of(context).pop(),
                 ),
 
                 const SizedBox(height: AppSpacing.xl),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Verify your email',
-                    style: AppTypography.h1(context).copyWith(color: textPrimary),
-                  ),
+
+                Text(
+                  'Enter reset code',
+                  style: AppTypography.h1(context).copyWith(color: textPrimary),
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'We sent a 6-digit code to\n${widget.email}',
-                    style: AppTypography.body(context).copyWith(color: textMuted),
-                  ),
+                Text(
+                  'We sent a 6-digit code to\n${s.email}',
+                  style: AppTypography.body(context).copyWith(color: textMuted),
                 ),
+                const SizedBox(height: AppSpacing.lg),
 
-                const SizedBox(height: AppSpacing.xl),
+                // ✅ Show local/controller banners
+                if (_localError != null) ...[
+                  _Banner(text: _localError!, icon: Icons.error_outline_rounded),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                if (_localInfo != null) ...[
+                  _Banner(text: _localInfo!, icon: Icons.check_circle_outline_rounded),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                if (s.error != null) ...[
+                  _Banner(text: s.error!, icon: Icons.error_outline_rounded),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                if (s.info != null) ...[
+                  _Banner(text: s.info!, icon: Icons.check_circle_outline_rounded),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+
                 _GlassCard(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Container(
-                        height: 110,
-                        width: 110,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface(context).withValues(alpha: 0.75),
-                          borderRadius: BorderRadius.circular(AppRadii.xl),
-                          border: Border.all(
-                            color: AppColors.border(context).withValues(alpha: 0.70),
+                      TextField(
+                        controller: _c.codeCtrl,
+                        focusNode: _c.codeFocus,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        textAlign: TextAlign.center,
+                        enabled: !s.disabled,
+                        onChanged: (v) {
+                          _clearLocalBanners();
+                          _c.setCode(v);
+                        },
+                        onSubmitted: (_) => _goNext(),
+                        style: AppTypography.h3(context).copyWith(
+                          color: AppColors.textPrimary(context),
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 2.0,
+                        ),
+                        decoration: InputDecoration(
+                          counterText: '',
+                          filled: true,
+                          fillColor: AppColors.surface(context).withValues(alpha: 0.85),
+                          hintText: '••••••',
+                          hintStyle: AppTypography.h3(context).copyWith(
+                            color: AppColors.textMuted(context),
+                            fontWeight: FontWeight.w800,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.md,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadii.lg),
+                            borderSide: BorderSide(color: AppColors.border(context)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadii.lg),
+                            borderSide: BorderSide(
+                              color: AppColors.border(context).withValues(alpha: 0.70),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadii.lg),
+                            borderSide: const BorderSide(
+                              color: AppColors.brandBlueSoft,
+                              width: 1.4,
+                            ),
                           ),
                         ),
-                        child: Icon(
-                          Icons.lock_reset_rounded,
-                          size: 44,
-                          color: AppColors.textSecondary(context),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-
-                      _CodeField(
-                        controller: _codeCtrl,
-                        errorText: _error,
-                        onChanged: (_) => _validate(),
-                        enabled: !_loading,
-                        onSubmitted: (_) => _verify(),
                       ),
 
-                      const SizedBox(height: AppSpacing.lg),
-                      _PrimaryButton(
-                        text: 'Verify',
-                        loading: _loading,
-                        onPressed: _loading ? null : _verify,
+                      const SizedBox(height: AppSpacing.sm),
+
+                      Row(
+                        children: [
+                          TextButton(
+                            onPressed: s.disabled
+                                ? null
+                                : () async {
+                                    _clearLocalBanners();
+                                    await _c.resend();
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _localInfo = 'Code sent.';
+                                    });
+                                  },
+                            child: Text(
+                              s.sending ? 'Sending...' : 'Resend code',
+                              style: AppTypography.body(context).copyWith(
+                                color: AppColors.brandBlueSoft,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: s.disabled ? null : () => Navigator.of(context).pop(),
+                            child: Text(
+                              'Change email',
+                              style: AppTypography.body(context).copyWith(
+                                color: AppColors.textMuted(context),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
 
                       const SizedBox(height: AppSpacing.md),
-                      TextButton(
-                        onPressed: _loading || _resendLocked ? null : _resend,
-                        child: Text(
-                          _resendLocked ? 'Resend code (${_resendSeconds}s)' : 'Resend code',
-                          style: AppTypography.body(context).copyWith(
-                            color: AppColors.brandBlueSoft,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: _loading
-                            ? null
-                            : () {
-                                // Change email -> go back to Forgot Password with email prefilled
-                                Navigator.of(context).pushNamedAndRemoveUntil(
-                                  AppRoutes.forgotPassword,
-                                  (r) => false,
-                                  arguments: {'email': widget.email.trim()},
-                                );
-                              },
-                        child: Text(
-                          'Change email',
-                          style: AppTypography.body(context).copyWith(
-                            color: AppColors.textSecondary(context),
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+
+                      _PrimaryButton(
+                        text: 'Continue',
+                        loading: s.loading,
+                        onPressed: s.disabled ? null : _goNext,
                       ),
                     ],
                   ),
@@ -239,28 +259,43 @@ class _ResetVerifyCodeScreenState extends State<ResetVerifyCodeScreen> {
   }
 }
 
-class _BrandMarkSmall extends StatelessWidget {
-  const _BrandMarkSmall({required this.name, required this.icon});
-  final String name;
-  final IconData icon;
+class _TopBarCentered extends StatelessWidget {
+  const _TopBarCentered({
+    required this.title,
+    required this.onBack,
+    required this.disabled,
+  });
+
+  final String title;
+  final VoidCallback onBack;
+  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: AppColors.brandGreen, size: 22),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTypography.h4(context).copyWith(
-            color: AppColors.textPrimary(context),
-            fontWeight: FontWeight.w900,
+    return SizedBox(
+      height: 48,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              onPressed: disabled ? null : onBack,
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: AppColors.textSecondary(context),
+              ),
+            ),
           ),
-        ),
-      ],
+          Text(
+            title,
+            style: AppTypography.h3(context).copyWith(
+              color: AppColors.textPrimary(context),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -275,78 +310,51 @@ class _GlassCard extends StatelessWidget {
     final border = AppColors.border(context).withValues(alpha: 0.60);
 
     return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(AppRadii.xl),
         border: Border.all(color: border),
         boxShadow: AppShadows.card(context),
       ),
-      padding: const EdgeInsets.all(AppSpacing.lg),
       child: child,
     );
   }
 }
 
-class _CodeField extends StatelessWidget {
-  const _CodeField({
-    required this.controller,
-    required this.onChanged,
-    this.errorText,
-    this.enabled = true,
-    this.onSubmitted,
-  });
-
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final String? errorText;
-  final bool enabled;
-  final ValueChanged<String>? onSubmitted;
+class _Banner extends StatelessWidget {
+  const _Banner({required this.text, required this.icon});
+  final String text;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    final fill = AppColors.surface(context).withValues(alpha: 0.85);
-    final border = AppColors.border(context);
+    final bg = AppColors.surface(context).withValues(alpha: 0.85);
+    final border = AppColors.border(context).withValues(alpha: 0.70);
 
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      keyboardType: TextInputType.number,
-      maxLength: 6,
-      onChanged: onChanged,
-      onSubmitted: onSubmitted,
-      style: AppTypography.h3(context).copyWith(
-        color: AppColors.textPrimary(context),
-        fontWeight: FontWeight.w900,
-        letterSpacing: 2.0,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: border),
       ),
-      decoration: InputDecoration(
-        counterText: '',
-        filled: true,
-        fillColor: fill,
-        hintText: '••••••',
-        hintStyle: AppTypography.h3(context).copyWith(
-          color: AppColors.textMuted(context),
-          fontWeight: FontWeight.w800,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.md,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: BorderSide(color: border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: BorderSide(color: border.withValues(alpha: 0.70)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: BorderSide(color: AppColors.brandBlueSoft, width: 1.4),
-        ),
-        errorText: errorText,
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.textSecondary(context)),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTypography.body(context).copyWith(
+                color: AppColors.textPrimary(context),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
       ),
-      textAlign: TextAlign.center,
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Simple token persistence used by ApiClient's tokenProvider.
-/// Keeps your auth working across app restarts.
+/// Keeps auth working across app restarts.
 class TokenStore {
   TokenStore._();
 

@@ -1,14 +1,14 @@
+// lib/features/auth/welcome/post_login_welcome_screen.dart
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/user_role.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_radii.dart';
-import '../../../core/theme/app_shadows.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_typography.dart';
+import 'package:rentease_frontend/core/constants/user_role.dart';
+import 'package:rentease_frontend/core/theme/app_colors.dart';
+import 'package:rentease_frontend/core/theme/app_radii.dart';
+import 'package:rentease_frontend/core/theme/app_shadows.dart';
+import 'package:rentease_frontend/core/theme/app_spacing.dart';
+import 'package:rentease_frontend/core/theme/app_typography.dart';
 
-// ✅ correct relative path: welcome/ -> ui/register/
-import '../ui/register/choose_account_type_screen.dart';
+import 'package:rentease_frontend/features/auth/ui/register/choose_account_type_screen.dart';
 
 class PostLoginWelcomeScreen extends StatelessWidget {
   const PostLoginWelcomeScreen({
@@ -16,20 +16,28 @@ class PostLoginWelcomeScreen extends StatelessWidget {
     required this.fullName,
     required this.role,
     this.lastLogin,
-    this.brandName = 'RentEase',
-    this.brandIcon = Icons.home_rounded,
   });
 
   final String fullName;
   final UserRole role;
   final DateTime? lastLogin;
 
-  // ✅ brand (remove HomeStead hardcode)
-  final String brandName;
-  final IconData brandIcon;
-
   void _go(BuildContext context) {
     Navigator.of(context).pushReplacementNamed(role.toRoute());
+  }
+
+  String _greeting(DateTime now) {
+    final h = now.hour;
+    if (h >= 5 && h < 12) return 'Good morning';
+    if (h >= 12 && h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  String _firstName(String name) {
+    final n = name.trim();
+    if (n.isEmpty) return 'User';
+    final parts = n.split(RegExp(r'\s+'));
+    return parts.isEmpty ? 'User' : parts.first;
   }
 
   @override
@@ -40,6 +48,9 @@ class PostLoginWelcomeScreen extends StatelessWidget {
     final now = lastLogin ?? DateTime.now();
     final timeText =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
+    final nameToShow = _firstName(fullName);
+    final greet = _greeting(now);
 
     return Scaffold(
       body: Container(
@@ -52,20 +63,32 @@ class PostLoginWelcomeScreen extends StatelessWidget {
             ),
             child: Column(
               children: [
-                const SizedBox(height: AppSpacing.sm),
-                _BrandMark(name: brandName, icon: brandIcon),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.md),
+
+                // ✅ Smaller text than before (reduced from h1)
                 Text(
-                  'Welcome, ${_firstName(fullName)} 👋',
-                  style: AppTypography.h1(context).copyWith(color: textPrimary),
+                  '$greet, $nameToShow 👋',
+                  style: AppTypography.h2(context).copyWith(
+                    color: textPrimary,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 24, // ✅ reduce size
+                    height: 1.1,
+                  ),
                   textAlign: TextAlign.center,
                 ),
+
                 const SizedBox(height: AppSpacing.xs),
+
                 Text(
                   role.welcomeLine,
-                  style: AppTypography.body(context).copyWith(color: textMuted),
+                  style: AppTypography.body(context).copyWith(
+                    color: textMuted,
+                    fontSize: 14.5, // ✅ slightly smaller
+                    height: 1.3,
+                  ),
                   textAlign: TextAlign.center,
                 ),
+
                 const SizedBox(height: AppSpacing.xl),
 
                 _GlassCard(
@@ -73,39 +96,45 @@ class PostLoginWelcomeScreen extends StatelessWidget {
                     children: [
                       _RolePill(role: role),
                       const SizedBox(height: AppSpacing.md),
+
+                      // ✅ Smaller headline inside card too
                       Text(
                         role.welcomeLine,
                         style: AppTypography.h3(context).copyWith(
                           color: AppColors.textPrimary(context),
                           fontWeight: FontWeight.w900,
+                          fontSize: 18, // ✅ reduce size
                         ),
                         textAlign: TextAlign.center,
                       ),
+
                       const SizedBox(height: AppSpacing.lg),
 
-                      // ✅ Role image card (PNG) — now fills the card
                       Container(
-  height: 150,
-  width: double.infinity,
-  decoration: BoxDecoration(
-    color: AppColors.surface(context).withValues(alpha: 0.70),
-    borderRadius: BorderRadius.circular(AppRadii.xl),
-    border: Border.all(
-      color: AppColors.border(context).withValues(alpha: 0.70),
-    ),
-  ),
-  child: ClipRRect(
-    borderRadius: BorderRadius.circular(AppRadii.xl),
-    child: _RoleImage(role: role),
-  ),
-),
+                        height: 150,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface(context).withValues(alpha: 0.70),
+                          borderRadius: BorderRadius.circular(AppRadii.xl),
+                          border: Border.all(
+                            color: AppColors.border(context).withValues(alpha: 0.70),
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(AppRadii.xl),
+                          child: _RoleImage(role: role),
+                        ),
+                      ),
 
                       const SizedBox(height: AppSpacing.lg),
+
                       _PrimaryButton(
-                        text: role.primaryCta,
+                        text: (role == UserRole.tenant) ? 'Explore' : role.primaryCta,
                         onPressed: () => _go(context),
                       ),
+
                       const SizedBox(height: AppSpacing.md),
+
                       TextButton(
                         onPressed: () {
                           Navigator.of(context).push(
@@ -119,9 +148,11 @@ class PostLoginWelcomeScreen extends StatelessWidget {
                           style: AppTypography.body(context).copyWith(
                             color: AppColors.textSecondary(context),
                             fontWeight: FontWeight.w800,
+                            fontSize: 14.5, // ✅ slightly smaller
                           ),
                         ),
                       ),
+
                       const SizedBox(height: AppSpacing.sm),
                       Container(
                         height: 1,
@@ -129,11 +160,13 @@ class PostLoginWelcomeScreen extends StatelessWidget {
                         color: AppColors.divider(context).withValues(alpha: 0.70),
                       ),
                       const SizedBox(height: AppSpacing.sm),
+
                       Text(
                         'Last login: Today $timeText',
                         style: AppTypography.caption(context).copyWith(
                           color: AppColors.textMuted(context),
                           fontWeight: FontWeight.w700,
+                          fontSize: 12.5, // ✅ slightly smaller
                         ),
                       ),
                     ],
@@ -146,35 +179,6 @@ class PostLoginWelcomeScreen extends StatelessWidget {
       ),
     );
   }
-
-  static String _firstName(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    return parts.isEmpty ? 'Michael' : parts.first;
-  }
-}
-
-class _BrandMark extends StatelessWidget {
-  const _BrandMark({required this.name, required this.icon});
-  final String name;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: AppColors.brandGreen, size: 26),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          name,
-          style: AppTypography.h3(context).copyWith(
-            color: AppColors.textPrimary(context),
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _RoleImage extends StatelessWidget {
@@ -182,7 +186,6 @@ class _RoleImage extends StatelessWidget {
   final UserRole role;
 
   String _roleAsset() {
-    // ✅ Change this to assets/image/... if your folder is singular.
     switch (role) {
       case UserRole.tenant:
         return 'assets/images/tenant.png';
@@ -190,6 +193,8 @@ class _RoleImage extends StatelessWidget {
         return 'assets/images/agent.png';
       case UserRole.landlord:
         return 'assets/images/landlord.png';
+      case UserRole.admin:
+        return 'assets/images/admin.png';
     }
   }
 
@@ -201,19 +206,19 @@ class _RoleImage extends StatelessWidget {
         return Icons.apartment_rounded;
       case UserRole.landlord:
         return Icons.assignment_rounded;
+      case UserRole.admin:
+        return Icons.admin_panel_settings_rounded;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Fill the entire card
     return SizedBox.expand(
       child: Image.asset(
         _roleAsset(),
-        fit: BoxFit.contain, // fills the box (may crop a little)
+        fit: BoxFit.contain,
         alignment: Alignment.center,
         errorBuilder: (_, __, ___) {
-          // ✅ fallback so you never get a red screen
           return Center(
             child: Icon(
               _fallbackIcon(),
@@ -252,6 +257,7 @@ class _RolePill extends StatelessWidget {
           color: AppColors.textSecondary(context),
           fontWeight: FontWeight.w900,
           letterSpacing: 1.1,
+          fontSize: 12.5, // ✅ slightly smaller
         ),
       ),
     );
@@ -281,10 +287,7 @@ class _GlassCard extends StatelessWidget {
 }
 
 class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({
-    required this.text,
-    required this.onPressed,
-  });
+  const _PrimaryButton({required this.text, required this.onPressed});
 
   final String text;
   final VoidCallback onPressed;
@@ -312,6 +315,7 @@ class _PrimaryButton extends StatelessWidget {
           style: AppTypography.button(context).copyWith(
             color: fg,
             fontWeight: FontWeight.w900,
+            fontSize: 15.5, // ✅ slightly smaller
           ),
         ),
       ),

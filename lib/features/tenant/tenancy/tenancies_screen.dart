@@ -67,7 +67,9 @@ class _TenanciesScreenState extends State<TenanciesScreen> {
   Widget build(BuildContext context) {
     final list = _tab == 0 ? widget.active : widget.past;
     final activeCount = widget.active.length;
-    final featuredActive = widget.active.isNotEmpty ? widget.active.first : null;
+    final featuredActive = widget.active.isNotEmpty
+        ? widget.active.first
+        : null;
 
     return Stack(
       children: [
@@ -86,9 +88,7 @@ class _TenanciesScreenState extends State<TenanciesScreen> {
           safeAreaBottom: false,
 
           // ✅ AppTopBar: title only
-          topBar: AppTopBar(
-            title: widget.title ?? 'My Tenancies',
-          ),
+          topBar: AppTopBar(title: widget.title ?? 'My Tenancies'),
 
           // ✅ Remove inner DecoratedBox; gradient already behind everything
           child: ListView(
@@ -106,10 +106,11 @@ class _TenanciesScreenState extends State<TenanciesScreen> {
                   child: Text(
                     widget.subtitle!.trim(),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textMuted(context)
-                              .withValues(alpha: 0.92),
-                        ),
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMuted(
+                        context,
+                      ).withValues(alpha: 0.92),
+                    ),
                   ),
                 ),
 
@@ -138,9 +139,9 @@ class _TenanciesScreenState extends State<TenanciesScreen> {
                     child: Text(
                       'No tenancies',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textMuted(context),
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textMuted(context),
+                      ),
                     ),
                   ),
                 )
@@ -163,14 +164,16 @@ class _TenanciesScreenState extends State<TenanciesScreen> {
                             Row(
                               children: [
                                 ClipRRect(
-                                  borderRadius:
-                                      BorderRadius.circular(AppRadii.sm),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.sm,
+                                  ),
                                   child: Container(
                                     height: AppSizes.listThumbSize,
                                     width:
                                         AppSizes.listThumbSize + AppSpacing.md,
-                                    color: AppColors.tenantPanel
-                                        .withValues(alpha: 0.85),
+                                    color: AppColors.tenantPanel.withValues(
+                                      alpha: 0.85,
+                                    ),
                                     alignment: Alignment.center,
                                     child: const Icon(
                                       Icons.home_rounded,
@@ -223,18 +226,18 @@ class _TenanciesScreenState extends State<TenanciesScreen> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: statusColor.withValues(alpha: 0.18),
-                                    borderRadius:
-                                        BorderRadius.circular(AppRadii.pill),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadii.pill,
+                                    ),
                                     border: Border.all(
-                                      color:
-                                          statusColor.withValues(alpha: 0.25),
+                                      color: statusColor.withValues(
+                                        alpha: 0.25,
+                                      ),
                                     ),
                                   ),
                                   child: Text(
                                     t.statusLabel,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
+                                    style: Theme.of(context).textTheme.bodySmall
                                         ?.copyWith(
                                           fontWeight: FontWeight.w900,
                                           color: AppColors.navy,
@@ -266,14 +269,15 @@ class _TenanciesScreenState extends State<TenanciesScreen> {
                                   child: _PillButton(
                                     text: isActive
                                         ? (t.dealType == TenancyDealType.rent
-                                            ? 'Pay rent'
-                                            : 'View details')
+                                              ? 'Pay rent'
+                                              : 'View details')
                                         : 'View details',
                                     filled: true,
                                     color: isActive
                                         ? AppColors.brandBlueSoft
                                         : AppColors.brandGreenDeep,
-                                    onTap: () => isActive &&
+                                    onTap: () =>
+                                        isActive &&
                                             t.dealType == TenancyDealType.rent
                                         ? _openPaySheet(t)
                                         : _openDetails(t),
@@ -314,8 +318,8 @@ class _TenanciesScreenState extends State<TenanciesScreen> {
                                         MaterialPageRoute(
                                           builder: (_) =>
                                               CreateMaintenanceRequestScreen(
-                                            addressLabel: t.location,
-                                          ),
+                                                addressLabel: t.location,
+                                              ),
                                         ),
                                       );
                                     },
@@ -444,17 +448,18 @@ class _ActiveTenancyHeroCard extends StatelessWidget {
                         Icon(
                           Icons.verified_rounded,
                           size: 18,
-                          color: AppColors.brandGreenDeep
-                              .withValues(alpha: 0.95),
+                          color: AppColors.brandGreenDeep.withValues(
+                            alpha: 0.95,
+                          ),
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
                           'Active tenancy',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.navy,
-                                  ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.navy,
+                              ),
                         ),
                       ],
                     ),
@@ -462,8 +467,7 @@ class _ActiveTenancyHeroCard extends StatelessWidget {
                   const Spacer(),
                   Icon(
                     Icons.chevron_right_rounded,
-                    color:
-                        AppColors.textMuted(context).withValues(alpha: 0.90),
+                    color: AppColors.textMuted(context).withValues(alpha: 0.90),
                   ),
                 ],
               ),
@@ -473,9 +477,9 @@ class _ActiveTenancyHeroCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.navy,
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.navy,
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
@@ -483,10 +487,9 @@ class _ActiveTenancyHeroCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textMuted(context)
-                          .withValues(alpha: 0.92),
-                    ),
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textMuted(context).withValues(alpha: 0.92),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
 
@@ -581,9 +584,9 @@ class _HeroChip extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.navy,
+              ),
             ),
           ),
         ],
@@ -631,10 +634,9 @@ class _TenancyDetailsScreen extends StatelessWidget {
                 child: Text(
                   tenancy.location,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textMuted(context)
-                            .withValues(alpha: 0.92),
-                      ),
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textMuted(context).withValues(alpha: 0.92),
+                  ),
                 ),
               ),
               _FrostCard(
@@ -645,7 +647,8 @@ class _TenancyDetailsScreen extends StatelessWidget {
                     children: [
                       Text(
                         'Overview',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w900,
                               color: AppColors.navy,
                             ),
@@ -654,14 +657,15 @@ class _TenancyDetailsScreen extends StatelessWidget {
                       Text(
                         '${tenancy.startLabel} – ${tenancy.endLabel}',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.navy,
-                            ),
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navy,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
                         'Rent & Payments',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w900,
                               color: AppColors.navy,
                             ),
@@ -682,10 +686,10 @@ class _TenancyDetailsScreen extends StatelessWidget {
                         color: AppColors.brandGreenDeep,
                         onTap: tenancy.dealType == TenancyDealType.rent
                             ? () => PayRentSheet.open(
-                                  context,
-                                  title: tenancy.title,
-                                  amountNgn: tenancy.rentNgn,
-                                )
+                                context,
+                                title: tenancy.title,
+                                amountNgn: tenancy.rentNgn,
+                              )
                             : null,
                       ),
                     ],
@@ -780,9 +784,9 @@ class _SegBtn extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.navy,
-              ),
+            fontWeight: FontWeight.w900,
+            color: AppColors.navy,
+          ),
         ),
       ),
     );
@@ -811,9 +815,9 @@ class _MiniInfo extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w800,
+                color: AppColors.navy,
+              ),
             ),
           ),
         ],
@@ -860,9 +864,9 @@ class _LinkChip extends StatelessWidget {
             Text(
               text,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.navy,
+              ),
             ),
           ],
         ),
@@ -886,17 +890,17 @@ class _KVRow extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textMuted(context).withValues(alpha: 0.85),
-                  ),
+                fontWeight: FontWeight.w800,
+                color: AppColors.textMuted(context).withValues(alpha: 0.85),
+              ),
             ),
           ),
           Text(
             value,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.navy,
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.navy,
+            ),
           ),
         ],
       ),
@@ -943,11 +947,11 @@ class _PillButton extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: disabled
-                    ? AppColors.textMuted(context)
-                    : (filled ? AppColors.white : AppColors.navy),
-              ),
+            fontWeight: FontWeight.w900,
+            color: disabled
+                ? AppColors.textMuted(context)
+                : (filled ? AppColors.white : AppColors.navy),
+          ),
         ),
       ),
     );

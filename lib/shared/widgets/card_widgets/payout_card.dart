@@ -43,9 +43,13 @@ class PayoutCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
-          color: AppColors.surface(context).withValues(alpha: _alphaSurfaceStrong()),
+          color: AppColors.surface(
+            context,
+          ).withValues(alpha: _alphaSurfaceStrong()),
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.overlay(context, _alphaBorderSoft())),
+          border: Border.all(
+            color: AppColors.overlay(context, _alphaBorderSoft()),
+          ),
           boxShadow: AppShadows.lift(
             context,
             blur: AppSpacing.xxxl,

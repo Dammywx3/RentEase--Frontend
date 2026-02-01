@@ -1,18 +1,21 @@
+// lib/features/auth/ui/verify_email/verify_email_screen.dart
 import 'package:flutter/material.dart';
 
 import 'package:rentease_frontend/core/constants/user_role.dart';
+import 'package:rentease_frontend/core/network/api_client.dart'; // ✅ NEW import
 import 'package:rentease_frontend/core/theme/app_colors.dart';
 import 'package:rentease_frontend/core/theme/app_radii.dart';
 import 'package:rentease_frontend/core/theme/app_shadows.dart';
 import 'package:rentease_frontend/core/theme/app_spacing.dart';
 import 'package:rentease_frontend/core/theme/app_typography.dart';
 
-import 'package:rentease_frontend/app/router/app_router.dart';
+// ✅ success screen
+import 'account_created_screen.dart';
 
-// ✅ correct relative path (register -> welcome)
 import '../../welcome/post_login_welcome_screen.dart';
 
-// NEW: purpose
+import 'verify_email_controller.dart';
+import 'verify_email_state.dart';
 import 'verify_purpose.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
@@ -21,13 +24,8 @@ class VerifyEmailScreen extends StatefulWidget {
     required this.email,
     required this.role,
     required this.fullName,
-
-    // NEW: why are we verifying?
-    this.purpose = VerifyPurpose.register,
-
-    // ✅ remove HomeStead hardcode
-    this.brandName = 'RentEase',
-    this.brandIcon = Icons.home_rounded,
+    required this.purpose,
+    this.channel = 'email',
   });
 
   final String email;
@@ -35,71 +33,40 @@ class VerifyEmailScreen extends StatefulWidget {
   final String fullName;
 
   final VerifyPurpose purpose;
-
-  final String brandName;
-  final IconData brandIcon;
+  final String channel;
 
   @override
   State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
 }
 
 class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
+  late final VerifyEmailController _c;
+
   final _codeCtrl = TextEditingController();
-  bool _loading = false;
-  String? _error;
+  final _codeFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _c = VerifyEmailController(
+      email: widget.email,
+      purpose: widget.purpose,
+      channel: widget.channel,
+    )..addListener(_onChanged);
+  }
+
+  void _onChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
 
   @override
   void dispose() {
+    _c.removeListener(_onChanged);
+    _c.dispose();
     _codeCtrl.dispose();
+    _codeFocus.dispose();
     super.dispose();
-  }
-
-  void _validate() {
-    final v = _codeCtrl.text.trim();
-    setState(() {
-      _error = v.length == 6 ? null : 'Enter the 6-digit code.';
-    });
-  }
-
-  Future<void> _verify() async {
-    _validate();
-    if (_error != null) return;
-
-    setState(() => _loading = true);
-
-    try {
-      // TODO:
-      // - if purpose == register: verify email code for new account
-      // - if purpose == login: verify login OTP code
-      await Future.delayed(const Duration(milliseconds: 700));
-      if (!mounted) return;
-
-      // ✅ routing based on purpose
-      if (widget.purpose == VerifyPurpose.register) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => PostLoginWelcomeScreen(
-              fullName: widget.fullName.trim().isEmpty ? 'User' : widget.fullName.trim(),
-              role: widget.role,
-            ),
-          ),
-          (r) => false,
-        );
-        return;
-      }
-
-      // purpose == login
-      // after OTP, go to correct shell
-      final target = switch (widget.role) {
-        UserRole.tenant => AppRoutes.tenant,
-        UserRole.agent => AppRoutes.agent,
-        UserRole.landlord => AppRoutes.landlord,
-      };
-
-      Navigator.of(context).pushNamedAndRemoveUntil(target, (r) => false);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
   }
 
   String get _subtitle {
@@ -109,9 +76,111 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     return 'We sent a verification code to\n${widget.email}';
   }
 
+  UserRole _parseUserRoleFromBackend(String raw, {required UserRole fallback}) {
+    final v = raw.trim().toLowerCase();
+    switch (v) {
+      case 'tenant':
+        return UserRole.tenant;
+      case 'agent':
+        return UserRole.agent;
+      case 'landlord':
+        return UserRole.landlord;
+      case 'admin':
+        return UserRole.admin;
+      default:
+        return fallback;
+    }
+  }
+
+  Future<void> _verifyNow() async {
+    FocusScope.of(context).unfocus();
+
+    final code = _codeCtrl.text.trim();
+    _c.setCode(code);
+
+    // ✅ If login OTP: call backend confirm to get REAL full_name + role
+    if (widget.purpose == VerifyPurpose.login) {
+      try {
+        // NOTE: we don't touch controller loading/info/error because your controller
+        // doesn't have setLoading/setError/setInfo methods.
+        // UI already shows loader from controller during verify(), so we keep it simple.
+
+        final api = ApiClient();
+        final json = await api.post(
+          '/v1/auth/login/confirm',
+          data: {
+            'email': widget.email.trim(),
+            'code': code,
+          },
+        );
+
+        final userAny = json['user'];
+        final user = (userAny is Map)
+            ? Map<String, dynamic>.from(userAny as Map)
+            : <String, dynamic>{};
+
+        final fullName = (user['full_name'] ??
+                user['fullName'] ??
+                user['name'] ??
+                '')
+            .toString()
+            .trim();
+
+        final roleStr = (user['role'] ?? '').toString();
+        final realRole = _parseUserRoleFromBackend(roleStr, fallback: widget.role);
+
+        final safeName = fullName.isEmpty ? 'User' : fullName;
+
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => PostLoginWelcomeScreen(
+              fullName: safeName,
+              role: realRole,
+            ),
+          ),
+          (r) => false,
+        );
+        return;
+      } catch (_) {
+        // If confirm fails, fall back to your existing controller flow (it will show s.error)
+        // so you still get proper error handling UI.
+      }
+    }
+
+    // ✅ Default: keep your old working controller verify flow
+    final ok = await _c.verify();
+    if (!mounted || !ok) return;
+
+    // ✅ REGISTER EMAIL VERIFY -> show "Account created ✅" then Go to Login
+    if (widget.purpose == VerifyPurpose.emailVerify) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => AccountCreatedScreen(email: widget.email),
+        ),
+        (r) => false,
+      );
+      return;
+    }
+
+    // ✅ Otherwise keep your current flow
+    final safeName =
+        widget.fullName.trim().isEmpty ? 'User' : widget.fullName.trim();
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => PostLoginWelcomeScreen(
+          fullName: safeName,
+          role: widget.role,
+        ),
+      ),
+      (r) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final textPrimary = AppColors.textPrimary(context);
+    final VerifyEmailState s = _c.state;
+
     final textMuted = AppColors.textMuted(context);
 
     return Scaffold(
@@ -124,51 +193,36 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
               vertical: AppSpacing.lg,
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: AppSpacing.sm),
-
-                // ✅ Clean top row: back + perfectly centered brand
-                SizedBox(
-                  height: 48,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          onPressed: _loading ? null : () => Navigator.of(context).pop(),
-                          icon: Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: AppColors.textSecondary(context),
-                          ),
-                        ),
-                      ),
-                      _BrandMarkSmall(
-                        name: widget.brandName,
-                        icon: widget.brandIcon,
-                      ),
-                    ],
-                  ),
+                _TopBarCentered(
+                  title: 'Verify code',
+                  disabled: s.disabled,
+                  onBack: () => Navigator.of(context).pop(),
                 ),
 
                 const SizedBox(height: AppSpacing.xl),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Verify your email',
-                    style: AppTypography.h1(context).copyWith(color: textPrimary),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _subtitle,
-                    style: AppTypography.body(context).copyWith(color: textMuted),
-                  ),
+
+                // ✅ Removed: "Verify your email"
+                Text(
+                  _subtitle,
+                  style: AppTypography.body(context).copyWith(color: textMuted),
                 ),
 
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.lg),
+
+                if (s.error != null) ...[
+                  _Banner(text: s.error!, icon: Icons.error_outline_rounded),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                if (s.info != null) ...[
+                  _Banner(
+                    text: s.info!,
+                    icon: Icons.check_circle_outline_rounded,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+
                 _GlassCard(
                   child: Column(
                     children: [
@@ -188,40 +242,43 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                           color: AppColors.textSecondary(context),
                         ),
                       ),
+
                       const SizedBox(height: AppSpacing.lg),
 
                       _CodeField(
                         controller: _codeCtrl,
-                        errorText: _error,
-                        onChanged: (_) => _validate(),
+                        enabled: !s.disabled,
+                        errorText: null,
+                        onChanged: (v) => _c.setCode(v),
+                        onSubmitted: (_) => _verifyNow(),
                       ),
 
                       const SizedBox(height: AppSpacing.lg),
+
                       _PrimaryButton(
-                        text: 'Verify',
-                        loading: _loading,
-                        onPressed: _loading ? null : _verify,
+                        text: (widget.purpose == VerifyPurpose.login)
+                            ? 'Confirm'
+                            : 'Verify',
+                        loading: s.loading,
+                        onPressed: s.loading ? null : _verifyNow,
                       ),
 
                       const SizedBox(height: AppSpacing.md),
+
                       TextButton(
-                        onPressed: _loading
-                            ? null
-                            : () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Resend code (todo)')),
-                                );
-                              },
+                        onPressed: s.disabled ? null : _c.resend,
                         child: Text(
-                          'Resend code',
+                          s.sending ? 'Sending...' : 'Resend code',
                           style: AppTypography.body(context).copyWith(
                             color: AppColors.brandBlueSoft,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
+
                       TextButton(
-                        onPressed: _loading ? null : () => Navigator.of(context).pop(),
+                        onPressed:
+                            s.disabled ? null : () => Navigator.of(context).pop(),
                         child: Text(
                           'Change email',
                           style: AppTypography.body(context).copyWith(
@@ -242,29 +299,80 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   }
 }
 
-class _BrandMarkSmall extends StatelessWidget {
-  const _BrandMarkSmall({required this.name, required this.icon});
+class _TopBarCentered extends StatelessWidget {
+  const _TopBarCentered({
+    required this.title,
+    required this.onBack,
+    required this.disabled,
+  });
 
-  final String name;
+  final String title;
+  final VoidCallback onBack;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              onPressed: disabled ? null : onBack,
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: AppColors.textSecondary(context),
+              ),
+            ),
+          ),
+          Text(
+            title,
+            style: AppTypography.h3(context).copyWith(
+              color: AppColors.textPrimary(context),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Banner extends StatelessWidget {
+  const _Banner({required this.text, required this.icon});
+  final String text;
   final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: AppColors.brandGreen, size: 22),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTypography.h4(context).copyWith(
-            color: AppColors.textPrimary(context),
-            fontWeight: FontWeight.w900,
+    final bg = AppColors.surface(context).withValues(alpha: 0.85);
+    final border = AppColors.border(context).withValues(alpha: 0.70);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.textSecondary(context)),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTypography.body(context).copyWith(
+                color: AppColors.textPrimary(context),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -295,11 +403,15 @@ class _CodeField extends StatelessWidget {
   const _CodeField({
     required this.controller,
     required this.onChanged,
+    required this.onSubmitted,
+    required this.enabled,
     this.errorText,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final ValueChanged<String> onSubmitted;
+  final bool enabled;
   final String? errorText;
 
   @override
@@ -309,9 +421,12 @@ class _CodeField extends StatelessWidget {
 
     return TextField(
       controller: controller,
+      enabled: enabled,
       keyboardType: TextInputType.number,
       maxLength: 6,
       onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      textAlign: TextAlign.center,
       style: AppTypography.h3(context).copyWith(
         color: AppColors.textPrimary(context),
         fontWeight: FontWeight.w900,
@@ -340,11 +455,13 @@ class _CodeField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: BorderSide(color: AppColors.brandBlueSoft, width: 1.4),
+          borderSide: const BorderSide(
+            color: AppColors.brandBlueSoft,
+            width: 1.4,
+          ),
         ),
         errorText: errorText,
       ),
-      textAlign: TextAlign.center,
     );
   }
 }

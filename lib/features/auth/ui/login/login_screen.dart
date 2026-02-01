@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -8,91 +10,107 @@ import 'package:rentease_frontend/core/theme/app_spacing.dart';
 import 'package:rentease_frontend/core/theme/app_typography.dart';
 
 import 'package:rentease_frontend/app/router/app_router.dart';
-
 import '../register/choose_account_type_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({
-    super.key,
-    this.brandName = 'RentEase',
-    this.brandIcon = Icons.home_rounded,
-  });
+import 'login_controller.dart';
+import 'login_state.dart';
 
-  final String brandName;
-  final IconData brandIcon;
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-
-  final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  final _emailFocus = FocusNode();
-  final _passFocus = FocusNode();
+  late final LoginController _c;
 
   bool _rememberMe = true;
-  bool _obscure = true;
-  bool _loading = false;
-
-  static final RegExp _emailRx = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+  bool _didPrefill = false;
 
   @override
-  void dispose() {
-    _emailCtrl.dispose();
-    _passCtrl.dispose();
-    _emailFocus.dispose();
-    _passFocus.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _c = LoginController()..addListener(_onChanged);
   }
 
-  String? _validateEmail(String? v) {
-    final email = (v ?? '').trim();
-    if (email.isEmpty) return 'Enter your email address.';
-    if (!_emailRx.hasMatch(email)) return 'Enter a valid email address.';
-    return null;
-  }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-  String? _validatePass(String? v) {
-    final pass = (v ?? '');
-    if (pass.isEmpty) return 'Enter your password.';
-    if (pass.length < 6) return 'Password must be at least 6 characters.';
-    return null;
-  }
+    // ✅ Read route args once and prefill email
+    if (_didPrefill) return;
+    _didPrefill = true;
 
-  Future<void> _submit() async {
-    final ok = _formKey.currentState?.validate() ?? false;
-    if (!ok) return;
-
-    FocusScope.of(context).unfocus();
-    setState(() => _loading = true);
-
-    try {
-      // TODO: call backend: auth/login (email + password)
-      await Future.delayed(const Duration(milliseconds: 700));
-      if (!mounted) return;
-
-      // ✅ After sign-in: send OTP code (backend) then go to VerifyEmailScreen in LOGIN mode
-      Navigator.of(context).pushNamed(
-        AppRoutes.verifyEmail,
-        arguments: {
-          'email': _emailCtrl.text.trim(),
-          'fullName': 'User', // TODO: backend returns full name
-          'role': 'tenant', // TODO: backend returns role: tenant/agent/landlord
-          'purpose': 'login', // ✅ critical: makes VerifyEmailScreen route to shell after OTP
-        },
-      );
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      final email = (args['email'] ?? '').toString().trim();
+      if (email.isNotEmpty && _c.emailCtrl.text.trim().isEmpty) {
+        _c.emailCtrl.text = email;
+        // optional: put cursor at end
+        _c.emailCtrl.selection = TextSelection.fromPosition(
+          TextPosition(offset: _c.emailCtrl.text.length),
+        );
+        // optional: focus password
+        Future.microtask(() => _c.passFocus.requestFocus());
+      }
     }
   }
 
+  void _onChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _c.removeListener(_onChanged);
+    _c.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+
+    final res = await _c.login();
+    if (!mounted || res == null) return;
+
+    // ✅ OTP required (login flow)
+    if (res.requiresOtp) {
+      Navigator.of(context).pushNamed(
+        AppRoutes.verifyEmail,
+        arguments: {
+          'email': res.email,
+          'fullName': 'User',
+          'role': 'tenant',
+          'purpose': 'login',
+          'channel': 'email',
+        },
+      );
+      return;
+    }
+
+    // ✅ direct success -> welcome screen
+    Navigator.of(context).pushReplacementNamed(
+      AppRoutes.welcome,
+      arguments: {
+        'fullName': res.fullName ?? 'User',
+        'role': res.role,
+      },
+    );
+  }
+
+  bool get _isIOS => Platform.isIOS;
+
   @override
   Widget build(BuildContext context) {
+    final LoginState s = _c.state;
+
     final textPrimary = AppColors.textPrimary(context);
     final textMuted = AppColors.textMuted(context);
+
+    final showApple = _isIOS;
+    final showGoogle = !showApple;
 
     return Scaffold(
       body: Container(
@@ -104,25 +122,42 @@ class _LoginScreenState extends State<LoginScreen> {
               vertical: AppSpacing.lg,
             ),
             child: Form(
-              key: _formKey,
               child: Column(
                 children: [
                   const SizedBox(height: AppSpacing.lg),
-                  _BrandMark(
-                    name: widget.brandName,
-                    icon: widget.brandIcon,
+
+                  // ✅ Top bar title centered
+                  SizedBox(
+                    height: 48,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Text(
+                          'Login',
+                          style: AppTypography.h3(context).copyWith(
+                            color: textPrimary,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+
                   const SizedBox(height: AppSpacing.xl),
-                  Text(
-                    'Welcome back',
-                    style: AppTypography.h1(context).copyWith(color: textPrimary),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
+
                   Text(
                     'Sign in with your email',
                     style: AppTypography.body(context).copyWith(color: textMuted),
+                    textAlign: TextAlign.center,
                   ),
+
                   const SizedBox(height: AppSpacing.xl),
+
+                  if (s.error != null) ...[
+                    _ErrorBanner(text: s.error!),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+
                   _GlassCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,54 +168,65 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         _AuthField(
-                          controller: _emailCtrl,
-                          focusNode: _emailFocus,
+                          controller: _c.emailCtrl,
+                          focusNode: _c.emailFocus,
                           hintText: 'jane.doe@email.com',
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
                           prefixIcon: Icons.mail_outline_rounded,
-                          autofillHints: const [AutofillHints.username, AutofillHints.email],
-                          enabled: !_loading,
-                          validator: _validateEmail,
-                          onSubmitted: (_) => _passFocus.requestFocus(),
+                          autofillHints: const [
+                            AutofillHints.username,
+                            AutofillHints.email
+                          ],
+                          enabled: !s.loading,
+                          validator: (_) => null,
+                          onSubmitted: (_) => _c.passFocus.requestFocus(),
                         ),
+
                         const SizedBox(height: AppSpacing.lg),
+
                         Text(
                           'Password',
                           style: AppTypography.label(context).copyWith(color: textPrimary),
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         _AuthField(
-                          controller: _passCtrl,
-                          focusNode: _passFocus,
+                          controller: _c.passCtrl,
+                          focusNode: _c.passFocus,
                           hintText: '••••••••',
-                          obscureText: _obscure,
+                          obscureText: s.obscure,
                           prefixIcon: Icons.lock_outline_rounded,
-                          suffixIcon: _obscure
+                          suffixIcon: s.obscure
                               ? Icons.visibility_off_rounded
                               : Icons.visibility_rounded,
-                          onSuffixTap: () => setState(() => _obscure = !_obscure),
+                          onSuffixTap: s.loading ? null : _c.toggleObscure,
                           textInputAction: TextInputAction.done,
                           autofillHints: const [AutofillHints.password],
-                          enabled: !_loading,
-                          validator: _validatePass,
+                          enabled: !s.loading,
+                          validator: (_) => null,
                           onSubmitted: (_) => _submit(),
                         ),
+
                         const SizedBox(height: AppSpacing.md),
+
                         Row(
                           children: [
                             _RememberMe(
                               value: _rememberMe,
-                              onChanged: _loading ? null : (v) => setState(() => _rememberMe = v),
+                              onChanged: s.loading
+                                  ? null
+                                  : (v) => setState(() => _rememberMe = v),
                             ),
                             const Spacer(),
                             TextButton(
-                              onPressed: _loading
+                              onPressed: s.loading
                                   ? null
                                   : () {
                                       Navigator.of(context).pushNamed(
                                         AppRoutes.forgotPassword,
-                                        arguments: {'email': _emailCtrl.text.trim()},
+                                        arguments: {
+                                          'email': _c.emailCtrl.text.trim(),
+                                        },
                                       );
                                     },
                               child: Text(
@@ -193,36 +239,45 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ],
                         ),
+
                         const SizedBox(height: AppSpacing.md),
+
                         _PrimaryButton(
                           text: 'Sign In',
-                          loading: _loading,
-                          onPressed: _loading ? null : _submit,
+                          loading: s.loading,
+                          onPressed: s.loading ? null : _submit,
                         ),
+
                         const SizedBox(height: AppSpacing.lg),
                         const _OrDivider(),
                         const SizedBox(height: AppSpacing.lg),
 
-                        // ✅ Google sign-in button with real Google "G" icon (Option A)
-                        _GhostButton(
-                          icon: FaIcon(
-                            FontAwesomeIcons.google,
-                            size: 18,
-                            color: AppColors.textSecondary(context),
+                        if (showGoogle)
+                          _GhostButton(
+                            icon: FaIcon(
+                              FontAwesomeIcons.google,
+                              size: 18,
+                              color: AppColors.textSecondary(context),
+                            ),
+                            text: 'Continue with Google',
+                            onPressed: s.loading ? null : () {},
+                          )
+                        else
+                          _GhostButton(
+                            icon: FaIcon(
+                              FontAwesomeIcons.apple,
+                              size: 20,
+                              color: AppColors.textSecondary(context),
+                            ),
+                            text: 'Continue with Apple',
+                            onPressed: s.loading ? null : () {},
                           ),
-                          text: 'Continue with Google',
-                          onPressed: _loading
-                              ? null
-                              : () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Google sign-in (todo)')),
-                                  );
-                                },
-                        ),
                       ],
                     ),
                   ),
+
                   const SizedBox(height: AppSpacing.xl),
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -231,7 +286,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: AppTypography.body(context).copyWith(color: textMuted),
                       ),
                       TextButton(
-                        onPressed: _loading
+                        onPressed: s.loading
                             ? null
                             : () {
                                 Navigator.of(context).push(
@@ -250,12 +305,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     'By continuing you agree to Terms & Privacy',
                     style: AppTypography.caption(context).copyWith(color: textMuted),
                     textAlign: TextAlign.center,
                   ),
+
                   const SizedBox(height: AppSpacing.lg),
                 ],
               ),
@@ -263,30 +320,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _BrandMark extends StatelessWidget {
-  const _BrandMark({required this.name, required this.icon});
-  final String name;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: AppColors.brandGreen, size: 26),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          name,
-          style: AppTypography.h3(context).copyWith(
-            color: AppColors.textPrimary(context),
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -398,7 +431,10 @@ class _AuthField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: const BorderSide(color: AppColors.brandBlueSoft, width: 1.4),
+          borderSide: const BorderSide(
+            color: AppColors.brandBlueSoft,
+            width: 1.4,
+          ),
         ),
       ),
     );
@@ -492,7 +528,6 @@ class _GhostButton extends StatelessWidget {
     required this.onPressed,
   });
 
-  // ✅ Changed from IconData to Widget so we can pass FaIcon (Google icon)
   final Widget icon;
   final String text;
   final VoidCallback? onPressed;
@@ -546,6 +581,42 @@ class _OrDivider extends StatelessWidget {
         ),
         Expanded(child: Container(height: 1, color: c)),
       ],
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = AppColors.surface(context).withValues(alpha: 0.85);
+    final border = AppColors.border(context).withValues(alpha: 0.70);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline_rounded, color: AppColors.textSecondary(context)),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTypography.body(context).copyWith(
+                color: AppColors.textPrimary(context),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

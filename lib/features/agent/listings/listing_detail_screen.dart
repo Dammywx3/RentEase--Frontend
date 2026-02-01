@@ -21,11 +21,7 @@ ListingKind listingKindFromType(String? type) {
 }
 
 class ListingDetailScreen extends StatefulWidget {
-  const ListingDetailScreen({
-    super.key,
-    required this.listing,
-    this.heroTag,
-  });
+  const ListingDetailScreen({super.key, required this.listing, this.heroTag});
 
   final ListingModel listing;
   final String? heroTag;
@@ -98,29 +94,29 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
   void _onPrimaryCta() {
     // TODO: route to your real flows
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('TODO: ${_primaryCtaLabel()}')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('TODO: ${_primaryCtaLabel()}')));
   }
 
   void _onSecondaryCta() {
     final label = _secondaryCtaLabel();
     if (label == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('TODO: $label')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('TODO: $label')));
   }
 
   void _onMessage() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('TODO: Message')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('TODO: Message')));
   }
 
   void _onCall() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('TODO: Call')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('TODO: Call')));
   }
 
   @override
@@ -138,7 +134,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       child: Stack(
         children: [
           DecoratedBox(
-            decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+            decoration: BoxDecoration(
+              gradient: AppColors.pageBgGradient(context),
+            ),
             child: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
@@ -186,9 +184,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
                         _SectionTitle('Overview'),
                         const SizedBox(height: AppSpacing.sm),
-                        _OverviewText(
-                          text: _overviewFallback(listing),
-                        ),
+                        _OverviewText(text: _overviewFallback(listing)),
 
                         const SizedBox(height: AppSpacing.lg),
 
@@ -261,12 +257,24 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
 
   List<String> _featuresFallback(ListingModel l) {
     if (_kind == ListingKind.land) {
-      return const ['Survey available', 'Good access road', 'Gated estate', 'Dry land'];
+      return const [
+        'Survey available',
+        'Good access road',
+        'Gated estate',
+        'Dry land',
+      ];
     }
     if (_kind == ListingKind.commercial) {
       return const ['Parking', 'Security', 'Generator', 'Elevator'];
     }
-    return const ['24/7 Security', 'Parking', 'Water supply', 'Balcony', 'CCTV', 'Generator'];
+    return const [
+      '24/7 Security',
+      'Parking',
+      'Water supply',
+      'Balcony',
+      'CCTV',
+      'Generator',
+    ];
   }
 
   String _sizeLabelFallback(ListingModel l) {
@@ -350,7 +358,11 @@ class _HeroGallery extends StatelessWidget {
                                   gradient: AppColors.brandGradient,
                                 ),
                                 child: const Center(
-                                  child: Icon(Icons.home_rounded, color: Colors.white, size: 54),
+                                  child: Icon(
+                                    Icons.home_rounded,
+                                    color: Colors.white,
+                                    size: 54,
+                                  ),
                                 ),
                               )
                             : Image.network(src, fit: BoxFit.cover);
@@ -379,10 +391,15 @@ class _HeroGallery extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _CircleIconButton(icon: Icons.ios_share_rounded, onTap: onShare),
+                    _CircleIconButton(
+                      icon: Icons.ios_share_rounded,
+                      onTap: onShare,
+                    ),
                     const SizedBox(width: AppSpacing.sm),
                     _CircleIconButton(
-                      icon: saved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      icon: saved
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
                       onTap: onToggleSaved,
                     ),
                   ],
@@ -401,7 +418,9 @@ class _HeroGallery extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(AppRadii.chip),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.18),
+                    ),
                   ),
                   child: Text(
                     '${pageIndex + 1}/$pageCount',
@@ -424,7 +443,9 @@ class _HeroGallery extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.22),
                       borderRadius: BorderRadius.circular(AppRadii.chip),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.22),
+                      ),
                     ),
                     child: Text(
                       badgeText,
@@ -651,7 +672,11 @@ class _FeaturesGrid extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, size: 18, color: AppColors.brandGreenDeep),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    size: 18,
+                    color: AppColors.brandGreenDeep,
+                  ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
@@ -699,7 +724,11 @@ class _LocationCard extends StatelessWidget {
               border: Border.all(color: AppColors.overlay(context, 0.06)),
             ),
             child: const Center(
-              child: Icon(Icons.map_rounded, color: AppColors.brandBlueSoft, size: 36),
+              child: Icon(
+                Icons.map_rounded,
+                color: AppColors.brandBlueSoft,
+                size: 36,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -783,9 +812,15 @@ class _AgentCard extends StatelessWidget {
                           vertical: AppSpacing.s6,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.brandGreenDeep.withValues(alpha: 0.12),
+                          color: AppColors.brandGreenDeep.withValues(
+                            alpha: 0.12,
+                          ),
                           borderRadius: BorderRadius.circular(AppRadii.chip),
-                          border: Border.all(color: AppColors.brandGreenDeep.withValues(alpha: 0.22)),
+                          border: Border.all(
+                            color: AppColors.brandGreenDeep.withValues(
+                              alpha: 0.22,
+                            ),
+                          ),
                         ),
                         child: const Text(
                           'Verified',
@@ -810,7 +845,10 @@ class _AgentCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          IconButton(onPressed: onChat, icon: const Icon(Icons.chat_bubble_outline_rounded)),
+          IconButton(
+            onPressed: onChat,
+            icon: const Icon(Icons.chat_bubble_outline_rounded),
+          ),
           IconButton(onPressed: onCall, icon: const Icon(Icons.call_outlined)),
         ],
       ),
@@ -827,7 +865,8 @@ class _FeesCard extends StatelessWidget {
     String text;
     switch (kind) {
       case ListingKind.rent:
-        text = 'Rent fees: Deposit + Agency + Caution (wire real amounts later).';
+        text =
+            'Rent fees: Deposit + Agency + Caution (wire real amounts later).';
         break;
       case ListingKind.buy:
         text = 'Payment flow: escrow + installment options (wire later).';
@@ -914,7 +953,9 @@ class _BottomActionsBar extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppColors.surface(context).withValues(alpha: 0.92),
-        border: Border(top: BorderSide(color: AppColors.overlay(context, 0.08))),
+        border: Border(
+          top: BorderSide(color: AppColors.overlay(context, 0.08)),
+        ),
         boxShadow: AppShadows.lift(context, blur: 18, y: -8, alpha: 0.08),
       ),
       child: SafeArea(
@@ -928,9 +969,17 @@ class _BottomActionsBar extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    _MiniAction(icon: Icons.chat_bubble_outline_rounded, label: 'Message', onTap: onMessage),
+                    _MiniAction(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      label: 'Message',
+                      onTap: onMessage,
+                    ),
                     const SizedBox(width: AppSpacing.sm),
-                    _MiniAction(icon: Icons.call_outlined, label: 'Call', onTap: onCall),
+                    _MiniAction(
+                      icon: Icons.call_outlined,
+                      label: 'Call',
+                      onTap: onCall,
+                    ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: _PrimaryButton(
@@ -960,7 +1009,11 @@ class _BottomActionsBar extends StatelessWidget {
 }
 
 class _MiniAction extends StatelessWidget {
-  const _MiniAction({required this.icon, required this.label, required this.onTap});
+  const _MiniAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -971,7 +1024,10 @@ class _MiniAction extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadii.button),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: AppColors.brandBlueSoft.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(AppRadii.button),

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(pwd)"
+
+FILES=(
+  "lib/features/auth/ui/login/login_screen.dart"
+  "lib/features/auth/ui/verify_email/verify_email_screen.dart"
+  "lib/features/auth/ui/forgot_password/reset_verify_code_screen.dart"
+  "lib/features/auth/ui/forgot_password/reset_new_password_screen.dart"
+)
+
+echo "============================================================"
+echo "RentEase Frontend - Auth Screens bundle (ONLY requested files)"
+echo "Generated: $(date)"
+echo "Project: $ROOT"
+echo "============================================================"
+echo
+
+for f in "${FILES[@]}"; do
+  if [[ ! -f "$f" ]]; then
+    echo "==================== MISSING FILE: $f ===================="
+    echo
+    continue
+  fi
+
+  echo "==================== FILE: $f ===================="
+  echo
+  cat "$f"
+  echo
+  echo
+done

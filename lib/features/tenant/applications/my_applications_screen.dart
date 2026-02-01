@@ -229,9 +229,9 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                   child: Text(
                     "${items.length} Pending",
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.textMuted(context),
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textMuted(context),
+                    ),
                   ),
                 ),
 
@@ -242,9 +242,9 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                     child: Text(
                       "No applications yet",
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textMuted(context),
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textMuted(context),
+                      ),
                     ),
                   ),
                 )
@@ -347,9 +347,9 @@ class _Tabs extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.navy,
+                  ),
                 ),
               ),
             ),
@@ -471,7 +471,8 @@ class _ApplicationCard extends StatelessWidget {
                           application.propertyTitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.navy,
                               ),
@@ -481,7 +482,8 @@ class _ApplicationCard extends StatelessWidget {
                           application.location,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.w800,
                                 color: AppColors.textMuted(context),
                               ),
@@ -491,7 +493,8 @@ class _ApplicationCard extends StatelessWidget {
                           application.rentText,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.navy.withValues(alpha: 0.90),
                               ),
@@ -515,9 +518,9 @@ class _ApplicationCard extends StatelessWidget {
                     child: Text(
                       badge.label,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: badge.color,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: badge.color,
+                      ),
                     ),
                   ),
                 ],
@@ -538,10 +541,11 @@ class _ApplicationCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textMuted(context)
-                                .withValues(alpha: 0.92),
-                          ),
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMuted(
+                          context,
+                        ).withValues(alpha: 0.92),
+                      ),
                     ),
                   ),
                   if (isPending)
@@ -555,7 +559,8 @@ class _ApplicationCard extends StatelessWidget {
                         ),
                         child: Text(
                           "Withdraw",
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.textMuted(context),
                               ),
@@ -745,9 +750,9 @@ class _CardButton extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: filled ? AppColors.white : AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: filled ? AppColors.white : AppColors.navy,
+              ),
             ),
           ],
         ),

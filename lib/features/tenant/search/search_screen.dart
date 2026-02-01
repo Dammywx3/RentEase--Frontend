@@ -4,13 +4,16 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/ui/scaffold/app_scaffold.dart';
-import '../../../core/ui/scaffold/app_top_bar.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/app_sizes.dart';
+import '../../../core/ui/scaffold/app_scaffold.dart';
+import '../../../core/ui/scaffold/app_top_bar.dart';
 
-// ✅ NEW: switch tabs instead of Navigator.push/pop
+// ✅ switch tabs instead of Navigator.pop
 import '../../../core/ui/nav/tenant_nav.dart';
+
+// ✅ results destination
+import 'search_results_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -20,9 +23,60 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  RangeValues _price = const RangeValues(20_000_000, 500_000_000);
+  final TextEditingController _queryCtrl = TextEditingController();
+  final FocusNode _queryFocus = FocusNode();
+
   int _propertyTab = 0; // 0 residential, 1 commercial, 2 land
   bool _buy = true;
+
+  // dropdown values
+  int? _minBeds;
+  int? _minBaths;
+  int? _minPlotSqft;
+
+  // optional filter
+  bool _verifiedOnly = false;
+
+  // dynamic budget range + selection
+  late RangeValues _price;
+
+  // -------- budgets you requested --------
+  static const double _rentMin = 50_000;
+  static const double _rentMax = 100_000_000;
+
+  static const double _buyMin = 20_000_000;
+  static const double _buyMax = 1_000_000_000;
+
+  static const double _landMin = 500_000;
+  static const double _landMax = 500_000_000;
+
+  bool get _isLand => _propertyTab == 2;
+
+  double get _budgetMin {
+    if (_isLand) return _landMin;
+    return _buy ? _buyMin : _rentMin;
+  }
+
+  double get _budgetMax {
+    if (_isLand) return _landMax;
+    return _buy ? _buyMax : _rentMax;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // default is Residential + Buy -> buy range
+    _price = RangeValues(_budgetMin, _budgetMax);
+  }
+
+  @override
+  void dispose() {
+    _queryCtrl.dispose();
+    _queryFocus.dispose();
+    super.dispose();
+  }
+
+  // ---------- helpers ----------
 
   String _fmtNaira(num v) {
     final s = v.toInt().toString();
@@ -37,233 +91,444 @@ class _SearchScreenState extends State<SearchScreen> {
     return '₦$buf';
   }
 
+  String get _categoryLabel {
+    if (_propertyTab == 1) return 'Commercial';
+    if (_propertyTab == 2) return 'Land';
+    return 'Residential';
+  }
+
+  String get _modeLabel {
+    // land is special mode
+    if (_propertyTab == 2) return 'land';
+    return _buy ? 'buy' : 'rent';
+  }
+
+  void _applyBudgetPreset() {
+    // reset budget fully to the active range
+    _price = RangeValues(_budgetMin, _budgetMax);
+  }
+
+  void _setPropertyTab(int v) {
+    setState(() {
+      _propertyTab = v;
+
+      if (_isLand) {
+        // land rules: disable beds/baths (also clear)
+        _minBeds = null;
+        _minBaths = null;
+      }
+
+      // reset budget to correct range (rent/buy/land)
+      _applyBudgetPreset();
+    });
+  }
+
+  void _setBuy(bool v) {
+    // if land selected, ignore buy/rent toggle
+    if (_isLand) return;
+
+    setState(() {
+      _buy = v;
+      _applyBudgetPreset();
+    });
+  }
+
+  Map<String, dynamic> _buildFilters() {
+    final q = _queryCtrl.text.trim();
+
+    final map = <String, dynamic>{
+      'mode': _modeLabel, // buy/rent/land
+      'query': q,
+
+      // budget
+      'min': _price.start.toInt(),
+      'max': _price.end.toInt(),
+
+      // Land: beds/baths intentionally null
+      'beds': _isLand ? null : _minBeds,
+      'baths': _isLand ? null : _minBaths,
+
+      // Plot allowed (and meaningful for Land)
+      'plotMinSqft': _minPlotSqft,
+
+      'verified': _verifiedOnly,
+      'category': _categoryLabel, // Residential/Commercial/Land
+    };
+
+    // ✅ keep propertyTab only for debug builds
+    assert(() {
+      map['propertyTab'] = _propertyTab;
+      return true;
+    }());
+
+    // remove nulls and empty strings
+    map.removeWhere((k, v) => v == null || (v is String && v.trim().isEmpty));
+    return map;
+  }
+
+  String _buildSummary() {
+    final q = _queryCtrl.text.trim();
+    final qPart = q.isEmpty ? 'Any location' : q;
+    final typePart = _modeLabel;
+    final pricePart = '${_fmtNaira(_price.start)} – ${_fmtNaira(_price.end)}';
+    return '$typePart • $qPart • $pricePart';
+  }
+
+  void _openResults() {
+    FocusScope.of(context).unfocus();
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SearchResultsScreen(
+          title: 'Results',
+          summary: _buildSummary(),
+          filters: _buildFilters(),
+        ),
+      ),
+    );
+  }
+
+  void _resetAll() {
+    setState(() {
+      _queryCtrl.clear();
+      _propertyTab = 0;
+      _buy = true;
+      _minBeds = null;
+      _minBaths = null;
+      _minPlotSqft = null;
+      _verifiedOnly = false;
+
+      // reset budget to default (Residential+Buy)
+      _applyBudgetPreset();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     const bottomPad = 140.0;
 
-    return AppScaffold(
-      backgroundColor: Colors.transparent,
-      safeAreaTop: true,
-      safeAreaBottom: false,
-      appBar: AppTopBar(
-        title: 'Search',
-        leading: Padding(
-          padding: const EdgeInsets.only(left: AppSpacing.screenH),
-          child: InkWell(
-            // ✅ Option A: DO NOT POP. Switch tabs.
-            onTap: () => TenantNav.goToExplore(context),
-            borderRadius: BorderRadius.circular(AppRadii.pill),
-            child: Container(
-              height: AppSizes.iconButtonBox,
-              width: AppSizes.iconButtonBox,
-              decoration: BoxDecoration(
-                color: AppColors.surface(context).withValues(alpha: 0.92),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.overlay(context, 0.08)),
-                boxShadow: AppShadows.lift(context, blur: 14, y: 10, alpha: 0.08),
-              ),
-              child: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary(context)),
-            ),
-          ),
-        ),
-        actions: const [],
-      ),
-      scroll: true,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.sm,
-        AppSpacing.screenH,
-        bottomPad,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: AppSpacing.sm),
-          _SearchBar(onTap: () {}),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _PillButton(
-                  icon: Icons.filter_alt_rounded,
-                  text: 'Advanced Filters',
-                  onTap: () {},
-                  filled: true,
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        appBar: AppTopBar(
+          title: 'Search',
+          leading: Padding(
+            padding: const EdgeInsets.only(left: AppSpacing.screenH),
+            child: InkWell(
+              onTap: () => TenantNav.goToExplore(context),
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+              child: Container(
+                height: AppSizes.iconButtonBox,
+                width: AppSizes.iconButtonBox,
+                decoration: BoxDecoration(
+                  color: AppColors.surface(context).withValues(alpha: 0.92),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.overlay(context, 0.08)),
+                  boxShadow: AppShadows.lift(
+                    context,
+                    blur: 14,
+                    y: 10,
+                    alpha: 0.08,
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _price = const RangeValues(20_000_000, 500_000_000);
-                    _propertyTab = 0;
-                    _buy = true;
-                  });
-                },
-                child: const Text('Reset All  ›'),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '${_fmtNaira(_price.start)}                                ${_fmtNaira(_price.end)}',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w900,
+                child: Icon(
+                  Icons.arrow_back_rounded,
                   color: AppColors.textPrimary(context),
                 ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          RangeSlider(
-            values: _price,
-            min: 20_000_000,
-            max: 1_000_000_000,
-            divisions: 40,
-            onChanged: (v) => setState(() => _price = v),
-          ),
-          Text(
-            '${_fmtNaira(20_000_000)}  -  ${_fmtNaira(1_000_000_000)}',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: cs.onSurface.withValues(alpha: 0.65),
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: _Segment(
-                  label: 'Residential',
-                  active: _propertyTab == 0,
-                  onTap: () => setState(() => _propertyTab = 0),
-                ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _Segment(
-                  label: 'Commercial',
-                  active: _propertyTab == 1,
-                  onTap: () => setState(() => _propertyTab = 1),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _Segment(
-                  label: 'Land',
-                  active: _propertyTab == 2,
-                  onTap: () => setState(() => _propertyTab = 2),
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Text(
-                'Buy',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.brandGreenDeep,
-                      fontWeight: FontWeight.w900,
-                    ),
-              ),
-              const Spacer(),
-              Text(
-                'Rent',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.brandGreenDeep,
-                      fontWeight: FontWeight.w900,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _BuyRentToggle(
-            buy: _buy,
-            onChanged: (v) => setState(() => _buy = v),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const Row(
-            children: [
-              Expanded(child: _MiniDrop(text: 'Min Beds  ›')),
-              SizedBox(width: AppSpacing.sm),
-              Expanded(child: _MiniDrop(text: 'Min Baths')),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const _MiniDrop(text: 'Min Plot Size (sqft)'),
-          const SizedBox(height: AppSpacing.md),
-          _MapPreview(onMapTap: () {}),
-          const SizedBox(height: AppSpacing.lg),
+          actions: const [],
+        ),
+        scroll: true,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH,
+          AppSpacing.sm,
+          AppSpacing.screenH,
+          bottomPad,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
 
-          Center(
-            child: SizedBox(
-              width: 280,
-              height: 56,
-              child: ElevatedButton(
-                // ✅ Option A: keep user in shell — switch tab or stay on Search.
-                // If you want to jump back to Explore after applying:
-                onPressed: () => TenantNav.goToExplore(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brandGreenDeep,
-                  foregroundColor: AppColors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.card),
+            _SearchBarInput(
+              controller: _queryCtrl,
+              focusNode: _queryFocus,
+              onSubmitted: (_) => _openResults(),
+              onClear: () {
+                setState(() => _queryCtrl.clear());
+                _queryFocus.requestFocus();
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            Row(
+              children: [
+                Expanded(
+                  child: _PillButton(
+                    icon: Icons.filter_alt_rounded,
+                    text: 'Advanced Filters',
+                    onTap: () {},
+                    filled: true,
                   ),
-                  elevation: 10,
-                  shadowColor: AppColors.overlay(context, 0.20),
                 ),
-                child: const Text(
-                  'Apply Filters',
-                  style: TextStyle(
+                const SizedBox(width: AppSpacing.sm),
+                TextButton(
+                  onPressed: _resetAll,
+                  child: const Text('Reset All  ›'),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            Text(
+              '${_fmtNaira(_price.start)}                                ${_fmtNaira(_price.end)}',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w900,
-                    fontSize: AppTypography.size18,
+                    color: AppColors.textPrimary(context),
+                  ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+
+            // ✅ dynamic budget slider range (rent/buy/land)
+            RangeSlider(
+              values: _price,
+              min: _budgetMin,
+              max: _budgetMax,
+              divisions: 80,
+              onChanged: (v) => setState(() => _price = v),
+            ),
+
+            Text(
+              '${_fmtNaira(_budgetMin)}  -  ${_fmtNaira(_budgetMax)}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurface.withValues(alpha: 0.65),
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            // Category tabs
+            Row(
+              children: [
+                Expanded(
+                  child: _Segment(
+                    label: 'Residential',
+                    active: _propertyTab == 0,
+                    onTap: () => _setPropertyTab(0),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _Segment(
+                    label: 'Commercial',
+                    active: _propertyTab == 1,
+                    onTap: () => _setPropertyTab(1),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _Segment(
+                    label: 'Land',
+                    active: _propertyTab == 2,
+                    onTap: () => _setPropertyTab(2),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            // Buy/Rent toggle (disabled for Land)
+            Row(
+              children: [
+                Text(
+                  'Buy',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.brandGreenDeep,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const Spacer(),
+                Text(
+                  'Rent',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.brandGreenDeep,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+
+            Opacity(
+              opacity: _isLand ? 0.45 : 1,
+              child: _BuyRentToggle(
+                buy: _buy,
+                onChanged: (v) => _setBuy(v),
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            _ToggleRow(
+              label: 'Verified only',
+              value: _verifiedOnly,
+              onChanged: (v) => setState(() => _verifiedOnly = v),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // Beds/Baths disabled on Land
+            Row(
+              children: [
+                Expanded(
+                  child: _DropSelect<int>(
+                    label: 'Min Beds',
+                    enabled: !_isLand,
+                    value: _minBeds,
+                    items: const [0, 1, 2, 3, 4, 5, 6],
+                    itemLabel: (v) => v == 0 ? 'Any' : '$v+',
+                    onChanged: (v) =>
+                        setState(() => _minBeds = (v == 0) ? null : v),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _DropSelect<int>(
+                    label: 'Min Baths',
+                    enabled: !_isLand,
+                    value: _minBaths,
+                    items: const [0, 1, 2, 3, 4, 5, 6],
+                    itemLabel: (v) => v == 0 ? 'Any' : '$v+',
+                    onChanged: (v) =>
+                        setState(() => _minBaths = (v == 0) ? null : v),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // Plot enabled always (and meaningful for Land)
+            _DropSelect<int>(
+              label: 'Min Plot Size (sqft)',
+              enabled: true,
+              value: _minPlotSqft,
+              items: const [0, 600, 900, 1200, 1800, 2400, 3600, 5000, 10000],
+              itemLabel: (v) => v == 0 ? 'Any' : '$v+ sqft',
+              onChanged: (v) =>
+                  setState(() => _minPlotSqft = (v == 0) ? null : v),
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            _MapPreview(onMapTap: () {}),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            Center(
+              child: SizedBox(
+                width: 280,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _openResults,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brandGreenDeep,
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadii.card),
+                    ),
+                    elevation: 10,
+                    shadowColor: AppColors.overlay(context, 0.20),
+                  ),
+                  child: const Text(
+                    'Apply Filters',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: AppTypography.size18,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _SearchBar extends StatelessWidget {
-  const _SearchBar({required this.onTap});
-  final VoidCallback onTap;
+/// ✅ Editable search bar
+class _SearchBarInput extends StatelessWidget {
+  const _SearchBarInput({
+    required this.controller,
+    required this.focusNode,
+    required this.onSubmitted,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onSubmitted;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
     final muted = AppColors.textMuted(context);
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadii.button),
-      child: Container(
-        height: 52,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-        decoration: BoxDecoration(
-          color: AppColors.surface(context).withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(AppRadii.button),
-          border: Border.all(color: AppColors.overlay(context, 0.06)),
-          boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.search_rounded, color: muted),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                'Search location, price, or city...',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: muted,
-                      fontWeight: FontWeight.w700,
-                    ),
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context).withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        border: Border.all(color: AppColors.overlay(context, 0.06)),
+        boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.search_rounded, color: muted),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              focusNode: focusNode,
+              textInputAction: TextInputAction.search,
+              onSubmitted: onSubmitted,
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                hintText: 'Type location, state, address, or name…',
+                hintStyle: TextStyle(
+                  color: muted,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary(context),
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.brandGreenDeep),
-          ],
-        ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          InkWell(
+            onTap: onClear,
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              child: Icon(Icons.close_rounded, color: muted),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -424,35 +689,117 @@ class _BuyRentToggle extends StatelessWidget {
   }
 }
 
-class _MiniDrop extends StatelessWidget {
-  const _MiniDrop({required this.text});
-  final String text;
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final muted = AppColors.textMuted(context);
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
 
     return Container(
-      height: 48,
+      height: 52,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
       decoration: BoxDecoration(
-        color: AppColors.surface(context).withValues(alpha: 0.75),
+        color: AppColors.surface(context).withValues(alpha: alphaSurface),
         borderRadius: BorderRadius.circular(AppRadii.button),
-        border: Border.all(color: AppColors.overlay(context, 0.06)),
+        border: Border.all(color: AppColors.overlay(context, alphaBorder)),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
-              text,
+              label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: muted,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary(context),
                   ),
             ),
           ),
-          Icon(Icons.keyboard_arrow_down_rounded, color: muted),
+          Switch.adaptive(
+            value: value,
+            onChanged: onChanged,
+            activeColor: AppColors.brandGreenDeep,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _DropSelect<T> extends StatelessWidget {
+  const _DropSelect({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.itemLabel,
+    required this.onChanged,
+    this.enabled = true,
+  });
+
+  final String label;
+  final T? value;
+  final List<T> items;
+  final String Function(T) itemLabel;
+  final ValueChanged<T?> onChanged;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+    final muted = AppColors.textMuted(context);
+
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: IgnorePointer(
+        ignoring: !enabled,
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+          decoration: BoxDecoration(
+            color: AppColors.surface(context).withValues(alpha: alphaSurface),
+            borderRadius: BorderRadius.circular(AppRadii.button),
+            border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              isExpanded: true,
+              icon: Icon(Icons.keyboard_arrow_down_rounded, color: muted),
+              hint: Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: muted,
+                    ),
+              ),
+              items: items
+                  .map(
+                    (it) => DropdownMenuItem<T>(
+                      value: it,
+                      child: Text(
+                        itemLabel(it),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary(context),
+                            ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: enabled ? onChanged : null,
+            ),
+          ),
+        ),
       ),
     );
   }

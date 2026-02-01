@@ -94,10 +94,10 @@ class AppColors {
 
   /// Common page gradient (matches your Explore vibe)
   static LinearGradient pageBgGradient(BuildContext context) => LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: isDark(context) ? [darkBg, darkSurface] : [lightBg, mist],
-      );
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: isDark(context) ? [darkBg, darkSurface] : [lightBg, mist],
+  );
 
   // ===========================================================================
   // Tenant / Mock Legacy Tokens (to remove hardcoded hex from tenant screens)

@@ -1,4 +1,8 @@
+// lib/features/auth/ui/forgot_password/reset_new_password_screen.dart
 import 'package:flutter/material.dart';
+
+import 'package:rentease_frontend/app/router/app_router.dart';
+import 'package:rentease_frontend/features/auth/data/auth_di.dart';
 
 import 'package:rentease_frontend/core/theme/app_colors.dart';
 import 'package:rentease_frontend/core/theme/app_radii.dart';
@@ -6,19 +10,15 @@ import 'package:rentease_frontend/core/theme/app_shadows.dart';
 import 'package:rentease_frontend/core/theme/app_spacing.dart';
 import 'package:rentease_frontend/core/theme/app_typography.dart';
 
-import 'package:rentease_frontend/app/router/app_router.dart';
-
 class ResetNewPasswordScreen extends StatefulWidget {
   const ResetNewPasswordScreen({
     super.key,
     required this.email,
-    this.brandName = 'RentEase',
-    this.brandIcon = Icons.home_rounded,
+    required this.resetToken,
   });
 
   final String email;
-  final String brandName;
-  final IconData brandIcon;
+  final String resetToken;
 
   @override
   State<ResetNewPasswordScreen> createState() => _ResetNewPasswordScreenState();
@@ -28,10 +28,19 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen> {
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
 
-  bool _obscure = true;
+  final _passFocus = FocusNode();
+  final _confirmFocus = FocusNode();
+
+  bool _obscure1 = true;
+  bool _obscure2 = true;
+
   bool _loading = false;
   bool _success = false;
 
+  String? _bannerError;
+  String? _bannerInfo;
+
+  // Field-level errors (to show under inputs)
   String? _passError;
   String? _confirmError;
 
@@ -39,42 +48,77 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen> {
   void dispose() {
     _passCtrl.dispose();
     _confirmCtrl.dispose();
+    _passFocus.dispose();
+    _confirmFocus.dispose();
     super.dispose();
   }
 
+  // Rules (for checklist UI)
   bool get _ruleLen => _passCtrl.text.trim().length >= 8;
   bool get _ruleNumber => RegExp(r'[0-9]').hasMatch(_passCtrl.text);
   bool get _ruleUpper => RegExp(r'[A-Z]').hasMatch(_passCtrl.text);
   bool get _ruleSymbol => RegExp(r'[^A-Za-z0-9]').hasMatch(_passCtrl.text);
+
+  void _clearBanners() {
+    if (_bannerError != null || _bannerInfo != null) {
+      setState(() {
+        _bannerError = null;
+        _bannerInfo = null;
+      });
+    }
+  }
 
   void _validate() {
     final pass = _passCtrl.text;
     final confirm = _confirmCtrl.text;
 
     setState(() {
-      _passError = pass.isEmpty
+      _passError = pass.trim().isEmpty
           ? 'Enter a new password.'
           : (!_ruleLen ? 'Use at least 8 characters.' : null);
 
-      _confirmError = confirm.isEmpty
+      _confirmError = confirm.trim().isEmpty
           ? 'Confirm your password.'
           : (confirm != pass ? 'Passwords do not match.' : null);
     });
   }
 
-  Future<void> _reset() async {
+  String _prettyErr(Object e) =>
+      e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
+
+  Future<void> _submit() async {
     _validate();
     if (_passError != null || _confirmError != null) return;
 
-    setState(() => _loading = true);
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _loading = true;
+      _bannerError = null;
+      _bannerInfo = null;
+    });
+
     try {
-      // TODO: backend reset password: POST /auth/reset-password {email, newPassword, codeToken}
-      await Future.delayed(const Duration(milliseconds: 700));
+      await AuthDI.authRepo.resetPasswordWithResetToken(
+        email: widget.email,
+        resetToken: widget.resetToken,
+        newPassword: _passCtrl.text,
+      );
+
       if (!mounted) return;
 
-      setState(() => _success = true);
+      setState(() {
+        _success = true;
+        _bannerInfo = 'Password updated successfully.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _bannerError = _prettyErr(e).isEmpty ? 'Unable to update password.' : _prettyErr(e);
+      });
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted) return;
+      setState(() => _loading = false);
     }
   }
 
@@ -97,49 +141,35 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen> {
               vertical: AppSpacing.lg,
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: AppSpacing.sm),
-
-                SizedBox(
-                  height: 48,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          onPressed: (_loading || _success) ? null : () => Navigator.of(context).pop(),
-                          icon: Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: AppColors.textSecondary(context),
-                          ),
-                        ),
-                      ),
-                      _BrandMarkSmall(
-                        name: widget.brandName,
-                        icon: widget.brandIcon,
-                      ),
-                    ],
-                  ),
+                // ✅ Top bar: back + centered title (NO brand)
+                _TopBarCentered(
+                  title: _success ? 'Password updated' : 'New password',
+                  disabled: _loading,
+                  onBack: () => Navigator.of(context).pop(),
                 ),
 
                 const SizedBox(height: AppSpacing.xl),
 
+                if (_bannerError != null) ...[
+                  _Banner(text: _bannerError!, icon: Icons.error_outline_rounded),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                if (_bannerInfo != null && !_success) ...[
+                  _Banner(text: _bannerInfo!, icon: Icons.check_circle_outline_rounded),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+
                 if (_success) ...[
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Password updated',
-                      style: AppTypography.h1(context).copyWith(color: textPrimary),
-                    ),
+                  Text(
+                    'Password updated',
+                    style: AppTypography.h1(context).copyWith(color: textPrimary),
                   ),
                   const SizedBox(height: AppSpacing.xs),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Your password has been updated successfully.',
-                      style: AppTypography.body(context).copyWith(color: textMuted),
-                    ),
+                  Text(
+                    'Your password has been updated successfully.',
+                    style: AppTypography.body(context).copyWith(color: textMuted),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   _GlassCard(
@@ -171,22 +201,16 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen> {
                     ),
                   ),
                 ] else ...[
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Create new password',
-                      style: AppTypography.h1(context).copyWith(color: textPrimary),
-                    ),
+                  Text(
+                    'Set a new password',
+                    style: AppTypography.h1(context).copyWith(color: textPrimary),
                   ),
                   const SizedBox(height: AppSpacing.xs),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Set a new password for\n${widget.email}',
-                      style: AppTypography.body(context).copyWith(color: textMuted),
-                    ),
+                  Text(
+                    'Create a strong password for\n${widget.email}',
+                    style: AppTypography.body(context).copyWith(color: textMuted),
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SizedBox(height: AppSpacing.lg),
 
                   _GlassCard(
                     child: Column(
@@ -199,16 +223,27 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen> {
                         const SizedBox(height: AppSpacing.xs),
                         _PasswordField(
                           controller: _passCtrl,
-                          hintText: '••••••••',
-                          obscureText: _obscure,
+                          focusNode: _passFocus,
                           enabled: !_loading,
+                          hintText: 'Minimum 8 characters',
+                          obscureText: _obscure1,
                           errorText: _passError,
-                          onChanged: (_) => _validate(),
-                          suffixIcon: _obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                          onSuffixTap: () => setState(() => _obscure = !_obscure),
+                          textInputAction: TextInputAction.next,
+                          suffixIcon: _obscure1
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
+                          onSuffixTap: _loading
+                              ? null
+                              : () => setState(() => _obscure1 = !_obscure1),
+                          onChanged: (_) {
+                            _clearBanners();
+                            _validate();
+                          },
+                          onSubmitted: (_) => _confirmFocus.requestFocus(),
                         ),
 
                         const SizedBox(height: AppSpacing.md),
+
                         _RulesChecklist(
                           lenOk: _ruleLen,
                           numOk: _ruleNumber,
@@ -217,6 +252,7 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen> {
                         ),
 
                         const SizedBox(height: AppSpacing.lg),
+
                         Text(
                           'Confirm password',
                           style: AppTypography.label(context).copyWith(color: textPrimary),
@@ -224,18 +260,45 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen> {
                         const SizedBox(height: AppSpacing.xs),
                         _PasswordField(
                           controller: _confirmCtrl,
-                          hintText: '••••••••',
-                          obscureText: _obscure,
+                          focusNode: _confirmFocus,
                           enabled: !_loading,
+                          hintText: 'Re-enter password',
+                          obscureText: _obscure2,
                           errorText: _confirmError,
-                          onChanged: (_) => _validate(),
+                          textInputAction: TextInputAction.done,
+                          suffixIcon: _obscure2
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
+                          onSuffixTap: _loading
+                              ? null
+                              : () => setState(() => _obscure2 = !_obscure2),
+                          onChanged: (_) {
+                            _clearBanners();
+                            _validate();
+                          },
+                          onSubmitted: (_) => _submit(),
                         ),
 
                         const SizedBox(height: AppSpacing.lg),
+
                         _PrimaryButton(
-                          text: 'Reset password',
+                          text: _loading ? 'Updating...' : 'Update password',
                           loading: _loading,
-                          onPressed: _loading ? null : _reset,
+                          onPressed: _loading ? null : _submit,
+                        ),
+
+                        const SizedBox(height: AppSpacing.md),
+                        Center(
+                          child: TextButton(
+                            onPressed: _loading ? null : _goToLogin,
+                            child: Text(
+                              'Back to Sign in',
+                              style: AppTypography.body(context).copyWith(
+                                color: AppColors.textSecondary(context),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -250,28 +313,43 @@ class _ResetNewPasswordScreenState extends State<ResetNewPasswordScreen> {
   }
 }
 
-class _BrandMarkSmall extends StatelessWidget {
-  const _BrandMarkSmall({required this.name, required this.icon});
-  final String name;
-  final IconData icon;
+class _TopBarCentered extends StatelessWidget {
+  const _TopBarCentered({
+    required this.title,
+    required this.onBack,
+    required this.disabled,
+  });
+
+  final String title;
+  final VoidCallback onBack;
+  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: AppColors.brandGreen, size: 22),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTypography.h4(context).copyWith(
-            color: AppColors.textPrimary(context),
-            fontWeight: FontWeight.w900,
+    return SizedBox(
+      height: 48,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              onPressed: disabled ? null : onBack,
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: AppColors.textSecondary(context),
+              ),
+            ),
           ),
-        ),
-      ],
+          Text(
+            title,
+            style: AppTypography.h3(context).copyWith(
+              color: AppColors.textPrimary(context),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -298,24 +376,68 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
+class _Banner extends StatelessWidget {
+  const _Banner({required this.text, required this.icon});
+  final String text;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = AppColors.surface(context).withValues(alpha: 0.85);
+    final border = AppColors.border(context).withValues(alpha: 0.70);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.textSecondary(context)),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTypography.body(context).copyWith(
+                color: AppColors.textPrimary(context),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PasswordField extends StatelessWidget {
   const _PasswordField({
     required this.controller,
+    required this.focusNode,
     required this.hintText,
     required this.onChanged,
-    this.obscureText = true,
+    this.textInputAction,
+    this.onSubmitted,
     this.enabled = true,
+    this.obscureText = true,
     this.errorText,
     this.suffixIcon,
     this.onSuffixTap,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final String hintText;
-  final ValueChanged<String> onChanged;
 
-  final bool obscureText;
+  final ValueChanged<String> onChanged;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
+
   final bool enabled;
+  final bool obscureText;
   final String? errorText;
 
   final IconData? suffixIcon;
@@ -328,12 +450,15 @@ class _PasswordField extends StatelessWidget {
 
     return TextField(
       controller: controller,
+      focusNode: focusNode,
       enabled: enabled,
       obscureText: obscureText,
+      textInputAction: textInputAction,
+      onSubmitted: onSubmitted,
       onChanged: onChanged,
       style: AppTypography.body(context).copyWith(
         color: AppColors.textPrimary(context),
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w800,
       ),
       decoration: InputDecoration(
         filled: true,
@@ -364,7 +489,10 @@ class _PasswordField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: BorderSide(color: AppColors.brandBlueSoft, width: 1.4),
+          borderSide: const BorderSide(
+            color: AppColors.brandBlueSoft,
+            width: 1.4,
+          ),
         ),
         errorText: errorText,
       ),
@@ -413,10 +541,15 @@ class _RuleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ok ? AppColors.brandGreen : muted.withValues(alpha: 0.9);
+    final c = ok ? AppColors.brandGreen : muted.withValues(alpha: 0.92);
+
     return Row(
       children: [
-        Icon(ok ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, size: 18, color: c),
+        Icon(
+          ok ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+          size: 18,
+          color: c,
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(

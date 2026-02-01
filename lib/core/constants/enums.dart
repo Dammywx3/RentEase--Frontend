@@ -1,22 +1,4 @@
-enum UserRole { tenant, landlord, agent, admin }
-
-extension UserRoleX on UserRole {
-  String get label {
-    switch (this) {
-      case UserRole.tenant:
-        return 'Tenant';
-      case UserRole.landlord:
-        return 'Landlord';
-      case UserRole.agent:
-        return 'Agent';
-      case UserRole.admin:
-        return 'Admin';
-    }
-  }
-
-  /// Backward-compat for existing UI code that uses `role.value`
-  String get value => name;
-}
+// lib/core/constants/enums.dart
 
 /// Verified status for KYC/doc/property
 enum VerifiedStatus { pending, verified, rejected, suspended }

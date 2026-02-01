@@ -1,3 +1,4 @@
+// lib/features/tenant/viewings/viewing_detail_screen.dart
 import "package:flutter/material.dart";
 
 import "../../../core/ui/scaffold/app_scaffold.dart";
@@ -12,10 +13,19 @@ import "../../../core/theme/app_shadows.dart";
 import "../../../core/theme/app_spacing.dart";
 import "../../../core/theme/app_sizes.dart";
 
-class ViewingDetailScreen extends StatelessWidget {
+import "data/viewings_api.dart";
+
+class ViewingDetailScreen extends StatefulWidget {
   const ViewingDetailScreen({super.key, required this.viewing});
 
   final ViewingModel viewing;
+
+  @override
+  State<ViewingDetailScreen> createState() => _ViewingDetailScreenState();
+}
+
+class _ViewingDetailScreenState extends State<ViewingDetailScreen> {
+  bool _busy = false;
 
   String _dateOnly(BuildContext context, DateTime dt) {
     final loc = MaterialLocalizations.of(context);
@@ -39,6 +49,8 @@ class ViewingDetailScreen extends StatelessWidget {
         return 1;
       case ViewingStatus.completed:
         return 2;
+      case ViewingStatus.rejected:
+        return 0;
       case ViewingStatus.cancelled:
         return 0;
     }
@@ -51,8 +63,34 @@ class ViewingDetailScreen extends StatelessWidget {
     return int.tryParse(raw) ?? 0;
   }
 
+  Future<void> _cancelVisit() async {
+    if (_busy) return;
+
+    setState(() => _busy = true);
+
+    try {
+      final api = ViewingsApi();
+      await api.cancel(widget.viewing.id);
+
+      if (!mounted) return;
+
+      // tell previous screen to refresh
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Couldn’t cancel. ${e.toString()}")),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final viewing = widget.viewing;
+
     final price = (viewing.priceText ?? "₦—").trim();
     final dateText = _dateOnly(context, viewing.dateTime);
     final fullDateTime = _fullDateTime(context, viewing.dateTime);
@@ -61,14 +99,14 @@ class ViewingDetailScreen extends StatelessWidget {
 
     final canCancel =
         viewing.status == ViewingStatus.requested ||
-            viewing.status == ViewingStatus.confirmed;
+        viewing.status == ViewingStatus.confirmed;
 
     final stage = _stageFor(viewing.status);
     final badge = _ViewingBadge.from(context, viewing.status);
 
     return Stack(
       children: [
-        // ✅ Option A: Gradient BEHIND the entire screen (including top bar / safe-area)
+        // ✅ Gradient behind entire screen
         Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -82,7 +120,6 @@ class ViewingDetailScreen extends StatelessWidget {
           safeAreaTop: true,
           safeAreaBottom: false,
 
-          // ✅ AppTopBar rule: only screen name in middle + back arrow
           topBar: AppTopBar(
             title: "Viewing",
             leadingIcon: Icons.arrow_back_rounded,
@@ -130,11 +167,10 @@ class ViewingDetailScreen extends StatelessWidget {
                         ),
                         child: Text(
                           price,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.white,
-                                    fontWeight: FontWeight.w900,
-                                  ),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                     ),
@@ -151,9 +187,9 @@ class ViewingDetailScreen extends StatelessWidget {
                     child: Text(
                       viewing.listingTitle,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy,
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.s10),
@@ -165,22 +201,23 @@ class ViewingDetailScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: badge.color.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(AppRadii.pill),
-                      border:
-                          Border.all(color: badge.color.withValues(alpha: 0.22)),
+                      border: Border.all(
+                        color: badge.color.withValues(alpha: 0.22),
+                      ),
                     ),
                     child: Text(
                       badge.label,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: badge.color,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: badge.color,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpacing.s10),
 
-              // Date + add to calendar row
+              // Date
               _FrostCard(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.screenV),
@@ -195,11 +232,10 @@ class ViewingDetailScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           dateText,
-                          style:
-                              Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.navy,
-                                  ),
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.navy,
+                          ),
                         ),
                       ),
                       TextButton(
@@ -217,9 +253,9 @@ class ViewingDetailScreen extends StatelessWidget {
               Text(
                 "Location",
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.navy.withValues(alpha: 0.85),
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.navy.withValues(alpha: 0.85),
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
               _FrostCard(
@@ -239,13 +275,10 @@ class ViewingDetailScreen extends StatelessWidget {
                           Expanded(
                             child: Text(
                               "${viewing.listingTitle}\n${viewing.location}",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.navy,
-                                  ),
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.navy,
+                              ),
                             ),
                           ),
                         ],
@@ -271,10 +304,8 @@ class ViewingDetailScreen extends StatelessWidget {
                                 child: Container(
                                   padding: const EdgeInsets.all(AppSpacing.s10),
                                   decoration: BoxDecoration(
-                                    color: AppColors.surface(context)
-                                        .withValues(alpha: 0.80),
-                                    borderRadius:
-                                        BorderRadius.circular(AppRadii.pill),
+                                    color: AppColors.surface(context).withValues(alpha: 0.80),
+                                    borderRadius: BorderRadius.circular(AppRadii.pill),
                                   ),
                                   child: const Icon(
                                     Icons.location_on_rounded,
@@ -305,9 +336,9 @@ class ViewingDetailScreen extends StatelessWidget {
               Text(
                 "Contact",
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.navy.withValues(alpha: 0.85),
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.navy.withValues(alpha: 0.85),
+                ),
               ),
               const SizedBox(height: AppSpacing.sm),
               _FrostCard(
@@ -317,8 +348,7 @@ class ViewingDetailScreen extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: AppSizes.minTap / 2.2,
-                        backgroundColor:
-                            AppColors.tenantPanel.withValues(alpha: 0.85),
+                        backgroundColor: AppColors.tenantPanel.withValues(alpha: 0.85),
                         child: const Icon(
                           Icons.person_rounded,
                           color: AppColors.brandBlueSoft,
@@ -331,25 +361,18 @@ class ViewingDetailScreen extends StatelessWidget {
                           children: [
                             Text(
                               viewing.agentName,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.navy,
-                                  ),
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.navy,
+                              ),
                             ),
                             const SizedBox(height: AppSpacing.s2),
                             Text(
                               "Real Estate Agent",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.textMuted(context)
-                                        .withValues(alpha: 0.9),
-                                  ),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textMuted(context).withValues(alpha: 0.9),
+                              ),
                             ),
                           ],
                         ),
@@ -390,10 +413,9 @@ class ViewingDetailScreen extends StatelessWidget {
                       Text(
                         fullDateTime,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textMuted(context)
-                                  .withValues(alpha: 0.9),
-                            ),
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMuted(context).withValues(alpha: 0.9),
+                        ),
                       ),
                     ],
                   ),
@@ -402,7 +424,7 @@ class ViewingDetailScreen extends StatelessWidget {
 
               const SizedBox(height: AppSpacing.screenV),
 
-              // ✅ Bottom actions rule:
+              // Bottom actions
               if (isCompleted) ...[
                 _PillButton(
                   text: "Apply Now  ›",
@@ -438,9 +460,9 @@ class ViewingDetailScreen extends StatelessWidget {
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: _PillButton(
-                        text: "Cancel visit",
+                        text: _busy ? "Cancelling…" : "Cancel visit",
                         color: AppColors.tenantDangerSoft,
-                        onTap: canCancel ? () {} : null,
+                        onTap: (canCancel && !_busy) ? _cancelVisit : null,
                       ),
                     ),
                   ],
@@ -449,6 +471,18 @@ class ViewingDetailScreen extends StatelessWidget {
             ],
           ),
         ),
+
+        // Busy overlay
+        if (_busy)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                color: AppColors.overlay(context, 0.12),
+                alignment: Alignment.center,
+                child: const CircularProgressIndicator(),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -511,9 +545,9 @@ class _PillButton extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: disabled ? AppColors.mutedMid : AppColors.white,
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: disabled ? AppColors.mutedMid : AppColors.white,
+                ),
               ),
             ),
           ),
@@ -545,9 +579,9 @@ class _PillOutlineButton extends StatelessWidget {
           child: Text(
             text,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.navy,
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.navy,
+            ),
           ),
         ),
       ),
@@ -565,11 +599,11 @@ class _TimelineLabel extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: active
-                ? AppColors.navy
-                : AppColors.textMuted(context).withValues(alpha: 0.75),
-          ),
+        fontWeight: FontWeight.w900,
+        color: active
+            ? AppColors.navy
+            : AppColors.textMuted(context).withValues(alpha: 0.75),
+      ),
     );
   }
 }
@@ -704,6 +738,11 @@ class _ViewingBadge {
         return const _ViewingBadge(
           label: "Confirmed",
           color: AppColors.brandGreenDeep,
+        );
+      case ViewingStatus.rejected:
+        return const _ViewingBadge(
+          label: "Rejected",
+          color: AppColors.tenantDangerDeep,
         );
       case ViewingStatus.completed:
         return const _ViewingBadge(

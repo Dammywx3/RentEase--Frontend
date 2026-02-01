@@ -100,9 +100,9 @@ class ApplicationDetailScreen extends StatelessWidget {
                     child: Text(
                       application.propertyTitle,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy,
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.s10),
@@ -121,9 +121,9 @@ class ApplicationDetailScreen extends StatelessWidget {
                     child: Text(
                       badge.label,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: badge.color,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: badge.color,
+                      ),
                     ),
                   ),
                 ],
@@ -132,9 +132,9 @@ class ApplicationDetailScreen extends StatelessWidget {
               Text(
                 "${application.location} • ${application.rentText}",
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textMuted(context),
-                    ),
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textMuted(context),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
 
@@ -158,9 +158,9 @@ class ApplicationDetailScreen extends StatelessWidget {
                       Text(
                         "Submitted on ${_fullDate(context, application.submittedAt)}",
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textMuted(context),
-                            ),
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMuted(context),
+                        ),
                       ),
                     ],
                   ),
@@ -180,9 +180,9 @@ class ApplicationDetailScreen extends StatelessWidget {
                     Text(
                       "Wire this from your application flow (personal + guarantor step).",
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textMuted(context),
-                          ),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMuted(context),
+                      ),
                     ),
                   ],
                 ),
@@ -210,9 +210,9 @@ class ApplicationDetailScreen extends StatelessWidget {
                 child: Text(
                   "Thread with agent: ${application.agentName} (wire later).",
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.navy,
-                      ),
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navy,
+                  ),
                 ),
               ),
 
@@ -305,9 +305,9 @@ class _Section extends StatelessWidget {
             Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.navy,
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             child,
@@ -333,17 +333,17 @@ class _KV extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textMuted(context),
-                  ),
+                fontWeight: FontWeight.w800,
+                color: AppColors.textMuted(context),
+              ),
             ),
           ),
           Text(
             value,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.navy,
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.navy,
+            ),
           ),
         ],
       ),
@@ -361,7 +361,9 @@ class _DocRow extends StatelessWidget {
     final ok = status.toLowerCase().contains("upload");
 
     // ✅ No hardcoding: if you have brandOrange use it; otherwise fallback to brandBlueSoft.
-    final Color pendingColor = ok ? AppColors.brandGreenDeep : AppColors.brandBlueSoft;
+    final Color pendingColor = ok
+        ? AppColors.brandGreenDeep
+        : AppColors.brandBlueSoft;
 
     final c = pendingColor;
 
@@ -373,9 +375,9 @@ class _DocRow extends StatelessWidget {
           child: Text(
             title,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.navy,
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.navy,
+            ),
           ),
         ),
         Container(
@@ -391,9 +393,9 @@ class _DocRow extends StatelessWidget {
           child: Text(
             status,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: c,
-                ),
+              fontWeight: FontWeight.w900,
+              color: c,
+            ),
           ),
         ),
       ],
@@ -410,9 +412,9 @@ class _TL extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: AppColors.navy,
-          ),
+        fontWeight: FontWeight.w900,
+        color: AppColors.navy,
+      ),
     );
   }
 }
@@ -499,9 +501,9 @@ class _PillButton extends StatelessWidget {
         child: Text(
           text,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: filled ? AppColors.white : AppColors.navy,
-              ),
+            fontWeight: FontWeight.w900,
+            color: filled ? AppColors.white : AppColors.navy,
+          ),
         ),
       ),
     );

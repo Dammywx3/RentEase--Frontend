@@ -37,7 +37,10 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
     for (int i = 0; i < s.length; i++) {
       final idxFromEnd = s.length - i;
       buf.write(s[i]);
-      if (idxFromEnd > 1 && idxFromEnd % 3 == 1) { buf.write(","); }    }
+      if (idxFromEnd > 1 && idxFromEnd % 3 == 1) {
+        buf.write(",");
+      }
+    }
     return "₦$buf";
   }
 
@@ -77,7 +80,8 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
                       child: Text(
                         "Confirm Payment",
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w900,
                               color: AppColors.navy,
                             ),
@@ -105,13 +109,17 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
                           children: [
                             Text(
                               "Rent",
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w900,
                                     color: AppColors.navy,
                                   ),
                             ),
                             const SizedBox(height: AppSpacing.md),
-                            _RowLine(left: "Tenancy:", right: _fmt(widget.amountNgn)),
+                            _RowLine(
+                              left: "Tenancy:",
+                              right: _fmt(widget.amountNgn),
+                            ),
                             const SizedBox(height: AppSpacing.s10),
                             _RowLine(left: "Tenancy", right: widget.title),
                             const SizedBox(height: AppSpacing.s10),
@@ -119,7 +127,10 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
                             const SizedBox(height: AppSpacing.s10),
                             _RowLine(left: "Total:", right: _fmt(_total)),
                             const SizedBox(height: AppSpacing.s10),
-                            _RowLine(left: "Method:", right: widget.methodLabel),
+                            _RowLine(
+                              left: "Method:",
+                              right: widget.methodLabel,
+                            ),
                           ],
                         ),
                       ),
@@ -128,9 +139,9 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
                     Text(
                       "Choose what to pay",
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.s10),
                     _Choice(
@@ -198,9 +209,9 @@ class _RowLine extends StatelessWidget {
           child: Text(
             left,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textMutedLight,
-                ),
+              fontWeight: FontWeight.w800,
+              color: AppColors.textMutedLight,
+            ),
           ),
         ),
         Expanded(
@@ -208,9 +219,9 @@ class _RowLine extends StatelessWidget {
             right,
             textAlign: TextAlign.right,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.navy,
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.navy,
+            ),
           ),
         ),
       ],
@@ -250,23 +261,31 @@ class _Choice extends StatelessWidget {
                 child: Text(
                   label,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.navy,
+                  ),
                 ),
               ),
               Container(
                 height: 22,
                 width: 22,
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.tenantActionBlue : Colors.transparent,
+                  color: selected
+                      ? AppColors.tenantActionBlue
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(AppRadii.xxs),
                   border: Border.all(
-                    color: selected ? AppColors.tenantActionBlue : AppColors.tenantBorderMuted,
+                    color: selected
+                        ? AppColors.tenantActionBlue
+                        : AppColors.tenantBorderMuted,
                   ),
                 ),
                 child: selected
-                    ? const Icon(Icons.check_rounded, size: 16, color: AppColors.white)
+                    ? const Icon(
+                        Icons.check_rounded,
+                        size: 16,
+                        color: AppColors.white,
+                      )
                     : null,
               ),
             ],

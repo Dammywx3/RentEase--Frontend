@@ -80,7 +80,10 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
 
   String _timeLabel(BuildContext context, DateTime dt) {
     final loc = MaterialLocalizations.of(context);
-    return loc.formatTimeOfDay(TimeOfDay.fromDateTime(dt), alwaysUse24HourFormat: false);
+    return loc.formatTimeOfDay(
+      TimeOfDay.fromDateTime(dt),
+      alwaysUse24HourFormat: false,
+    );
   }
 
   @override
@@ -116,9 +119,13 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                         height: AppSizes.iconButtonBox,
                         width: AppSizes.iconButtonBox,
                         decoration: BoxDecoration(
-                          color: AppColors.surface(context).withValues(alpha: 0.92),
+                          color: AppColors.surface(
+                            context,
+                          ).withValues(alpha: 0.92),
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.overlay(context, 0.06)),
+                          border: Border.all(
+                            color: AppColors.overlay(context, 0.06),
+                          ),
                           boxShadow: AppShadows.soft(
                             context,
                             blur: AppSpacing.xxxl,
@@ -126,7 +133,10 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                             alpha: 0.10,
                           ),
                         ),
-                        child: Icon(Icons.call_rounded, color: AppColors.textMuted(context)),
+                        child: Icon(
+                          Icons.call_rounded,
+                          color: AppColors.textMuted(context),
+                        ),
                       ),
                     ),
                   ),
@@ -152,20 +162,29 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.surface(context).withValues(alpha: 0.60),
                       borderRadius: BorderRadius.circular(AppRadii.pill),
-                      border: Border.all(color: AppColors.overlay(context, 0.06)),
+                      border: Border.all(
+                        color: AppColors.overlay(context, 0.06),
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          c.isVerified ? Icons.verified_rounded : Icons.info_outline_rounded,
+                          c.isVerified
+                              ? Icons.verified_rounded
+                              : Icons.info_outline_rounded,
                           size: 18,
-                          color: c.isVerified ? AppColors.brandGreenDeep : AppColors.textMutedLight,
+                          color: c.isVerified
+                              ? AppColors.brandGreenDeep
+                              : AppColors.textMutedLight,
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
-                          c.isVerified ? 'Verified ${c.subtitleLabel()}' : c.subtitleLabel(),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          c.isVerified
+                              ? 'Verified ${c.subtitleLabel()}'
+                              : c.subtitleLabel(),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.navy,
                               ),
@@ -179,7 +198,9 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
 
             // pinned listing mini card
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenV),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenV,
+              ),
               child: _ListingMiniCard(
                 title: c.listingTitle,
                 priceText: c.listingPriceText,
@@ -203,7 +224,8 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                 itemBuilder: (_, i) {
                   final m = _messages[i];
 
-                  final showDay = i == 0 ||
+                  final showDay =
+                      i == 0 ||
                       (_messages[i - 1].at.year != m.at.year ||
                           _messages[i - 1].at.month != m.at.month ||
                           _messages[i - 1].at.day != m.at.day);
@@ -254,7 +276,8 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                     const SizedBox(width: AppSpacing.sm),
                     _QuickChip(
                       text: 'Request documents',
-                      onTap: () => _send('Can you share the required documents?'),
+                      onTap: () =>
+                          _send('Can you share the required documents?'),
                     ),
                   ],
                 ),
@@ -295,8 +318,7 @@ class ChatMessageVM {
     required String id,
     required String text,
     required DateTime at,
-  }) =>
-      ChatMessageVM._(id: id, type: ChatMessageType.user, text: text, at: at);
+  }) => ChatMessageVM._(id: id, type: ChatMessageType.user, text: text, at: at);
 
   factory ChatMessageVM.other({
     required String id,
@@ -345,12 +367,18 @@ class _ListingMiniCard extends StatelessWidget {
                   width: AppSizes.listThumbSize + AppSpacing.md,
                   color: AppColors.tenantPanel.withValues(alpha: 0.85),
                   child: thumbAsset.trim().isEmpty
-                      ? const Icon(Icons.photo_rounded, color: AppColors.textMutedLight)
+                      ? const Icon(
+                          Icons.photo_rounded,
+                          color: AppColors.textMutedLight,
+                        )
                       : Image.asset(
                           thumbAsset,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => const Center(
-                            child: Icon(Icons.photo_rounded, color: AppColors.textMutedLight),
+                            child: Icon(
+                              Icons.photo_rounded,
+                              color: AppColors.textMutedLight,
+                            ),
                           ),
                         ),
                 ),
@@ -365,9 +393,9 @@ class _ListingMiniCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
@@ -375,14 +403,17 @@ class _ListingMiniCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy.withValues(alpha: 0.86),
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy.withValues(alpha: 0.86),
+                      ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: AppColors.textMutedLight.withValues(alpha: 0.9)),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textMutedLight.withValues(alpha: 0.9),
+              ),
             ],
           ),
         ),
@@ -398,7 +429,10 @@ class _SystemMsg extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.s10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.s10,
+      ),
       decoration: BoxDecoration(
         color: AppColors.overlay(context, 0.05),
         borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -407,9 +441,9 @@ class _SystemMsg extends StatelessWidget {
       child: Text(
         text,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: AppColors.textMutedLight.withValues(alpha: 0.92),
-            ),
+          fontWeight: FontWeight.w900,
+          color: AppColors.textMutedLight.withValues(alpha: 0.92),
+        ),
       ),
     );
   }
@@ -422,7 +456,10 @@ class _DatePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.s6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.s6,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface(context).withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -431,20 +468,16 @@ class _DatePill extends StatelessWidget {
       child: Text(
         text,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: AppColors.textMutedLight.withValues(alpha: 0.92),
-            ),
+          fontWeight: FontWeight.w900,
+          color: AppColors.textMutedLight.withValues(alpha: 0.92),
+        ),
       ),
     );
   }
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({
-    required this.text,
-    required this.isMe,
-    required this.time,
-  });
+  const _Bubble({required this.text, required this.isMe, required this.time});
 
   final String text;
   final bool isMe;
@@ -456,13 +489,17 @@ class _Bubble extends StatelessWidget {
         ? AppColors.brandBlueSoft.withValues(alpha: 0.45)
         : AppColors.surface(context).withValues(alpha: 0.58);
 
-    final border = isMe ? AppColors.brandBlueSoft.withValues(alpha: 0.35) : AppColors.overlay(context, 0.06);
+    final border = isMe
+        ? AppColors.brandBlueSoft.withValues(alpha: 0.35)
+        : AppColors.overlay(context, 0.06);
 
     return Row(
       mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
       children: [
         ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.78,
+          ),
           child: Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
@@ -476,9 +513,9 @@ class _Bubble extends StatelessWidget {
                 Text(
                   text,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.navy,
-                      ),
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navy,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.s6),
                 Align(
@@ -486,9 +523,9 @@ class _Bubble extends StatelessWidget {
                   child: Text(
                     time,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textMutedLight.withValues(alpha: 0.9),
-                        ),
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMutedLight.withValues(alpha: 0.9),
+                    ),
                   ),
                 ),
               ],
@@ -514,13 +551,16 @@ class _QuickChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.pill),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
           child: Text(
             text,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.navy,
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.navy,
+            ),
           ),
         ),
       ),
@@ -543,10 +583,18 @@ class _Composer extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.fromLTRB(AppSpacing.screenV, 0, AppSpacing.screenV, AppSpacing.md),
+      minimum: const EdgeInsets.fromLTRB(
+        AppSpacing.screenV,
+        0,
+        AppSpacing.screenV,
+        AppSpacing.md,
+      ),
       child: _FrostCard(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.s10),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.s10,
+          ),
           child: Row(
             children: [
               InkWell(
@@ -554,7 +602,10 @@ class _Composer extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadii.pill),
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.s6),
-                  child: Icon(Icons.attach_file_rounded, color: AppColors.textMuted(context)),
+                  child: Icon(
+                    Icons.attach_file_rounded,
+                    color: AppColors.textMuted(context),
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -567,14 +618,14 @@ class _Composer extends StatelessWidget {
                     border: InputBorder.none,
                     hintText: 'Type a message…',
                     hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textMutedLight.withValues(alpha: 0.85),
-                        ),
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textMutedLight.withValues(alpha: 0.85),
+                    ),
                   ),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.navy,
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -587,7 +638,10 @@ class _Composer extends StatelessWidget {
                   child: SizedBox(
                     height: AppSizes.iconButtonBox,
                     width: AppSizes.iconButtonBox,
-                    child: const Icon(Icons.check_rounded, color: AppColors.white),
+                    child: const Icon(
+                      Icons.check_rounded,
+                      color: AppColors.white,
+                    ),
                   ),
                 ),
               ),
@@ -611,7 +665,9 @@ class _FrostCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.surface(context).withValues(alpha: 0.55)),
+          border: Border.all(
+            color: AppColors.surface(context).withValues(alpha: 0.55),
+          ),
           boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: ClipRRect(

@@ -120,7 +120,8 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
           safeAreaBottom: false,
           topBar: AppTopBar(
             title: 'Maintenance',
-            subtitle: null, // ✅ keep top bar clean (screen name only if you want)
+            subtitle:
+                null, // ✅ keep top bar clean (screen name only if you want)
             leadingIcon: Icons.arrow_back_rounded,
             onLeadingTap: () => Navigator.of(context).maybePop(),
             actions: const [],
@@ -169,7 +170,9 @@ class _MaintenanceScreenState extends State<MaintenanceScreen> {
                             final x = list[i];
                             return InkWell(
                               onTap: () => _openDetails(x),
-                              borderRadius: BorderRadius.circular(AppRadii.card),
+                              borderRadius: BorderRadius.circular(
+                                AppRadii.card,
+                              ),
                               child: MaintenanceCard(
                                 title: x.title,
                                 categoryText: x.category ?? '',
@@ -250,9 +253,9 @@ class _SummaryCard extends StatelessWidget {
           Text(
             'Maintenance',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary(context),
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary(context),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
 
@@ -275,9 +278,9 @@ class _SummaryCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary(context),
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary(context),
+                      ),
                     ),
                   ),
                 ],
@@ -359,9 +362,9 @@ class _SegmentTabs extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary(context),
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary(context),
+                  ),
                 ),
               ),
             ),
@@ -408,18 +411,18 @@ class _EmptyState extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary(context),
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary(context),
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             subtitle,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textMuted(context),
-                ),
+              fontWeight: FontWeight.w800,
+              color: AppColors.textMuted(context),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           PrimaryButton(label: ctaText, onPressed: onCta),

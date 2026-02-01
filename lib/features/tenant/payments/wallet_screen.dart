@@ -105,13 +105,17 @@ class WalletScreen extends StatelessWidget {
                         if (payRentDisabled) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(disablePayRentReason ?? 'No active tenancy'),
+                              content: Text(
+                                disablePayRentReason ?? 'No active tenancy',
+                              ),
                             ),
                           );
                           return;
                         }
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Pay rent flow (wire later)')),
+                          const SnackBar(
+                            content: Text('Pay rent flow (wire later)'),
+                          ),
                         );
                       },
                     ),
@@ -156,12 +160,15 @@ class WalletScreen extends StatelessWidget {
                         Icon(
                           Icons.receipt_long_rounded,
                           size: 40,
-                          color: AppColors.textMuted(context).withValues(alpha: 0.7),
+                          color: AppColors.textMuted(
+                            context,
+                          ).withValues(alpha: 0.7),
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           'No recent activity',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.textPrimary(context),
                               ),
@@ -170,9 +177,12 @@ class WalletScreen extends StatelessWidget {
                         Text(
                           'Top-up or pay to see transactions here.',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textMuted(context).withValues(alpha: 0.9),
+                                color: AppColors.textMuted(
+                                  context,
+                                ).withValues(alpha: 0.9),
                               ),
                         ),
                       ],
@@ -244,7 +254,8 @@ class AddMoneyScreen extends StatelessWidget {
                     children: [
                       Text(
                         'Top up your wallet',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w900,
                               color: AppColors.textPrimary(context),
                             ),
@@ -253,9 +264,11 @@ class AddMoneyScreen extends StatelessWidget {
                       Text(
                         'Connect this to Paystack/Flutterwave later.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textMuted(context).withValues(alpha: 0.9),
-                            ),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted(
+                            context,
+                          ).withValues(alpha: 0.9),
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       SizedBox(
@@ -264,7 +277,11 @@ class AddMoneyScreen extends StatelessWidget {
                         child: FilledButton(
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Top-up flow (wire gateway later)')),
+                              const SnackBar(
+                                content: Text(
+                                  'Top-up flow (wire gateway later)',
+                                ),
+                              ),
                             );
                           },
                           child: const Text('Continue'),
@@ -322,7 +339,8 @@ class WithdrawScreen extends StatelessWidget {
                     children: [
                       Text(
                         'Withdraw to bank',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w900,
                               color: AppColors.textPrimary(context),
                             ),
@@ -331,9 +349,11 @@ class WithdrawScreen extends StatelessWidget {
                       Text(
                         'Connect this to your payout/bank details later.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textMuted(context).withValues(alpha: 0.9),
-                            ),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted(
+                            context,
+                          ).withValues(alpha: 0.9),
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       SizedBox(
@@ -342,7 +362,9 @@ class WithdrawScreen extends StatelessWidget {
                         child: FilledButton(
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Withdraw flow (wire later)')),
+                              const SnackBar(
+                                content: Text('Withdraw flow (wire later)'),
+                              ),
                             );
                           },
                           child: const Text('Continue'),
@@ -414,22 +436,26 @@ class _WalletHeaderCard extends StatelessWidget {
             Text(
               'Available balance',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textMuted(context).withValues(alpha: 0.9),
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.textMuted(context).withValues(alpha: 0.9),
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               availableBalanceText,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary(context),
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.textPrimary(context),
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
-                Icon(Icons.update_rounded, size: 16, color: AppColors.textMuted(context)),
+                Icon(
+                  Icons.update_rounded,
+                  size: 16,
+                  color: AppColors.textMuted(context),
+                ),
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(
@@ -437,14 +463,19 @@ class _WalletHeaderCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textMuted(context).withValues(alpha: 0.9),
-                        ),
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textMuted(
+                        context,
+                      ).withValues(alpha: 0.9),
+                    ),
                   ),
                 ),
                 if (escrowBalanceText != null) ...[
                   const SizedBox(width: AppSpacing.sm),
-                  _Pill(text: 'Escrow: $escrowBalanceText', icon: Icons.lock_rounded),
+                  _Pill(
+                    text: 'Escrow: $escrowBalanceText',
+                    icon: Icons.lock_rounded,
+                  ),
                 ],
               ],
             ),
@@ -512,9 +543,9 @@ class _QuickActionTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: fg,
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: fg,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -522,11 +553,11 @@ class _QuickActionTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textMuted(context).withValues(
-                        alpha: disabled ? 0.45 : 0.88,
-                      ),
-                    ),
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMuted(
+                    context,
+                  ).withValues(alpha: disabled ? 0.45 : 0.88),
+                ),
               ),
             ],
           ),
@@ -567,7 +598,11 @@ class _ShortcutRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _IconChip(icon: icon, bg: AppColors.tenantPanel, fg: AppColors.brandBlueSoft),
+              _IconChip(
+                icon: icon,
+                bg: AppColors.tenantPanel,
+                fg: AppColors.brandBlueSoft,
+              ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -576,9 +611,9 @@ class _ShortcutRow extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -586,9 +621,11 @@ class _ShortcutRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textMuted(context).withValues(alpha: 0.85),
-                          ),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMuted(
+                          context,
+                        ).withValues(alpha: 0.85),
+                      ),
                     ),
                   ],
                 ),
@@ -596,7 +633,10 @@ class _ShortcutRow extends StatelessWidget {
               if (trailingText != null && trailingText!.trim().isNotEmpty) ...[
                 const SizedBox(width: AppSpacing.sm),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.overlay(context, 0.03),
                     borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -605,9 +645,9 @@ class _ShortcutRow extends StatelessWidget {
                   child: Text(
                     trailingText!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textSecondary(context),
-                        ),
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textSecondary(context),
+                    ),
                   ),
                 ),
               ],
@@ -630,14 +670,25 @@ class _TxnPreviewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final amountColor = vm.isIncoming ? AppColors.brandGreenDeep : AppColors.tenantDangerDeep;
+    final amountColor = vm.isIncoming
+        ? AppColors.brandGreenDeep
+        : AppColors.tenantDangerDeep;
     final statusTint = _statusTint(vm.statusText);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.screenV, AppSpacing.md, AppSpacing.md, AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenV,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
       child: Row(
         children: [
-          _IconChip(icon: Icons.receipt_long_rounded, bg: AppColors.tenantPanel, fg: AppColors.brandBlueSoft),
+          _IconChip(
+            icon: Icons.receipt_long_rounded,
+            bg: AppColors.tenantPanel,
+            fg: AppColors.brandBlueSoft,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -648,9 +699,9 @@ class _TxnPreviewRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.navy,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -658,9 +709,9 @@ class _TxnPreviewRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMuted(context).withValues(alpha: 0.85),
-                      ),
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMuted(context).withValues(alpha: 0.85),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _StatusPill(text: vm.statusText, tint: statusTint),
@@ -671,9 +722,9 @@ class _TxnPreviewRow extends StatelessWidget {
           Text(
             vm.amountText,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: amountColor,
-                ),
+              fontWeight: FontWeight.w900,
+              color: amountColor,
+            ),
           ),
         ],
       ),
@@ -701,9 +752,9 @@ class _SectionHeader extends StatelessWidget {
           child: Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary(context),
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary(context),
+            ),
           ),
         ),
         if (trailing != null) trailing!,
@@ -722,13 +773,16 @@ class _LinkText extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
         child: Text(
           text,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.brandBlueSoft,
-              ),
+            fontWeight: FontWeight.w900,
+            color: AppColors.brandBlueSoft,
+          ),
         ),
       ),
     );
@@ -743,7 +797,10 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
         color: AppColors.overlay(context, 0.03),
         borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -757,9 +814,9 @@ class _Pill extends StatelessWidget {
           Text(
             text,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textSecondary(context),
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.textSecondary(context),
+            ),
           ),
         ],
       ),
@@ -775,7 +832,10 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: tint.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -784,9 +844,9 @@ class _StatusPill extends StatelessWidget {
       child: Text(
         text,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary(context),
-            ),
+          fontWeight: FontWeight.w900,
+          color: AppColors.textPrimary(context),
+        ),
       ),
     );
   }
@@ -827,7 +887,9 @@ class _FrostCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.surface(context).withValues(alpha: 0.55)),
+          border: Border.all(
+            color: AppColors.surface(context).withValues(alpha: 0.55),
+          ),
           boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: ClipRRect(

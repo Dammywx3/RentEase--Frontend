@@ -14,11 +14,68 @@ import "../../../core/theme/app_sizes.dart";
 import "../../../core/ui/scaffold/app_scaffold.dart";
 import "../../../core/ui/scaffold/app_top_bar.dart";
 
-import "../../../shared/models/viewing_model.dart"; // ✅ NEW
-import "../viewings/viewings_screen.dart"; // ✅ NEW
+import "../../../shared/models/viewing_model.dart";
+import "../viewings/viewings_screen.dart";
 
 enum VisitType { rent, buy, land, commercial }
 enum VisitMode { inPerson, virtual }
+
+/// ✅ Simple in-memory store so "My Visits" is not always 1 item.
+/// Later replace this with backend fetch + Provider/Riverpod.
+class ViewingStore {
+  ViewingStore._();
+  static final List<ViewingModel> items = <ViewingModel>[];
+
+  static void add(ViewingModel v) {
+    items.removeWhere((x) => x.id == v.id);
+    items.insert(0, v);
+  }
+}
+
+/// ✅ Backend-ready API contract (plug your real API here later)
+abstract class VisitRequestApi {
+  Future<RequestResultVM> send(VisitRequestDraft draft, {required bool instantBooking});
+}
+
+/// ✅ Default fake API so UI works now
+class FakeVisitRequestApi implements VisitRequestApi {
+  @override
+  Future<RequestResultVM> send(
+    VisitRequestDraft draft, {
+    required bool instantBooking,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 900));
+
+    final seed = DateTime.now().millisecondsSinceEpoch;
+    final shouldFail = (seed % 13) == 0;
+    if (shouldFail) throw Exception("failed");
+
+    final ref = _makeRef();
+    final dt = DateTime(
+      draft.selectedDate.year,
+      draft.selectedDate.month,
+      draft.selectedDate.day,
+      draft.selectedTime.hour,
+      draft.selectedTime.minute,
+    );
+
+    return RequestResultVM(
+      referenceId: ref,
+      agentName: "Chinedu Okafor",
+      agentSubtitle: "Verified Agent",
+      dateTime: dt,
+      isConfirmed: instantBooking,
+      listingTitle: draft.listing.title,
+      location: draft.listing.location,
+      priceText: draft.listing.priceLine,
+    );
+  }
+
+  static String _makeRef() {
+    final n = 20000 + math.Random().nextInt(79999);
+    return "HS-VIS-$n";
+  }
+}
 
 class VisitListingCardVM {
   const VisitListingCardVM({
@@ -26,17 +83,28 @@ class VisitListingCardVM {
     required this.location,
     required this.priceLine,
     this.photoAssetPath,
+
+    /// ✅ NEW: support backend image URLs (coverUrl etc.)
+    this.photoUrl,
+
     required this.locationTitle,
     required this.addressLine,
+
+    /// ✅ Optional but recommended: pass listingId for real API calls later
+    this.listingId,
   });
 
   final String title;
   final String location;
   final String priceLine;
+
   final String? photoAssetPath;
+  final String? photoUrl;
 
   final String locationTitle;
   final String addressLine;
+
+  final String? listingId;
 }
 
 class VisitRequestDraft {
@@ -69,7 +137,6 @@ class RequestResultVM {
     required this.dateTime,
     required this.isConfirmed,
 
-    // ✅ include listing summary so we can create ViewingModel on success screen
     required this.listingTitle,
     required this.location,
     required this.priceText,
@@ -92,11 +159,15 @@ class ScheduleVisitScreen extends StatefulWidget {
     required this.visitType,
     required this.listing,
     this.instantBooking = false,
+
+    /// ✅ inject real API later; defaults to fake
+    this.api,
   });
 
   final VisitType visitType;
   final VisitListingCardVM listing;
   final bool instantBooking;
+  final VisitRequestApi? api;
 
   @override
   State<ScheduleVisitScreen> createState() => _ScheduleVisitScreenState();
@@ -112,6 +183,8 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
   final TextEditingController _extraCtrl = TextEditingController();
 
   bool _sending = false;
+
+  VisitRequestApi get _api => widget.api ?? FakeVisitRequestApi();
 
   @override
   void initState() {
@@ -196,6 +269,8 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
   }
 
   List<_TimeSlot> _buildTimeSlots() {
+    // ✅ This is still demo availability.
+    // Later: fetch agent availability from backend.
     final base = <TimeOfDay>[
       const TimeOfDay(hour: 9, minute: 0),
       const TimeOfDay(hour: 10, minute: 0),
@@ -205,13 +280,16 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
       const TimeOfDay(hour: 15, minute: 0),
     ];
 
-    int hash = _selectedDate.day + _selectedDate.month * 31 + _selectedDate.year;
+    int hash =
+        _selectedDate.day + _selectedDate.month * 31 + _selectedDate.year;
     bool isUnavailable(TimeOfDay t) {
       final v = (hash + t.hour * 7 + t.minute) % 9;
       return v == 0;
     }
 
-    return base.map((t) => _TimeSlot(time: t, available: !isUnavailable(t))).toList();
+    return base
+        .map((t) => _TimeSlot(time: t, available: !isUnavailable(t)))
+        .toList();
   }
 
   bool get _canProceed => _selectedTime != null;
@@ -236,6 +314,7 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
           primaryLabel: "Send Request",
           draft: draft,
           instantBooking: widget.instantBooking,
+          api: _api,
         ),
       ),
     );
@@ -254,12 +333,13 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
   Widget build(BuildContext context) {
     final slots = _buildTimeSlots();
 
-    // ✅ Fix: gradient behind the whole screen (top bar + safe area included)
     return Stack(
       children: [
         Positioned.fill(
           child: DecoratedBox(
-            decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+            decoration: BoxDecoration(
+              gradient: AppColors.pageBgGradient(context),
+            ),
           ),
         ),
         AppScaffold(
@@ -373,15 +453,18 @@ class ConfirmVisitRequestScreen extends StatefulWidget {
     required this.primaryLabel,
     required this.draft,
     required this.instantBooking,
+    required this.api,
   });
 
   final String title;
   final String primaryLabel;
   final VisitRequestDraft draft;
   final bool instantBooking;
+  final VisitRequestApi api;
 
   @override
-  State<ConfirmVisitRequestScreen> createState() => _ConfirmVisitRequestScreenState();
+  State<ConfirmVisitRequestScreen> createState() =>
+      _ConfirmVisitRequestScreenState();
 }
 
 class _ConfirmVisitRequestScreenState extends State<ConfirmVisitRequestScreen> {
@@ -390,47 +473,28 @@ class _ConfirmVisitRequestScreenState extends State<ConfirmVisitRequestScreen> {
   String _fmtDateTime(BuildContext context, DateTime d, TimeOfDay t) {
     final loc = MaterialLocalizations.of(context);
     final dt = DateTime(d.year, d.month, d.day, t.hour, t.minute);
-    final time = loc.formatTimeOfDay(TimeOfDay.fromDateTime(dt), alwaysUse24HourFormat: false);
+    final time = loc.formatTimeOfDay(
+      TimeOfDay.fromDateTime(dt),
+      alwaysUse24HourFormat: false,
+    );
     return "${loc.shortWeekday(dt)}, ${loc.formatShortMonthDay(dt)} • $time";
   }
 
-  String _modeText(VisitMode m) => m == VisitMode.virtual ? "Virtual" : "In-person";
+  String _modeText(VisitMode m) =>
+      m == VisitMode.virtual ? "Virtual" : "In-person";
 
   Future<void> _sendRequest() async {
     if (_sending) return;
     setState(() => _sending = true);
 
     try {
-      await Future.delayed(const Duration(milliseconds: 900));
-      final seed = DateTime.now().millisecondsSinceEpoch;
-      final shouldFail = (seed % 13) == 0;
-
-      if (shouldFail) throw Exception("failed");
-
-      final ref = _makeRef();
-      final dt = DateTime(
-        widget.draft.selectedDate.year,
-        widget.draft.selectedDate.month,
-        widget.draft.selectedDate.day,
-        widget.draft.selectedTime.hour,
-        widget.draft.selectedTime.minute,
-      );
-
-      final result = RequestResultVM(
-        referenceId: ref,
-        agentName: "Chinedu Okafor",
-        agentSubtitle: "Verified Agent",
-        dateTime: dt,
-        isConfirmed: widget.instantBooking,
-        listingTitle: widget.draft.listing.title,
-        location: widget.draft.listing.location,
-        priceText: widget.draft.listing.priceLine,
+      final result = await widget.api.send(
+        widget.draft,
+        instantBooking: widget.instantBooking,
       );
 
       await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => RequestSentScreen(result: result),
-        ),
+        MaterialPageRoute(builder: (_) => RequestSentScreen(result: result)),
       );
 
       if (!mounted) return;
@@ -451,20 +515,21 @@ class _ConfirmVisitRequestScreenState extends State<ConfirmVisitRequestScreen> {
     }
   }
 
-  String _makeRef() {
-    final n = 20000 + math.Random().nextInt(79999);
-    return "HS-VIS-$n";
-  }
-
   @override
   Widget build(BuildContext context) {
-    final summaryDT = _fmtDateTime(context, widget.draft.selectedDate, widget.draft.selectedTime);
+    final summaryDT = _fmtDateTime(
+      context,
+      widget.draft.selectedDate,
+      widget.draft.selectedTime,
+    );
 
     return Stack(
       children: [
         Positioned.fill(
           child: DecoratedBox(
-            decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+            decoration: BoxDecoration(
+              gradient: AppColors.pageBgGradient(context),
+            ),
           ),
         ),
         AppScaffold(
@@ -486,7 +551,10 @@ class _ConfirmVisitRequestScreenState extends State<ConfirmVisitRequestScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _ListingMiniCard(listing: widget.draft.listing, compact: true),
+                      _ListingMiniCard(
+                        listing: widget.draft.listing,
+                        compact: true,
+                      ),
                       const SizedBox(height: AppSpacing.md),
                       _SummaryRow(icon: Icons.event_rounded, title: summaryDT),
                       if (widget.draft.visitType == VisitType.rent) ...[
@@ -505,7 +573,10 @@ class _ConfirmVisitRequestScreenState extends State<ConfirmVisitRequestScreen> {
                             ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      _MeetingLocationCard(listing: widget.draft.listing, compact: true),
+                      _MeetingLocationCard(
+                        listing: widget.draft.listing,
+                        compact: true,
+                      ),
                       const SizedBox(height: AppSpacing.lg),
                       Text(
                         "Notes",
@@ -515,7 +586,11 @@ class _ConfirmVisitRequestScreenState extends State<ConfirmVisitRequestScreen> {
                             ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      _SurfaceLine(text: widget.draft.notes.isEmpty ? "—" : widget.draft.notes),
+                      _SurfaceLine(
+                        text: widget.draft.notes.isEmpty
+                            ? "—"
+                            : widget.draft.notes,
+                      ),
                       if (widget.draft.extraFieldValue.trim().isNotEmpty) ...[
                         const SizedBox(height: AppSpacing.md),
                         Text(
@@ -558,31 +633,40 @@ class RequestSentScreen extends StatelessWidget {
 
   String _fmtDateTime(BuildContext context, DateTime dt) {
     final loc = MaterialLocalizations.of(context);
-    final time = loc.formatTimeOfDay(TimeOfDay.fromDateTime(dt), alwaysUse24HourFormat: false);
+    final time = loc.formatTimeOfDay(
+      TimeOfDay.fromDateTime(dt),
+      alwaysUse24HourFormat: false,
+    );
     return "${loc.shortWeekday(dt)}, ${loc.formatShortMonthDay(dt)} • $time";
   }
 
   @override
   Widget build(BuildContext context) {
     final statusText = result.isConfirmed ? "Confirmed" : "Pending confirmation";
-    final statusColor = result.isConfirmed ? AppColors.brandGreenDeep : AppColors.tenantIconBgSand;
+    final statusColor =
+        result.isConfirmed ? AppColors.brandGreenDeep : AppColors.tenantIconBgSand;
 
-    // ✅ Build the viewing model so ViewingsScreen is NOT empty
     final viewing = ViewingModel(
       id: result.referenceId,
       listingTitle: result.listingTitle,
       location: result.location,
       agentName: result.agentName,
       dateTime: result.dateTime,
-      status: result.isConfirmed ? ViewingStatus.confirmed : ViewingStatus.requested,
+      status:
+          result.isConfirmed ? ViewingStatus.confirmed : ViewingStatus.requested,
       priceText: result.priceText,
     );
+
+    // ✅ save so it accumulates in "My Visits"
+    ViewingStore.add(viewing);
 
     return Stack(
       children: [
         Positioned.fill(
           child: DecoratedBox(
-            decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+            decoration: BoxDecoration(
+              gradient: AppColors.pageBgGradient(context),
+            ),
           ),
         ),
         AppScaffold(
@@ -622,7 +706,8 @@ class RequestSentScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textMuted(context).withValues(alpha: 0.92),
+                            color: AppColors.textMuted(context)
+                                .withValues(alpha: 0.92),
                           ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
@@ -641,16 +726,20 @@ class RequestSentScreen extends StatelessWidget {
                                 color: statusColor.withValues(alpha: 0.55),
                                 borderRadius: BorderRadius.circular(AppRadii.pill),
                                 border: Border.all(
-                                  color: AppColors.overlay(context, AppSpacing.xs / AppSpacing.xxxl),
+                                  color: AppColors.overlay(
+                                    context,
+                                    AppSpacing.xs / AppSpacing.xxxl,
+                                  ),
                                 ),
                               ),
                               child: Center(
                                 child: Text(
                                   statusText,
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        fontWeight: FontWeight.w900,
-                                        color: AppColors.textPrimary(context),
-                                      ),
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.textPrimary(context),
+                                  ),
                                 ),
                               ),
                             ),
@@ -678,7 +767,7 @@ class RequestSentScreen extends StatelessWidget {
                           MaterialPageRoute(
                             builder: (_) => ViewingsScreen(
                               title: "My Visits",
-                              viewings: [viewing],
+                              viewings: ViewingStore.items,
                             ),
                           ),
                         );
@@ -709,7 +798,9 @@ class RequestFailedScreen extends StatelessWidget {
       children: [
         Positioned.fill(
           child: DecoratedBox(
-            decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+            decoration: BoxDecoration(
+              gradient: AppColors.pageBgGradient(context),
+            ),
           ),
         ),
         AppScaffold(
@@ -745,19 +836,22 @@ class RequestFailedScreen extends StatelessWidget {
                         const SizedBox(height: AppSpacing.md),
                         Text(
                           "Couldn’t send request",
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.textPrimary(context),
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.textPrimary(context),
+                                  ),
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           "Please check your connection and try again.",
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textMuted(context).withValues(alpha: 0.92),
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textMuted(context)
+                                        .withValues(alpha: 0.92),
+                                  ),
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         _PrimaryPillButton(
@@ -790,9 +884,51 @@ class _ListingMiniCard extends StatelessWidget {
   final VisitListingCardVM listing;
   final bool compact;
 
+  bool _isUrl(String s) => s.startsWith("http://") || s.startsWith("https://");
+
   @override
   Widget build(BuildContext context) {
-    final imgH = compact ? (AppSizes.listThumbSize * 2.2) : (AppSizes.listThumbSize * 2.7);
+    final imgH = compact
+        ? (AppSizes.listThumbSize * 2.2)
+        : (AppSizes.listThumbSize * 2.7);
+
+    final asset = (listing.photoAssetPath ?? "").trim();
+    final url = (listing.photoUrl ?? "").trim();
+
+    Widget image;
+    if (asset.isNotEmpty && asset.startsWith("assets/")) {
+      image = Image.asset(asset, fit: BoxFit.cover);
+    } else if (url.isNotEmpty && _isUrl(url)) {
+      image = Image.network(
+        url,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Center(
+            child: Icon(
+              Icons.home_rounded,
+              size: AppSpacing.xxxl + AppSpacing.lg,
+              color: AppColors.brandBlueSoft,
+            ),
+          );
+        },
+        errorBuilder: (_, __, ___) => Center(
+          child: Icon(
+            Icons.home_rounded,
+            size: AppSpacing.xxxl + AppSpacing.lg,
+            color: AppColors.brandBlueSoft,
+          ),
+        ),
+      );
+    } else {
+      image = Center(
+        child: Icon(
+          Icons.home_rounded,
+          size: AppSpacing.xxxl + AppSpacing.lg,
+          color: AppColors.brandBlueSoft,
+        ),
+      );
+    }
 
     return _FrostCard(
       child: Padding(
@@ -810,22 +946,17 @@ class _ListingMiniCard extends StatelessWidget {
                     Positioned.fill(
                       child: Container(
                         color: AppColors.overlay(context, 0.06),
-                        child: listing.photoAssetPath != null && listing.photoAssetPath!.startsWith("assets/")
-                            ? Image.asset(listing.photoAssetPath!, fit: BoxFit.cover)
-                            : Center(
-                                child: Icon(
-                                  Icons.home_rounded,
-                                  size: AppSpacing.xxxl + AppSpacing.lg,
-                                  color: AppColors.brandBlueSoft,
-                                ),
-                              ),
+                        child: image,
                       ),
                     ),
                     Positioned(
                       left: AppSpacing.md,
                       bottom: AppSpacing.md,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.overlay(context, 0.35),
                           borderRadius: BorderRadius.circular(AppRadii.sm),
@@ -917,8 +1048,13 @@ class _DateChipsRow extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, i) {
           final d = dates[i];
-          final isSel = d.year == selected.year && d.month == selected.month && d.day == selected.day;
-          return _ChipButton(text: labelFor(d), selected: isSel, onTap: () => onSelected(d));
+          final isSel =
+              d.year == selected.year && d.month == selected.month && d.day == selected.day;
+          return _ChipButton(
+            text: labelFor(d),
+            selected: isSel,
+            onTap: () => onSelected(d),
+          );
         },
       ),
     );
@@ -956,7 +1092,9 @@ class _TimeGrid extends StatelessWidget {
           spacing: gap,
           runSpacing: gap,
           children: slots.map((s) {
-            final isSel = selected != null && selected!.hour == s.time.hour && selected!.minute == s.time.minute;
+            final isSel = selected != null &&
+                selected!.hour == s.time.hour &&
+                selected!.minute == s.time.minute;
             return SizedBox(
               width: tileW,
               child: _ChipButton(
@@ -1080,7 +1218,9 @@ class _MeetingLocationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mapH = compact ? (AppSizes.listThumbSize * 1.45) : (AppSizes.listThumbSize * 1.70);
+    final mapH = compact
+        ? (AppSizes.listThumbSize * 1.45)
+        : (AppSizes.listThumbSize * 1.70);
 
     return _FrostCard(
       child: Padding(
@@ -1093,7 +1233,9 @@ class _MeetingLocationCard extends StatelessWidget {
               child: Container(
                 height: mapH,
                 width: double.infinity,
-                decoration: BoxDecoration(color: AppColors.overlay(context, 0.06)),
+                decoration: BoxDecoration(
+                  color: AppColors.overlay(context, 0.06),
+                ),
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.all(AppSpacing.s10),
@@ -1101,7 +1243,10 @@ class _MeetingLocationCard extends StatelessWidget {
                       color: AppColors.surface(context).withValues(alpha: 0.80),
                       borderRadius: BorderRadius.circular(AppRadii.pill),
                     ),
-                    child: const Icon(Icons.location_on_rounded, color: AppColors.brandBlueSoft),
+                    child: const Icon(
+                      Icons.location_on_rounded,
+                      color: AppColors.brandBlueSoft,
+                    ),
                   ),
                 ),
               ),
@@ -1130,7 +1275,11 @@ class _MeetingLocationCard extends StatelessWidget {
 }
 
 class _InputField extends StatelessWidget {
-  const _InputField({required this.controller, required this.hint, this.maxLines = 1});
+  const _InputField({
+    required this.controller,
+    required this.hint,
+    this.maxLines = 1,
+  });
 
   final TextEditingController controller;
   final String hint;
@@ -1140,16 +1289,17 @@ class _InputField extends StatelessWidget {
   Widget build(BuildContext context) {
     return _FrostCard(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenV, vertical: AppSpacing.s10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenV,
+          vertical: AppSpacing.s10,
+        ),
         child: TextField(
           controller: controller,
           maxLines: maxLines,
           decoration: const InputDecoration(
             border: InputBorder.none,
             isDense: true,
-          ).copyWith(
-            hintText: hint,
-          ),
+          ).copyWith(hintText: hint),
         ),
       ),
     );
@@ -1157,7 +1307,11 @@ class _InputField extends StatelessWidget {
 }
 
 class _PrimaryPillButton extends StatelessWidget {
-  const _PrimaryPillButton({required this.text, required this.enabled, required this.onTap});
+  const _PrimaryPillButton({
+    required this.text,
+    required this.enabled,
+    required this.onTap,
+  });
 
   final String text;
   final bool enabled;
@@ -1210,7 +1364,9 @@ class _SecondaryPillButton extends StatelessWidget {
           child: Center(
             child: Text(
               text,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w900),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
             ),
           ),
         ),
@@ -1229,7 +1385,10 @@ class _LinkText extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
         child: Text(
           text,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1251,12 +1410,18 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: AppSizes.minTap / 3, color: AppColors.textMuted(context)),
+        Icon(
+          icon,
+          size: AppSizes.minTap / 3,
+          color: AppColors.textMuted(context),
+        ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             title,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
           ),
         ),
       ],
@@ -1272,7 +1437,10 @@ class _SurfaceLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.s10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.s10,
+      ),
       decoration: BoxDecoration(
         color: AppColors.overlay(context, 0.03),
         borderRadius: BorderRadius.circular(AppRadii.md),
@@ -1280,14 +1448,21 @@ class _SurfaceLine extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
       ),
     );
   }
 }
 
 class _AgentMiniCard extends StatelessWidget {
-  const _AgentMiniCard({required this.name, required this.subtitle, required this.referenceId});
+  const _AgentMiniCard({
+    required this.name,
+    required this.subtitle,
+    required this.referenceId,
+  });
+
   final String name;
   final String subtitle;
   final String referenceId;
@@ -1306,20 +1481,36 @@ class _AgentMiniCard extends StatelessWidget {
           CircleAvatar(
             radius: AppSizes.minTap / 2.6,
             backgroundColor: AppColors.brandBlueSoft.withValues(alpha: 0.22),
-            child: const Icon(Icons.person_rounded, color: AppColors.brandBlueSoft),
+            child: const Icon(
+              Icons.person_rounded,
+              color: AppColors.brandBlueSoft,
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900)),
+                Text(
+                  name,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
                 const SizedBox(height: AppSpacing.xs),
-                Text(subtitle, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   "Reference ID: $referenceId",
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800)),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
               ],
             ),
           ),
@@ -1341,7 +1532,11 @@ class _SuccessIcon extends StatelessWidget {
         border: Border.all(color: AppColors.overlay(context, 0.06)),
         boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
       ),
-      child: const Icon(Icons.check_rounded, color: AppColors.brandGreenDeep, size: 44),
+      child: const Icon(
+        Icons.check_rounded,
+        color: AppColors.brandGreenDeep,
+        size: 44,
+      ),
     );
   }
 }
@@ -1358,7 +1553,9 @@ class _FrostCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.surface(context).withValues(alpha: 0.55)),
+          border: Border.all(
+            color: AppColors.surface(context).withValues(alpha: 0.55),
+          ),
           boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: child,

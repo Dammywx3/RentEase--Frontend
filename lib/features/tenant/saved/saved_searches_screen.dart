@@ -10,10 +10,7 @@ import '../../../core/ui/scaffold/app_scaffold.dart';
 import '../../../core/ui/scaffold/app_top_bar.dart';
 
 class SavedSearchesScreen extends StatefulWidget {
-  const SavedSearchesScreen({
-    super.key,
-    this.onExploreHomes,
-  });
+  const SavedSearchesScreen({super.key, this.onExploreHomes});
 
   final VoidCallback? onExploreHomes;
 
@@ -42,9 +39,9 @@ class _SavedSearchesScreenState extends State<SavedSearchesScreen> {
 
   void _openSearchResults(SavedSearchVM s) {
     // TODO: open SearchScreen with filters applied
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Open search results: ${s.title}')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Open search results: ${s.title}')));
   }
 
   @override
@@ -62,7 +59,9 @@ class _SavedSearchesScreenState extends State<SavedSearchesScreen> {
               icon: Icons.edit_rounded,
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Manage saved searches (wire later)')),
+                  const SnackBar(
+                    content: Text('Manage saved searches (wire later)'),
+                  ),
                 );
               },
             ),
@@ -87,7 +86,9 @@ class _SavedSearchesScreenState extends State<SavedSearchesScreen> {
                 onTap: () {
                   // TODO: open SearchScreen and let user save filters
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Create saved search (wire later)')),
+                    const SnackBar(
+                      content: Text('Create saved search (wire later)'),
+                    ),
                   );
                 },
               )
@@ -101,7 +102,10 @@ class _SavedSearchesScreenState extends State<SavedSearchesScreen> {
                     onToggleAlerts: (v) {
                       setState(() {
                         final i = _searches.indexWhere((e) => e.id == s.id);
-                        if (i >= 0) _searches[i] = _searches[i].copyWith(alertsEnabled: v);
+                        if (i >= 0)
+                          _searches[i] = _searches[i].copyWith(
+                            alertsEnabled: v,
+                          );
                       });
                     },
                     onEdit: () {
@@ -144,7 +148,7 @@ class SavedSearchVM {
       updatesLine: updatesLine,
       alertsEnabled: alertsEnabled ?? this.alertsEnabled,
     );
-    }
+  }
 }
 
 /* ---------------------------- UI ---------------------------- */
@@ -164,7 +168,9 @@ class _SavedSearchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bellColor = search.alertsEnabled ? AppColors.brandGreenDeep : AppColors.textMutedLight;
+    final bellColor = search.alertsEnabled
+        ? AppColors.brandGreenDeep
+        : AppColors.textMutedLight;
 
     return _FrostCard(
       child: Material(
@@ -185,7 +191,10 @@ class _SavedSearchCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(AppRadii.md),
                     border: Border.all(color: AppColors.overlay(context, 0.06)),
                   ),
-                  child: Icon(Icons.saved_search_rounded, color: AppColors.brandBlueSoft),
+                  child: Icon(
+                    Icons.saved_search_rounded,
+                    color: AppColors.brandBlueSoft,
+                  ),
                 ),
                 const SizedBox(width: AppSpacing.md),
 
@@ -198,31 +207,42 @@ class _SavedSearchCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.navy,
-                            ),
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.navy,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.s6),
                       Text(
                         search.summary,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textMutedLight.withValues(alpha: 0.92),
-                            ),
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMutedLight.withValues(
+                            alpha: 0.92,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Row(
                         children: [
-                          Icon(Icons.auto_awesome_rounded, size: 16, color: AppColors.brandOrange.withValues(alpha: 0.85)),
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 16,
+                            color: AppColors.brandOrange.withValues(
+                              alpha: 0.85,
+                            ),
+                          ),
                           const SizedBox(width: AppSpacing.xs),
                           Expanded(
                             child: Text(
                               search.updatesLine,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w900,
-                                    color: AppColors.navy.withValues(alpha: 0.85),
+                                    color: AppColors.navy.withValues(
+                                      alpha: 0.85,
+                                    ),
                                   ),
                             ),
                           ),
@@ -246,10 +266,14 @@ class _SavedSearchCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: bellColor.withValues(alpha: 0.16),
                           borderRadius: BorderRadius.circular(AppRadii.pill),
-                          border: Border.all(color: bellColor.withValues(alpha: 0.22)),
+                          border: Border.all(
+                            color: bellColor.withValues(alpha: 0.22),
+                          ),
                         ),
                         child: Icon(
-                          search.alertsEnabled ? Icons.notifications_active_rounded : Icons.notifications_off_rounded,
+                          search.alertsEnabled
+                              ? Icons.notifications_active_rounded
+                              : Icons.notifications_off_rounded,
                           color: bellColor.withValues(alpha: 0.95),
                         ),
                       ),
@@ -264,9 +288,14 @@ class _SavedSearchCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: AppColors.overlay(context, 0.04),
                           borderRadius: BorderRadius.circular(AppRadii.pill),
-                          border: Border.all(color: AppColors.overlay(context, 0.06)),
+                          border: Border.all(
+                            color: AppColors.overlay(context, 0.06),
+                          ),
                         ),
-                        child: Icon(Icons.more_horiz_rounded, color: AppColors.textMuted(context)),
+                        child: Icon(
+                          Icons.more_horiz_rounded,
+                          color: AppColors.textMuted(context),
+                        ),
                       ),
                     ),
                   ],
@@ -332,17 +361,24 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return _FrostCard(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xxl),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xxl,
+        ),
         child: Column(
           children: [
-            Icon(icon, size: AppSpacing.xxxl + AppSpacing.lg, color: AppColors.overlay(context, 0.22)),
+            Icon(
+              icon,
+              size: AppSpacing.xxxl + AppSpacing.lg,
+              color: AppColors.overlay(context, 0.22),
+            ),
             const SizedBox(height: AppSpacing.md),
             Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.navy,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             _PrimaryButton(text: buttonText, onTap: onTap),
@@ -377,9 +413,9 @@ class _PrimaryButton extends StatelessWidget {
             child: Text(
               text,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: disabled ? AppColors.textMutedLight : AppColors.white,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: disabled ? AppColors.textMutedLight : AppColors.white,
+              ),
             ),
           ),
         ),
@@ -400,7 +436,9 @@ class _FrostCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.surface(context).withValues(alpha: 0.55)),
+          border: Border.all(
+            color: AppColors.surface(context).withValues(alpha: 0.55),
+          ),
           boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: ClipRRect(

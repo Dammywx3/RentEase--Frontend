@@ -78,10 +78,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void _openChat(ConversationVM c) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => TenantChatScreen(
-          conversation: c,
-          initialMessages: c.messages,
-        ),
+        builder: (_) =>
+            TenantChatScreen(conversation: c, initialMessages: c.messages),
       ),
     );
   }
@@ -113,7 +111,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   alpha: 0.10,
                 ),
               ),
-              child: Icon(Icons.search_rounded, color: AppColors.textMuted(context)),
+              child: Icon(
+                Icons.search_rounded,
+                color: AppColors.textMuted(context),
+              ),
             ),
           ),
         ],
@@ -162,6 +163,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 /* ---------------------------- VMs ---------------------------- */
 
 enum ConversationKind { agent, landlord, support }
+
 enum MessagesFilter { all, agents, landlords, support }
 
 class ConversationVM {
@@ -224,10 +226,16 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return _FrostCard(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.s10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.s10,
+        ),
         child: Row(
           children: [
-            Icon(Icons.search_rounded, color: AppColors.textMutedLight.withValues(alpha: 0.9)),
+            Icon(
+              Icons.search_rounded,
+              color: AppColors.textMutedLight.withValues(alpha: 0.9),
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: TextField(
@@ -238,14 +246,14 @@ class _SearchBar extends StatelessWidget {
                   border: InputBorder.none,
                   hintText: hint,
                   hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMutedLight.withValues(alpha: 0.85),
-                      ),
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMutedLight.withValues(alpha: 0.85),
+                  ),
                 ),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.navy,
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.navy,
+                ),
               ),
             ),
             if (controller.text.trim().isNotEmpty)
@@ -257,7 +265,10 @@ class _SearchBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadii.pill),
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.s6),
-                  child: Icon(Icons.close_rounded, color: AppColors.textMuted(context)),
+                  child: Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textMuted(context),
+                  ),
                 ),
               ),
           ],
@@ -342,16 +353,18 @@ class _ChipBtn extends StatelessWidget {
         decoration: BoxDecoration(
           color: active ? blue.withValues(alpha: 0.18) : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadii.sm),
-          border: Border.all(color: active ? blue.withValues(alpha: 0.25) : Colors.transparent),
+          border: Border.all(
+            color: active ? blue.withValues(alpha: 0.25) : Colors.transparent,
+          ),
         ),
         child: Text(
           text,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.navy,
-              ),
+            fontWeight: FontWeight.w900,
+            color: AppColors.navy,
+          ),
         ),
       ),
     );
@@ -366,7 +379,10 @@ class _ConversationRow extends StatelessWidget {
 
   String _timeLabel(BuildContext context, DateTime dt) {
     final loc = MaterialLocalizations.of(context);
-    return loc.formatTimeOfDay(TimeOfDay.fromDateTime(dt), alwaysUse24HourFormat: false);
+    return loc.formatTimeOfDay(
+      TimeOfDay.fromDateTime(dt),
+      alwaysUse24HourFormat: false,
+    );
   }
 
   @override
@@ -396,7 +412,8 @@ class _ConversationRow extends StatelessWidget {
                               '${convo.displayName} • ${convo.subtitleLabel()}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w900,
                                     color: AppColors.navy,
                                   ),
@@ -405,9 +422,12 @@ class _ConversationRow extends StatelessWidget {
                           const SizedBox(width: AppSpacing.sm),
                           Text(
                             t,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
                                   fontWeight: FontWeight.w800,
-                                  color: AppColors.textMutedLight.withValues(alpha: 0.9),
+                                  color: AppColors.textMutedLight.withValues(
+                                    alpha: 0.9,
+                                  ),
                                 ),
                           ),
                         ],
@@ -418,9 +438,11 @@ class _ConversationRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.textMutedLight.withValues(alpha: 0.92),
-                            ),
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textMutedLight.withValues(
+                            alpha: 0.92,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.s6),
                       Row(
@@ -430,9 +452,12 @@ class _ConversationRow extends StatelessWidget {
                               convo.lastMessagePreview,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w800,
-                                    color: AppColors.navy.withValues(alpha: 0.82),
+                                    color: AppColors.navy.withValues(
+                                      alpha: 0.82,
+                                    ),
                                   ),
                             ),
                           ),
@@ -509,9 +534,15 @@ class _Avatar extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.brandGreenDeep.withValues(alpha: 0.95),
                   borderRadius: BorderRadius.circular(AppRadii.pill),
-                  border: Border.all(color: AppColors.surface(context).withValues(alpha: 0.85)),
+                  border: Border.all(
+                    color: AppColors.surface(context).withValues(alpha: 0.85),
+                  ),
                 ),
-                child: const Icon(Icons.check_rounded, size: 14, color: AppColors.white),
+                child: const Icon(
+                  Icons.check_rounded,
+                  size: 14,
+                  color: AppColors.white,
+                ),
               ),
             ),
         ],
@@ -529,7 +560,10 @@ class _UnreadBadge extends StatelessWidget {
     final c = AppColors.brandOrange;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s10, vertical: AppSpacing.s6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s10,
+        vertical: AppSpacing.s6,
+      ),
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -538,9 +572,9 @@ class _UnreadBadge extends StatelessWidget {
       child: Text(
         '$count',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: AppColors.white,
-            ),
+          fontWeight: FontWeight.w900,
+          color: AppColors.white,
+        ),
       ),
     );
   }
@@ -561,17 +595,24 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return _FrostCard(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xxl),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xxl,
+        ),
         child: Column(
           children: [
-            Icon(Icons.home_rounded, size: AppSpacing.xxxl + AppSpacing.lg, color: AppColors.overlay(context, 0.22)),
+            Icon(
+              Icons.home_rounded,
+              size: AppSpacing.xxxl + AppSpacing.lg,
+              color: AppColors.overlay(context, 0.22),
+            ),
             const SizedBox(height: AppSpacing.md),
             Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.navy,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             _PrimaryButton(text: buttonText, onTap: onTap),
@@ -606,9 +647,9 @@ class _PrimaryButton extends StatelessWidget {
             child: Text(
               text,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: disabled ? AppColors.textMutedLight : AppColors.white,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: disabled ? AppColors.textMutedLight : AppColors.white,
+              ),
             ),
           ),
         ),
@@ -629,7 +670,9 @@ class _FrostCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.surface(context).withValues(alpha: 0.55)),
+          border: Border.all(
+            color: AppColors.surface(context).withValues(alpha: 0.55),
+          ),
           boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: ClipRRect(

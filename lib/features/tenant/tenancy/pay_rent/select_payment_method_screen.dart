@@ -37,7 +37,10 @@ class _SelectPaymentMethodScreenState extends State<SelectPaymentMethodScreen> {
     for (int i = 0; i < s.length; i++) {
       final idxFromEnd = s.length - i;
       buf.write(s[i]);
-      if (idxFromEnd > 1 && idxFromEnd % 3 == 1) { buf.write(","); }    }
+      if (idxFromEnd > 1 && idxFromEnd % 3 == 1) {
+        buf.write(",");
+      }
+    }
     return "₦$buf";
   }
 
@@ -74,7 +77,8 @@ class _SelectPaymentMethodScreenState extends State<SelectPaymentMethodScreen> {
                       child: Text(
                         "Select Payment Method",
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w900,
                               color: AppColors.navy,
                             ),
@@ -101,7 +105,10 @@ class _SelectPaymentMethodScreenState extends State<SelectPaymentMethodScreen> {
                       selected: _method == _Method.card,
                       onTap: () => setState(() => _method = _Method.card),
                       trailing: _method == _Method.card
-                          ? const Icon(Icons.check_circle_rounded, color: AppColors.tenantActionBlue)
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.tenantActionBlue,
+                            )
                           : const Icon(Icons.chevron_right_rounded),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -112,7 +119,10 @@ class _SelectPaymentMethodScreenState extends State<SelectPaymentMethodScreen> {
                       selected: _method == _Method.bank,
                       onTap: () => setState(() => _method = _Method.bank),
                       trailing: _method == _Method.bank
-                          ? const Icon(Icons.check_circle_rounded, color: AppColors.tenantActionBlue)
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.tenantActionBlue,
+                            )
                           : const Icon(Icons.chevron_right_rounded),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -123,23 +133,32 @@ class _SelectPaymentMethodScreenState extends State<SelectPaymentMethodScreen> {
                       selected: _method == _Method.wallet,
                       onTap: () => setState(() => _method = _Method.wallet),
                       trailing: _method == _Method.wallet
-                          ? const Icon(Icons.check_circle_rounded, color: AppColors.tenantActionBlue)
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.tenantActionBlue,
+                            )
                           : const Icon(Icons.chevron_right_rounded),
                     ),
                     const SizedBox(height: AppSpacing.screenH),
                     Text(
                       "Add new method",
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.s10),
                     _GhostTile(icon: Icons.credit_card_rounded, text: "Card"),
                     const SizedBox(height: AppSpacing.s10),
-                    _GhostTile(icon: Icons.account_balance_rounded, text: "Bank Transfer"),
+                    _GhostTile(
+                      icon: Icons.account_balance_rounded,
+                      text: "Bank Transfer",
+                    ),
                     const SizedBox(height: AppSpacing.s10),
-                    _GhostTile(icon: Icons.account_balance_wallet_rounded, text: "Wallet"),
+                    _GhostTile(
+                      icon: Icons.account_balance_wallet_rounded,
+                      text: "Wallet",
+                    ),
                     const SizedBox(height: AppSpacing.s10),
                     _GhostTile(icon: Icons.add_rounded, text: "New method"),
                   ],
@@ -175,7 +194,9 @@ class _SelectPaymentMethodScreenState extends State<SelectPaymentMethodScreen> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.tenantActionGreen,
-                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.screenV),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.screenV,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppRadii.sm),
                         ),
@@ -243,17 +264,17 @@ class _SelectTile extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.textMutedLight,
-                          ),
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMutedLight,
+                      ),
                     ),
                   ],
                 ),
@@ -293,9 +314,9 @@ class _GhostTile extends StatelessWidget {
                 child: Text(
                   text,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.navy,
+                  ),
                 ),
               ),
               const Icon(Icons.chevron_right_rounded),

@@ -44,15 +44,10 @@ class MoreScreen extends StatelessWidget {
       safeAreaTop: true,
       safeAreaBottom: false,
 
-      topBar: AppTopBar(
-        title: screenTitle,
-        centerTitle: true,
-      ),
+      topBar: AppTopBar(title: screenTitle, centerTitle: true),
 
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: AppColors.pageBgGradient(context),
-        ),
+        decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.screenV,
@@ -82,7 +77,9 @@ class MoreScreen extends StatelessWidget {
                     subtitle: "Wallet • Methods • Transactions",
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const PaymentHubScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const PaymentHubScreen(),
+                        ),
                       );
                     },
                   ),
@@ -94,7 +91,9 @@ class MoreScreen extends StatelessWidget {
                     subtitle: "Tenancies • Applications • Viewings",
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const RentingToolsScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const RentingToolsScreen(),
+                        ),
                       );
                     },
                   ),
@@ -112,7 +111,9 @@ class MoreScreen extends StatelessWidget {
                     title: "Maintenance",
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const MaintenanceScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const MaintenanceScreen(),
+                        ),
                       );
                     },
                   ),
@@ -130,7 +131,9 @@ class MoreScreen extends StatelessWidget {
                     title: "Settings",
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
                       );
                     },
                   ),
@@ -192,9 +195,9 @@ class MoreScreen extends StatelessWidget {
                 child: Text(
                   versionText,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textMuted(context).withValues(alpha: 0.65),
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: AppColors.textMuted(context).withValues(alpha: 0.65),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -227,22 +230,25 @@ class _ProfileCard extends StatelessWidget {
             Text(
               name,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.navy,
+              ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               email,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textMuted(context).withValues(alpha: 0.85),
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: AppColors.textMuted(context).withValues(alpha: 0.85),
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: AppSpacing.s10),
             Align(
               alignment: Alignment.centerLeft,
-              child: _OutlinePillButton(text: "View Profile  ›", onTap: onViewProfile),
+              child: _OutlinePillButton(
+                text: "View Profile  ›",
+                onTap: onViewProfile,
+              ),
             ),
           ],
         ),
@@ -318,9 +324,9 @@ class _MenuRow extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy,
+                      ),
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: AppSpacing.s2),
@@ -329,9 +335,11 @@ class _MenuRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textMuted(context).withValues(alpha: 0.85),
-                            ),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted(
+                            context,
+                          ).withValues(alpha: 0.85),
+                        ),
                       ),
                     ],
                   ],
@@ -394,9 +402,9 @@ class _OutlinePillButton extends StatelessWidget {
           child: Text(
             text,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.navy,
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.navy,
+            ),
           ),
         ),
       ),

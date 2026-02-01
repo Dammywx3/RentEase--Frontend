@@ -27,9 +27,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (!ok) return;
 
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile updated (demo)')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Profile updated (demo)')));
     Navigator.of(context).pop();
   }
 
@@ -61,7 +61,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     final value = (v ?? '').trim();
                     if (value.isEmpty) return 'Enter your phone';
                     final digits = value.replaceAll(RegExp(r'\D'), '');
-                    if (digits.length < 7 || digits.length > 15) return 'Enter a valid phone';
+                    if (digits.length < 7 || digits.length > 15)
+                      return 'Enter a valid phone';
                     return null;
                   },
                 ),
@@ -73,7 +74,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   validator: (v) {
                     final value = (v ?? '').trim();
                     if (value.isEmpty) return 'Enter your email';
-                    final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+                    final ok = RegExp(
+                      r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                    ).hasMatch(value);
                     return ok ? null : 'Enter a valid email';
                   },
                 ),

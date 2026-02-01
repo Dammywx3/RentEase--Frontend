@@ -10,10 +10,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_sizes.dart';
 
 class TransactionsScreen extends StatefulWidget {
-  const TransactionsScreen({
-    super.key,
-    this.items = const [],
-  });
+  const TransactionsScreen({super.key, this.items = const []});
 
   final List<TransactionItemVM> items;
 
@@ -24,7 +21,13 @@ class TransactionsScreen extends StatefulWidget {
 class _TransactionsScreenState extends State<TransactionsScreen> {
   String _filter = 'All';
 
-  List<String> get _filters => const ['All', 'Incoming', 'Outgoing', 'Rent', 'Fees'];
+  List<String> get _filters => const [
+    'All',
+    'Incoming',
+    'Outgoing',
+    'Rent',
+    'Fees',
+  ];
 
   List<TransactionItemVM> get _data {
     if (widget.items.isNotEmpty) return widget.items;
@@ -67,9 +70,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -108,14 +109,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     child: Text(
                       'Filter',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary(context),
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary(context),
+                      ),
                     ),
                   ),
                   IconButton(
                     onPressed: () => _toast('Filter options (wire later)'),
-                    icon: Icon(Icons.tune_rounded, color: AppColors.textSecondary(context)),
+                    icon: Icon(
+                      Icons.tune_rounded,
+                      color: AppColors.textSecondary(context),
+                    ),
                   ),
                 ],
               ),
@@ -126,7 +130,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: _filters.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(width: AppSpacing.sm),
                   itemBuilder: (_, i) {
                     final t = _filters[i];
                     final selected = t == _filter;
@@ -150,12 +155,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         Icon(
                           Icons.receipt_long_rounded,
                           size: 42,
-                          color: AppColors.textMuted(context).withValues(alpha: 0.70),
+                          color: AppColors.textMuted(
+                            context,
+                          ).withValues(alpha: 0.70),
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           'No transactions',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.textPrimary(context),
                               ),
@@ -164,9 +172,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         Text(
                           'Your payment history will appear here.',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textMuted(context).withValues(alpha: 0.9),
+                                color: AppColors.textMuted(
+                                  context,
+                                ).withValues(alpha: 0.9),
                               ),
                         ),
                       ],
@@ -180,7 +191,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       for (int i = 0; i < _filtered.length; i++) ...[
                         _TxnRow(
                           vm: _filtered[i],
-                          onTap: () => _toast('Transaction details (wire later)'),
+                          onTap: () =>
+                              _toast('Transaction details (wire later)'),
                         ),
                         if (i != _filtered.length - 1)
                           Divider(
@@ -246,7 +258,10 @@ class _FilterPill extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.pill),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 10,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.pill),
             border: Border.all(color: border),
@@ -254,9 +269,9 @@ class _FilterPill extends StatelessWidget {
           child: Text(
             text,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary(context),
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary(context),
+            ),
           ),
         ),
       ),
@@ -272,7 +287,9 @@ class _TxnRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final amountColor = vm.isIncoming ? AppColors.brandGreenDeep : AppColors.tenantDangerDeep;
+    final amountColor = vm.isIncoming
+        ? AppColors.brandGreenDeep
+        : AppColors.tenantDangerDeep;
     final statusTint = _statusTint(vm.status);
 
     return Material(
@@ -304,9 +321,9 @@ class _TxnRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -314,9 +331,11 @@ class _TxnRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textMuted(context).withValues(alpha: 0.85),
-                          ),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMuted(
+                          context,
+                        ).withValues(alpha: 0.85),
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     _StatusPill(text: vm.status, tint: statusTint),
@@ -327,9 +346,9 @@ class _TxnRow extends StatelessWidget {
               Text(
                 vm.amountText,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: amountColor,
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: amountColor,
+                ),
               ),
             ],
           ),
@@ -354,7 +373,10 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: tint.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -363,9 +385,9 @@ class _StatusPill extends StatelessWidget {
       child: Text(
         text,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary(context),
-            ),
+          fontWeight: FontWeight.w900,
+          color: AppColors.textPrimary(context),
+        ),
       ),
     );
   }
@@ -406,7 +428,9 @@ class _FrostCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.surface(context).withValues(alpha: 0.55)),
+          border: Border.all(
+            color: AppColors.surface(context).withValues(alpha: 0.55),
+          ),
           boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: ClipRRect(

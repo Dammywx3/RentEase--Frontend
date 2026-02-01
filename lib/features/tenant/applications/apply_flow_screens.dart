@@ -249,8 +249,9 @@ class ApplyPreCheckScreen extends StatelessWidget {
                     children: reqs
                         .map(
                           (t) => Padding(
-                            padding:
-                                const EdgeInsets.only(bottom: AppSpacing.sm),
+                            padding: const EdgeInsets.only(
+                              bottom: AppSpacing.sm,
+                            ),
                             child: Row(
                               children: [
                                 const Icon(
@@ -305,7 +306,9 @@ class ApplyPreCheckScreen extends StatelessWidget {
   }
 
   ApplicationDraftVM _initialDraft(
-      ApplyListingVM listing, bool guarantorRequired) {
+    ApplyListingVM listing,
+    bool guarantorRequired,
+  ) {
     return ApplicationDraftVM(
       listing: listing,
       guarantorRequired: guarantorRequired,
@@ -514,9 +517,11 @@ class _ApplicationStep1ScreenState extends State<ApplicationStep1Screen> {
 
               const SizedBox(height: AppSpacing.lg),
 
-              _SubTitle(_guarantorRequired
-                  ? "Guarantor Details (Required)"
-                  : "Guarantor Details (Optional)"),
+              _SubTitle(
+                _guarantorRequired
+                    ? "Guarantor Details (Required)"
+                    : "Guarantor Details (Optional)",
+              ),
               const SizedBox(height: AppSpacing.sm),
 
               ...List.generate(_guarantorCtrls.length, (i) {
@@ -536,9 +541,7 @@ class _ApplicationStep1ScreenState extends State<ApplicationStep1Screen> {
                           if (_guarantorCtrls.length > 1)
                             Text(
                               "Guarantor ${i + 1}",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
+                              style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.w900,
                                     color: AppColors.textPrimary(context),
@@ -616,8 +619,7 @@ class _ApplicationStep1ScreenState extends State<ApplicationStep1Screen> {
                               value: c.empStatus,
                               items: EmploymentStatus.values,
                               label: (v) => v.label,
-                              onChanged: (v) =>
-                                  setState(() => c.empStatus = v),
+                              onChanged: (v) => setState(() => c.empStatus = v),
                             ),
                           ),
                           const SizedBox(height: AppSpacing.sm),
@@ -825,7 +827,8 @@ class _ApplicationStep2ScreenState extends State<ApplicationStep2Screen> {
 
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => ApplicationStep3DocumentsScreen(draft: next),
+                      builder: (_) =>
+                          ApplicationStep3DocumentsScreen(draft: next),
                     ),
                   );
                 },
@@ -873,7 +876,9 @@ class _ApplicationStep3DocumentsScreenState
         next = d.copyWith(guarantorIdUploaded: !d.guarantorIdUploaded);
         break;
       case "guarantorPassport":
-        next = d.copyWith(guarantorPassportUploaded: !d.guarantorPassportUploaded);
+        next = d.copyWith(
+          guarantorPassportUploaded: !d.guarantorPassportUploaded,
+        );
         break;
       case "proof":
         next = d.copyWith(proofOfAddressUploaded: !d.proofOfAddressUploaded);
@@ -974,7 +979,8 @@ class _ApplicationStep3DocumentsScreenState
                     ? () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => ApplicationReviewScreen(draft: _draft),
+                            builder: (_) =>
+                                ApplicationReviewScreen(draft: _draft),
                           ),
                         );
                       }
@@ -995,7 +1001,8 @@ class ApplicationReviewScreen extends StatefulWidget {
   final ApplicationDraftVM draft;
 
   @override
-  State<ApplicationReviewScreen> createState() => _ApplicationReviewScreenState();
+  State<ApplicationReviewScreen> createState() =>
+      _ApplicationReviewScreenState();
 }
 
 class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
@@ -1021,9 +1028,7 @@ class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
     if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => const ApplicationSuccessScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const ApplicationSuccessScreen()),
     );
   }
 
@@ -1080,11 +1085,17 @@ class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _kv("Name", x.fullName.isEmpty ? "—" : x.fullName),
+                                _kv(
+                                  "Name",
+                                  x.fullName.isEmpty ? "—" : x.fullName,
+                                ),
                                 _kv("Relationship", x.relationship.label),
                                 _kv("Email", x.email.isEmpty ? "—" : x.email),
                                 _kv("Phone", x.phone.isEmpty ? "—" : x.phone),
-                                _kv("Address", x.address.isEmpty ? "—" : x.address),
+                                _kv(
+                                  "Address",
+                                  x.address.isEmpty ? "—" : x.address,
+                                ),
                               ],
                             ),
                           ),
@@ -1096,9 +1107,22 @@ class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
                       const _SectionTitle("Employment"),
                       const SizedBox(height: AppSpacing.sm),
                       _kv("Status", _draft.employment.status.label),
-                      _kv("Monthly income", "₦${_draft.employment.monthlyIncomeNgn}"),
-                      _kv("Employer", _draft.employment.employerName.isEmpty ? "—" : _draft.employment.employerName),
-                      _kv("Job title", _draft.employment.jobTitle.isEmpty ? "—" : _draft.employment.jobTitle),
+                      _kv(
+                        "Monthly income",
+                        "₦${_draft.employment.monthlyIncomeNgn}",
+                      ),
+                      _kv(
+                        "Employer",
+                        _draft.employment.employerName.isEmpty
+                            ? "—"
+                            : _draft.employment.employerName,
+                      ),
+                      _kv(
+                        "Job title",
+                        _draft.employment.jobTitle.isEmpty
+                            ? "—"
+                            : _draft.employment.jobTitle,
+                      ),
 
                       const SizedBox(height: AppSpacing.lg),
 
@@ -1204,7 +1228,9 @@ class ApplicationSuccessScreen extends StatelessWidget {
                           height: 86,
                           width: 86,
                           decoration: BoxDecoration(
-                            color: AppColors.brandGreenDeep.withValues(alpha: 0.18),
+                            color: AppColors.brandGreenDeep.withValues(
+                              alpha: 0.18,
+                            ),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -1216,7 +1242,8 @@ class ApplicationSuccessScreen extends StatelessWidget {
                         const SizedBox(height: AppSpacing.md),
                         Text(
                           "Success",
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.textPrimary(context),
                               ),
@@ -1225,9 +1252,12 @@ class ApplicationSuccessScreen extends StatelessWidget {
                         Text(
                           "Your application has been submitted. We'll notify you when it's reviewed.",
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textMuted(context).withValues(alpha: 0.92),
+                                color: AppColors.textMuted(
+                                  context,
+                                ).withValues(alpha: 0.92),
                               ),
                         ),
                         const SizedBox(height: AppSpacing.lg),
@@ -1267,7 +1297,8 @@ class _ListingRowCard extends StatelessWidget {
                 height: AppSizes.listThumbSize,
                 width: AppSizes.listThumbSize + AppSpacing.sm,
                 color: AppColors.overlay(context, 0.06),
-                child: listing.photoAssetPath != null &&
+                child:
+                    listing.photoAssetPath != null &&
                         listing.photoAssetPath!.startsWith("assets/")
                     ? Image.asset(listing.photoAssetPath!, fit: BoxFit.cover)
                     : const Icon(
@@ -1286,9 +1317,9 @@ class _ListingRowCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.textPrimary(context),
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary(context),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
@@ -1296,17 +1327,17 @@ class _ListingRowCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textMuted(context),
-                        ),
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textMuted(context),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     listing.priceText,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.brandGreenDeep,
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.brandGreenDeep,
+                    ),
                   ),
                 ],
               ),
@@ -1409,22 +1440,25 @@ class _DocTile extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary(context),
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary(context),
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textMuted(context),
-                          ),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMuted(context),
+                      ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(context)),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textMuted(context),
+              ),
             ],
           ),
         ),
@@ -1445,7 +1479,9 @@ class _FrostCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.surface(context).withValues(alpha: 0.55)),
+          border: Border.all(
+            color: AppColors.surface(context).withValues(alpha: 0.55),
+          ),
           boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: child,
@@ -1507,9 +1543,9 @@ class _PrimaryPillButton extends StatelessWidget {
             child: Text(
               text,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: disabled ? disabledText : AppColors.white,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: disabled ? disabledText : AppColors.white,
+              ),
             ),
           ),
         ),
@@ -1537,9 +1573,9 @@ class _SecondaryPillButton extends StatelessWidget {
             child: Text(
               text,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary(context),
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.textPrimary(context),
+              ),
             ),
           ),
         ),
@@ -1557,9 +1593,9 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary(context),
-          ),
+        fontWeight: FontWeight.w900,
+        color: AppColors.textPrimary(context),
+      ),
     );
   }
 }
@@ -1573,9 +1609,9 @@ class _SubTitle extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary(context),
-          ),
+        fontWeight: FontWeight.w900,
+        color: AppColors.textPrimary(context),
+      ),
     );
   }
 }
@@ -1593,9 +1629,9 @@ class _LabeledField extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.textMuted(context),
-              ),
+            fontWeight: FontWeight.w900,
+            color: AppColors.textMuted(context),
+          ),
         ),
         const SizedBox(height: AppSpacing.xs),
         child,
@@ -1605,11 +1641,7 @@ class _LabeledField extends StatelessWidget {
 }
 
 class _TextField extends StatelessWidget {
-  const _TextField({
-    required this.ctrl,
-    required this.hint,
-    this.keyboardType,
-  });
+  const _TextField({required this.ctrl, required this.hint, this.keyboardType});
 
   final TextEditingController ctrl;
   final String hint;
@@ -1673,9 +1705,9 @@ class _Dropdown<T> extends StatelessWidget {
                   child: Text(
                     label(x),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary(context),
-                        ),
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary(context),
+                    ),
                   ),
                 ),
               )
@@ -1720,7 +1752,11 @@ class _CheckRow extends StatelessWidget {
                 border: Border.all(color: AppColors.overlay(context, 0.06)),
               ),
               child: value
-                  ? const Icon(Icons.check_rounded, size: 16, color: AppColors.white)
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 16,
+                      color: AppColors.white,
+                    )
                   : null,
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -1728,9 +1764,9 @@ class _CheckRow extends StatelessWidget {
               child: Text(
                 label,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary(context),
-                    ),
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary(context),
+                ),
               ),
             ),
           ],
@@ -1803,7 +1839,9 @@ class _GuarantorControllers {
       address: addr,
       sameAddressAsApplicant: sameAddress,
       employmentStatus: empStatus,
-      monthlyIncomeNgn: income.text.trim().isEmpty ? null : _parseIncome(income.text),
+      monthlyIncomeNgn: income.text.trim().isEmpty
+          ? null
+          : _parseIncome(income.text),
     );
   }
 
@@ -1828,14 +1866,14 @@ extension on DocumentsVM {
       applicantIdUploaded: applicantIdUploaded ?? this.applicantIdUploaded,
       selfieUploaded: selfieUploaded ?? this.selfieUploaded,
       guarantorIdUploaded: guarantorIdUploaded ?? this.guarantorIdUploaded,
-      guarantorPassportUploaded: guarantorPassportUploaded ?? this.guarantorPassportUploaded,
-      proofOfAddressUploaded: proofOfAddressUploaded ?? this.proofOfAddressUploaded,
+      guarantorPassportUploaded:
+          guarantorPassportUploaded ?? this.guarantorPassportUploaded,
+      proofOfAddressUploaded:
+          proofOfAddressUploaded ?? this.proofOfAddressUploaded,
     );
   }
 }
 
 void _toast(BuildContext context, String msg) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(msg)),
-  );
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 }

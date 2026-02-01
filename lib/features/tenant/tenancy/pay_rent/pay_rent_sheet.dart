@@ -20,7 +20,9 @@ class PayRentSheet {
       builder: (ctx) => _PayRentBottomSheet(title: title, amountNgn: amountNgn),
     );
 
-    if (res == null) { return; }
+    if (res == null) {
+      return;
+    }
     if (context.mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -57,13 +59,22 @@ class _PayRentBottomSheetState extends State<_PayRentBottomSheet> {
     for (int i = 0; i < s.length; i++) {
       final idxFromEnd = s.length - i;
       buf.write(s[i]);
-      if (idxFromEnd > 1 && idxFromEnd % 3 == 1) { buf.write(","); }    }
+      if (idxFromEnd > 1 && idxFromEnd % 3 == 1) {
+        buf.write(",");
+      }
+    }
     return "₦$buf";
   }
 
   int get _amount {
-    if (_full) { return widget.amountNgn; }    final raw = _partCtrl.text.replaceAll(RegExp(r"[^0-9]"), "");
-    if (raw.isEmpty) { return 0; }    return int.tryParse(raw) ?? 0;
+    if (_full) {
+      return widget.amountNgn;
+    }
+    final raw = _partCtrl.text.replaceAll(RegExp(r"[^0-9]"), "");
+    if (raw.isEmpty) {
+      return 0;
+    }
+    return int.tryParse(raw) ?? 0;
   }
 
   @override
@@ -78,7 +89,9 @@ class _PayRentBottomSheetState extends State<_PayRentBottomSheet> {
 
     return SafeArea(
       child: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: Material(
           color: Colors.transparent,
           child: Container(
@@ -113,7 +126,8 @@ class _PayRentBottomSheetState extends State<_PayRentBottomSheet> {
                       child: Text(
                         "Pay Rent",
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w900,
                               color: AppColors.navy,
                             ),
@@ -142,7 +156,9 @@ class _PayRentBottomSheetState extends State<_PayRentBottomSheet> {
                         child: Container(
                           height: 54,
                           width: 54,
-                          color: const Color(0xFFCFDBEA).withValues(alpha: 0.85),
+                          color: const Color(
+                            0xFFCFDBEA,
+                          ).withValues(alpha: 0.85),
                           alignment: Alignment.center,
                           child: const Icon(
                             Icons.home_rounded,
@@ -159,7 +175,8 @@ class _PayRentBottomSheetState extends State<_PayRentBottomSheet> {
                               widget.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w900,
                                     color: AppColors.navy,
                                   ),
@@ -167,7 +184,8 @@ class _PayRentBottomSheetState extends State<_PayRentBottomSheet> {
                             const SizedBox(height: AppSpacing.s6),
                             Text(
                               "Amount due",
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w800,
                                     color: AppColors.textMutedLight,
                                   ),
@@ -175,7 +193,8 @@ class _PayRentBottomSheetState extends State<_PayRentBottomSheet> {
                             const SizedBox(height: AppSpacing.s2),
                             Text(
                               _fmt(widget.amountNgn),
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w900,
                                     color: AppColors.navy,
                                   ),
@@ -192,9 +211,9 @@ class _PayRentBottomSheetState extends State<_PayRentBottomSheet> {
                   child: Text(
                     "Choose what to pay",
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.navy,
-                        ),
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navy,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.s10),
@@ -228,9 +247,9 @@ class _PayRentBottomSheetState extends State<_PayRentBottomSheet> {
                       child: Text(
                         "Include service charge",
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.navy,
-                            ),
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.navy,
+                        ),
                       ),
                     ),
                     Switch(
@@ -255,7 +274,9 @@ class _PayRentBottomSheetState extends State<_PayRentBottomSheet> {
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.tenantActionBlue,
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.screenV),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.screenV,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppRadii.sm),
                       ),
@@ -297,30 +318,41 @@ class _ChoiceTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.md),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   label,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.navy,
+                  ),
                 ),
               ),
               Container(
                 height: 22,
                 width: 22,
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.tenantActionBlue : Colors.transparent,
+                  color: selected
+                      ? AppColors.tenantActionBlue
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(AppRadii.xxs),
                   border: Border.all(
-                    color: selected ? AppColors.tenantActionBlue : AppColors.tenantBorderMuted,
+                    color: selected
+                        ? AppColors.tenantActionBlue
+                        : AppColors.tenantBorderMuted,
                   ),
                 ),
                 child: selected
-                    ? const Icon(Icons.check_rounded, size: 16, color: AppColors.white)
+                    ? const Icon(
+                        Icons.check_rounded,
+                        size: 16,
+                        color: AppColors.white,
+                      )
                     : null,
               ),
             ],

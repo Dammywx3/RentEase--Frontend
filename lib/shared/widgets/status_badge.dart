@@ -81,7 +81,8 @@ class StatusBadge extends StatelessWidget {
         style: theme.textTheme.labelMedium?.copyWith(
           color: fg,
           fontWeight: FontWeight.w800,
-          letterSpacing: AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs), // token-only
+          letterSpacing:
+              AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs), // token-only
         ),
       ),
     );

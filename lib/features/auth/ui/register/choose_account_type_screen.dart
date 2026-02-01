@@ -10,17 +10,11 @@ import 'package:rentease_frontend/core/theme/app_typography.dart';
 import 'register_screen.dart';
 
 class ChooseAccountTypeScreen extends StatefulWidget {
-  const ChooseAccountTypeScreen({
-    super.key,
-    this.brandName = 'RentEase',
-    this.brandIcon = Icons.home_rounded,
-  });
-
-  final String brandName;
-  final IconData brandIcon;
+  const ChooseAccountTypeScreen({super.key});
 
   @override
-  State<ChooseAccountTypeScreen> createState() => _ChooseAccountTypeScreenState();
+  State<ChooseAccountTypeScreen> createState() =>
+      _ChooseAccountTypeScreenState();
 }
 
 class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
@@ -31,15 +25,14 @@ class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
     if (role == null) return;
 
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => RegisterScreen(role: role)),
+      MaterialPageRoute(
+        builder: (_) => RegisterScreen(role: role),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final textPrimary = AppColors.textPrimary(context);
-    final textMuted = AppColors.textMuted(context);
-
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
@@ -53,53 +46,12 @@ class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
               children: [
                 const SizedBox(height: AppSpacing.sm),
 
-                SizedBox(
-                  height: 48,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: AppColors.textSecondary(context),
-                          ),
-                        ),
-                      ),
-                      _BrandMarkSmall(
-                        name: widget.brandName,
-                        icon: widget.brandIcon,
-                      ),
-                    ],
-                  ),
+                // ✅ back + centered screen name (no brand)
+                _TopBarCentered(
+                  title: 'Choose account type',
+                  onBack: () => Navigator.of(context).pop(),
                 ),
 
-                const SizedBox(height: AppSpacing.lg),
-
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Choose your account type',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.h1(context).copyWith(color: textPrimary),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: AppSpacing.xs),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'This helps us personalize your experience.',
-                    style: AppTypography.body(context).copyWith(color: textMuted),
-                  ),
-                ),
                 const SizedBox(height: AppSpacing.xl),
 
                 _RoleCard(
@@ -145,29 +97,41 @@ class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
   }
 }
 
-class _BrandMarkSmall extends StatelessWidget {
-  const _BrandMarkSmall({required this.name, required this.icon});
+class _TopBarCentered extends StatelessWidget {
+  const _TopBarCentered({
+    required this.title,
+    required this.onBack,
+  });
 
-  final String name;
-  final IconData icon;
+  final String title;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: AppColors.brandGreen, size: 22),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTypography.h4(context).copyWith(
-            color: AppColors.textPrimary(context),
-            fontWeight: FontWeight.w900,
+    return SizedBox(
+      height: 48,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              onPressed: onBack,
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: AppColors.textSecondary(context),
+              ),
+            ),
           ),
-        ),
-      ],
+          Text(
+            title,
+            style: AppTypography.h3(context).copyWith(
+              color: AppColors.textPrimary(context),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -271,7 +235,6 @@ class _RoleAssetIcon extends StatelessWidget {
   final UserRole role;
 
   String _assetForRole() {
-    // ✅ If your folder is assets/image, change to: assets/image/tenant.png etc.
     switch (role) {
       case UserRole.tenant:
         return 'assets/images/tenant.png';
@@ -279,6 +242,8 @@ class _RoleAssetIcon extends StatelessWidget {
         return 'assets/images/agent.png';
       case UserRole.landlord:
         return 'assets/images/landlord.png';
+      case UserRole.admin:
+        return 'assets/images/admin.png';
     }
   }
 
@@ -290,14 +255,15 @@ class _RoleAssetIcon extends StatelessWidget {
         return Icons.apartment_rounded;
       case UserRole.landlord:
         return Icons.assignment_rounded;
+      case UserRole.admin:
+        return Icons.admin_panel_settings_rounded;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Premium: big image, no stretching, fills the box nicely
     return Padding(
-      padding: const EdgeInsets.all(8), // smaller = bigger image
+      padding: const EdgeInsets.all(8),
       child: SizedBox.expand(
         child: Image.asset(
           _assetForRole(),

@@ -47,10 +47,7 @@ class PaymentHubScreen extends StatelessWidget {
           backgroundColor: Colors.transparent,
           safeAreaTop: true,
           safeAreaBottom: false,
-          topBar: const AppTopBar(
-            title: 'Payments',
-            centerTitle: true,
-          ),
+          topBar: const AppTopBar(title: 'Payments', centerTitle: true),
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.screenV,
@@ -66,17 +63,17 @@ class PaymentHubScreen extends StatelessWidget {
                 Text(
                   'Manage payments',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary(context),
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary(context),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Wallet, payment methods, receipts and history.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMuted(context).withValues(alpha: 0.85),
-                      ),
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMuted(context).withValues(alpha: 0.85),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
 
@@ -105,7 +102,11 @@ class PaymentHubScreen extends StatelessWidget {
                           );
                         },
                       ),
-                      Divider(height: 1, thickness: 1, color: AppColors.overlay(context, 0.06)),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: AppColors.overlay(context, 0.06),
+                      ),
                       _HubRow(
                         icon: Icons.credit_card_rounded,
                         iconBg: AppColors.tenantIconBgGreen,
@@ -113,9 +114,14 @@ class PaymentHubScreen extends StatelessWidget {
                         title: 'Payment Methods',
                         subtitle: 'Cards, bank transfer',
                         trailingText: defaultMethodPreviewText,
-                        onTap: () => _push(context, const PaymentMethodsScreen()),
+                        onTap: () =>
+                            _push(context, const PaymentMethodsScreen()),
                       ),
-                      Divider(height: 1, thickness: 1, color: AppColors.overlay(context, 0.06)),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: AppColors.overlay(context, 0.06),
+                      ),
                       _HubRow(
                         icon: Icons.receipt_long_rounded,
                         iconBg: AppColors.tenantIconBgSand,
@@ -126,14 +132,19 @@ class PaymentHubScreen extends StatelessWidget {
                         onTap: () => _push(context, const TransactionsScreen()),
                       ),
                       if (showProofOfPayment) ...[
-                        Divider(height: 1, thickness: 1, color: AppColors.overlay(context, 0.06)),
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: AppColors.overlay(context, 0.06),
+                        ),
                         _HubRow(
                           icon: Icons.cloud_upload_rounded,
                           iconBg: AppColors.tenantIconBgGray,
                           iconFg: AppColors.tenantGray600,
                           title: 'Proof of Payment',
                           subtitle: 'Upload / view receipts',
-                          onTap: () => _push(context, const ProofOfPaymentScreen()),
+                          onTap: () =>
+                              _push(context, const ProofOfPaymentScreen()),
                         ),
                       ],
                     ],
@@ -185,11 +196,16 @@ class ProofOfPaymentScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Column(
                     children: [
-                      Icon(Icons.cloud_upload_rounded, size: 44, color: AppColors.textMuted(context)),
+                      Icon(
+                        Icons.cloud_upload_rounded,
+                        size: 44,
+                        color: AppColors.textMuted(context),
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
                         'Upload receipts',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.w900,
                               color: AppColors.textPrimary(context),
                             ),
@@ -199,9 +215,11 @@ class ProofOfPaymentScreen extends StatelessWidget {
                         'You can connect this to your receipt upload later.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textMuted(context).withValues(alpha: 0.9),
-                            ),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted(
+                            context,
+                          ).withValues(alpha: 0.9),
+                        ),
                       ),
                     ],
                   ),
@@ -263,9 +281,9 @@ class _HubRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.s2),
                     Text(
@@ -273,9 +291,11 @@ class _HubRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textMuted(context).withValues(alpha: 0.85),
-                          ),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMuted(
+                          context,
+                        ).withValues(alpha: 0.85),
+                      ),
                     ),
                   ],
                 ),
@@ -290,9 +310,9 @@ class _HubRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.right,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.navy,
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.navy,
+                    ),
                   ),
                 ),
               ],
@@ -344,7 +364,9 @@ class _FrostCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.surface(context).withValues(alpha: 0.55)),
+          border: Border.all(
+            color: AppColors.surface(context).withValues(alpha: 0.55),
+          ),
           boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: ClipRRect(

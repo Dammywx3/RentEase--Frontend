@@ -150,10 +150,7 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
         backgroundColor: Colors.transparent,
         safeAreaTop: true,
         safeAreaBottom: false,
-        topBar: const AppTopBar(
-          title: 'Renting Tools',
-          subtitle: '',
-        ),
+        topBar: const AppTopBar(title: 'Renting Tools', subtitle: ''),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.screenV,
@@ -165,9 +162,9 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
             Text(
               'Active Tenancies ($activeCount)',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.navy,
+              ),
             ),
             const SizedBox(height: AppSpacing.s10),
 
@@ -192,7 +189,9 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
                               child: Container(
                                 width: thumbW,
                                 height: double.infinity,
-                                color: AppColors.tenantPanel.withValues(alpha: 0.85),
+                                color: AppColors.tenantPanel.withValues(
+                                  alpha: 0.85,
+                                ),
                                 alignment: Alignment.center,
                                 child: const Icon(
                                   Icons.home_rounded,
@@ -210,7 +209,10 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
                                     t.title,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
                                           fontWeight: FontWeight.w900,
                                           color: AppColors.navy,
                                         ),
@@ -229,9 +231,13 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
                                           'Due ${t.dueLabel}',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
                                                 fontWeight: FontWeight.w900,
-                                                color: AppColors.navy.withValues(alpha: 0.90),
+                                                color: AppColors.navy
+                                                    .withValues(alpha: 0.90),
                                               ),
                                         ),
                                       ),
@@ -244,7 +250,8 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
                                         child: _PillButton(
                                           text: 'View  ›',
                                           tone: _PillTone.blue,
-                                          onTap: () => _openTenancies(focusId: t.id),
+                                          onTap: () =>
+                                              _openTenancies(focusId: t.id),
                                         ),
                                       ),
                                       const SizedBox(width: AppSpacing.s10),
@@ -266,7 +273,9 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
                               child: Container(
                                 width: AppSpacing.xxxl + AppSpacing.sm,
                                 height: double.infinity,
-                                color: AppColors.tenantPanel.withValues(alpha: 0.55),
+                                color: AppColors.tenantPanel.withValues(
+                                  alpha: 0.55,
+                                ),
                                 alignment: Alignment.center,
                                 child: const Icon(
                                   Icons.photo_rounded,
@@ -326,9 +335,9 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
             Text(
               'Shortcuts',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.navy,
+              ),
             ),
             const SizedBox(height: AppSpacing.s10),
 
@@ -364,9 +373,9 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
             Text(
               'Recent Activity',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.navy,
+              ),
             ),
             const SizedBox(height: AppSpacing.s10),
 
@@ -507,9 +516,9 @@ class _PillButton extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.white,
-                    fontWeight: FontWeight.w900,
-                  ),
+                color: AppColors.white,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ),
@@ -577,17 +586,17 @@ class _ToolTile extends StatelessWidget {
                       Text(
                         title,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.navy,
-                            ),
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.navy,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.s2),
                       Text(
                         subtitle,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textMutedLight,
-                            ),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMutedLight,
+                        ),
                       ),
                     ],
                   ),
@@ -605,9 +614,9 @@ class _ToolTile extends StatelessWidget {
                   child: Text(
                     pillText,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.navy,
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.navy,
+                    ),
                   ),
                 ),
               ],
@@ -645,16 +654,18 @@ class _ShortcutChip extends StatelessWidget {
               vertical: AppSpacing.md,
             ),
             child: Row(
-              mainAxisAlignment: fullWidth ? MainAxisAlignment.center : MainAxisAlignment.start,
+              mainAxisAlignment: fullWidth
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
               children: [
                 Icon(icon, color: AppColors.textMutedLight),
                 const SizedBox(width: AppSpacing.md),
                 Text(
                   label,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.navy,
+                  ),
                 ),
               ],
             ),
@@ -737,18 +748,18 @@ class _ActivityRow extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.navy,
+                      ),
                     ),
                     if (leftSub.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.s2),
                       Text(
                         leftSub,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textMutedLight,
-                            ),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMutedLight,
+                        ),
                       ),
                     ],
                   ],
@@ -757,9 +768,9 @@ class _ActivityRow extends StatelessWidget {
               Text(
                 rightSub,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textMutedLight,
-                    ),
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMutedLight,
+                ),
               ),
             ],
           ),

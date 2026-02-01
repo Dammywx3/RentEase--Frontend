@@ -13,10 +13,7 @@ import 'tenancy_detail_screen.dart';
 import 'pay_rent/pay_rent_sheet.dart';
 
 class TenancyScreen extends StatelessWidget {
-  const TenancyScreen({
-    super.key,
-    required this.tenancy,
-  });
+  const TenancyScreen({super.key, required this.tenancy});
 
   final TenancyOverviewVM tenancy;
 
@@ -40,18 +37,18 @@ class TenancyScreen extends StatelessWidget {
             Text(
               tenancy.sectionTitle ?? 'Active Tenancy',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary(context),
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.textPrimary(context),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
 
             Text(
               tenancy.summary ?? '—',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textSecondary(context),
-                  ),
+                fontWeight: FontWeight.w800,
+                color: AppColors.textSecondary(context),
+              ),
             ),
 
             const SizedBox(height: AppSpacing.lg),
@@ -78,7 +75,10 @@ class TenancyScreen extends StatelessWidget {
                     builder: (_) => TenancyDetailScreen(
                       tenancy: TenancyVM(
                         id: tenancy.id,
-                        title: tenancy.payTitle ?? tenancy.title ?? 'Tenancy Detail',
+                        title:
+                            tenancy.payTitle ??
+                            tenancy.title ??
+                            'Tenancy Detail',
                         subtitle: tenancy.subtitle,
                         leaseDocName: tenancy.leaseDocName,
                         nextRentAmountNgn: tenancy.payAmountNgn,
@@ -90,7 +90,10 @@ class TenancyScreen extends StatelessWidget {
             ),
 
             const Spacer(),
-            SizedBox(height: AppSizes.screenBottomPad / (AppSpacing.xxxl / AppSpacing.md)),
+            SizedBox(
+              height:
+                  AppSizes.screenBottomPad / (AppSpacing.xxxl / AppSpacing.md),
+            ),
           ],
         ),
       ),

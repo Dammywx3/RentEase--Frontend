@@ -37,10 +37,10 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => Size.fromHeight(
-        (subtitle != null && subtitle!.trim().isNotEmpty)
-            ? (AppSizes.topBarHeight + 16)
-            : AppSizes.topBarHeight,
-      );
+    (subtitle != null && subtitle!.trim().isNotEmpty)
+        ? (AppSizes.topBarHeight + 16)
+        : AppSizes.topBarHeight,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +48,9 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final titleColor = isDark ? AppColors.textLight : AppColors.navy;
-    final subColor = isDark ? AppColors.textMutedLight : AppColors.textMutedDark;
+    final subColor = isDark
+        ? AppColors.textMutedLight
+        : AppColors.textMutedDark;
 
     final hasSubtitle = subtitle != null && subtitle!.trim().isNotEmpty;
 
@@ -62,11 +64,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
                 child: SizedBox(
                   height: AppSizes.minTap,
                   width: AppSizes.minTap,
-                  child: Icon(
-                    leadingIcon,
-                    color: titleColor,
-                    size: 20,
-                  ),
+                  child: Icon(leadingIcon, color: titleColor, size: 20),
                 ),
               ));
 
@@ -94,23 +92,19 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
           : [
               Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.screenH),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: actions!,
-                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: actions!),
               ),
             ],
 
       // ✅ Title is only text/column, so it can always ellipsis safely
       title: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.screenH,
-        ),
+        padding: EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment:
-              centerTitle ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+          crossAxisAlignment: centerTitle
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start,
           children: [
             Text(
               title,

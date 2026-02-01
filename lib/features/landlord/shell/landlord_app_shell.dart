@@ -12,9 +12,9 @@ class LandlordAppShell extends StatelessWidget {
       body: Center(
         child: Text(
           'Landlord Dashboard (stub)',
-          style: AppTypography.h2(context).copyWith(
-            color: AppColors.textPrimary(context),
-          ),
+          style: AppTypography.h2(
+            context,
+          ).copyWith(color: AppColors.textPrimary(context)),
         ),
       ),
     );

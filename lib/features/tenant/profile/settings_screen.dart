@@ -1,5 +1,7 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+
+import '../../../core/theme/theme_controller.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/ui/scaffold/app_scaffold.dart';
 import '../../../core/ui/scaffold/app_top_bar.dart';
@@ -16,8 +18,9 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // NOTE: local-only (wire to persistence later)
-  ThemeMode _appearance = ThemeMode.system;
+  // ✅ Now reads from global app theme controller
+  ThemeMode get _appearance => themeController.mode;
+
   String _language = 'English';
   String _currency = 'NGN';
   bool _allowLocation = true;
@@ -187,8 +190,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () => _confirm(
                     context,
                     title: 'Clear cache?',
-                    message:
-                        'This will remove temporary files and cached data.',
+                    message: 'This will remove temporary files and cached data.',
                     confirmText: 'Clear',
                     isDanger: false,
                     onConfirm: () => ToastService.show(
@@ -330,7 +332,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
-    if (picked != null) { setState(() => _appearance = picked); }  }
+
+    if (picked != null) {
+      // ✅ GLOBAL: switch the whole app theme
+      themeController.setMode(picked);
+
+      // ✅ rebuild this screen so trailing text updates
+      setState(() {});
+    }
+  }
 
   Future<void> _openPicker(
     BuildContext context, {
@@ -350,7 +360,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             .toList(),
       ),
     );
-    if (picked != null) { onPick(picked); }  }
+    if (picked != null) {
+      onPick(picked);
+    }
+  }
 
   void _confirm(
     BuildContext context, {
@@ -525,11 +538,10 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
                     Text(
                       'Default City',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
+                            fontWeight: FontWeight.w900,
+                          ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-
                     DropdownButtonFormField<String>(
                       value: _city,
                       items: const [
@@ -606,9 +618,7 @@ class _GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bg = theme.colorScheme.surfaceContainerHighest.withValues(
-      alpha: 0.55,
-    );
+    final bg = theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
 
     return Container(
       width: double.infinity,
@@ -616,9 +626,8 @@ class _GroupCard extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(AppRadii.card),
         border: Border.all(
-          color: (danger ? AppColors.dangerRed : AppColors.black).withValues(
-            alpha: 0.08,
-          ),
+          color: (danger ? AppColors.dangerRed : AppColors.black)
+              .withValues(alpha: 0.08),
         ),
       ),
       child: Column(children: children),

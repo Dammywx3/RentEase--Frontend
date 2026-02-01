@@ -10,8 +10,8 @@ class AppShadows {
 
   static Color overlay(BuildContext context, [double a = 0.10]) =>
       isDark(context)
-          ? Colors.white.withValues(alpha: a)
-          : Colors.black.withValues(alpha: a);
+      ? Colors.white.withValues(alpha: a)
+      : Colors.black.withValues(alpha: a);
 
   /// ✅ Theme-aware card shadow
   static List<BoxShadow> card(BuildContext context) =>

@@ -1,7 +1,8 @@
-enum UserRole { tenant, landlord, agent, admin }
+import 'package:rentease_frontend/core/constants/user_role.dart';
 
 UserRole? _parseRole(dynamic v) {
-  final s = v?.toString().toLowerCase();
+  if (v == null) return null;
+  final s = v.toString().trim().toLowerCase();
   switch (s) {
     case 'tenant':
       return UserRole.tenant;
@@ -39,21 +40,40 @@ class UserModel {
     this.token,
   });
 
+  /// Supports:
+  /// - { token, user }
+  /// - { accessToken, user }
+  /// - { data: { token, user } }
+  /// - { data: { accessToken, user } }
   factory UserModel.fromAuthResponse(Map<String, dynamic> json) {
-    final token = json['token']?.toString();
-    final user = (json['user'] is Map)
-        ? Map<String, dynamic>.from(json['user'])
+    Map<String, dynamic> root = json;
+
+    if (json['data'] is Map) {
+      root = Map<String, dynamic>.from(json['data'] as Map);
+    }
+
+    final token =
+        (root['token'] ??
+                root['accessToken'] ??
+                json['token'] ??
+                json['accessToken'])
+            ?.toString();
+
+    final userMap = (root['user'] is Map)
+        ? Map<String, dynamic>.from(root['user'] as Map)
+        : (json['user'] is Map)
+        ? Map<String, dynamic>.from(json['user'] as Map)
         : <String, dynamic>{};
 
     return UserModel(
-      id: (user['id'] ?? '').toString(),
-      organizationId: (user['organization_id'] ?? user['organizationId'])
+      id: (userMap['id'] ?? userMap['_id'] ?? '').toString(),
+      organizationId: (userMap['organization_id'] ?? userMap['organizationId'])
           ?.toString(),
-      fullName: (user['full_name'] ?? user['fullName'])?.toString(),
-      email: user['email']?.toString(),
-      phone: user['phone']?.toString(),
-      role: _parseRole(user['role']),
-      verifiedStatus: (user['verified_status'] ?? user['verifiedStatus'])
+      fullName: (userMap['full_name'] ?? userMap['fullName'])?.toString(),
+      email: userMap['email']?.toString(),
+      phone: userMap['phone']?.toString(),
+      role: _parseRole(userMap['role']),
+      verifiedStatus: (userMap['verified_status'] ?? userMap['verifiedStatus'])
           ?.toString(),
       token: token,
     );

@@ -19,7 +19,8 @@ class AppSizes {
   static const double iconButtonBox = AppSpacing.s34 + AppSpacing.sm;
 
   // List thumbnail: 62 = 44 + 16 + 2
-  static const double listThumbSize = AppSpacing.s44 + AppSpacing.lg + AppSpacing.s2;
+  static const double listThumbSize =
+      AppSpacing.s44 + AppSpacing.lg + AppSpacing.s2;
 
   // Bottom content padding (avoid being covered by sticky buttons / bottom nav)
   // 140 = 32*4 + 12

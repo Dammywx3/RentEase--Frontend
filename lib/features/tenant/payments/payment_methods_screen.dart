@@ -85,14 +85,16 @@ class PaymentMethodsScreen extends StatelessWidget {
                     child: Text(
                       'Your methods',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.textPrimary(context),
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary(context),
+                      ),
                     ),
                   ),
                   _TopAddButton(
                     text: 'Add',
-                    onTap: onAddCard ?? () => _toast(context, 'Add card (wire later)'),
+                    onTap:
+                        onAddCard ??
+                        () => _toast(context, 'Add card (wire later)'),
                   ),
                 ],
               ),
@@ -110,12 +112,15 @@ class PaymentMethodsScreen extends StatelessWidget {
                             Icon(
                               Icons.credit_card_rounded,
                               size: 40,
-                              color: AppColors.textMuted(context).withValues(alpha: 0.7),
+                              color: AppColors.textMuted(
+                                context,
+                              ).withValues(alpha: 0.7),
                             ),
                             const SizedBox(height: AppSpacing.sm),
                             Text(
                               'No cards yet',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w900,
                                     color: AppColors.textPrimary(context),
                                   ),
@@ -124,9 +129,12 @@ class PaymentMethodsScreen extends StatelessWidget {
                             Text(
                               'Add a card to pay faster.',
                               textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.textMuted(context).withValues(alpha: 0.9),
+                                    color: AppColors.textMuted(
+                                      context,
+                                    ).withValues(alpha: 0.9),
                                   ),
                             ),
                           ],
@@ -138,7 +146,8 @@ class PaymentMethodsScreen extends StatelessWidget {
                           vm: cards[i],
                           isDefault: cards[i].label == defaultMethodLabel,
                           onSetDefault: onSetDefault == null
-                              ? () => _toast(context, 'Set default (wire later)')
+                              ? () =>
+                                    _toast(context, 'Set default (wire later)')
                               : () => onSetDefault!(cards[i]),
                           onRemove: onRemoveCard == null
                               ? () => _toast(context, 'Remove (wire later)')
@@ -160,9 +169,9 @@ class PaymentMethodsScreen extends StatelessWidget {
                 Text(
                   'Bank transfer',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary(context),
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary(context),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 _FrostCard(
@@ -173,7 +182,8 @@ class PaymentMethodsScreen extends StatelessWidget {
                       children: [
                         Text(
                           'Pay by bank transfer',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.navy,
                               ),
@@ -181,33 +191,45 @@ class PaymentMethodsScreen extends StatelessWidget {
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           'Use the virtual account below.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textMuted(context).withValues(alpha: 0.9),
+                                color: AppColors.textMuted(
+                                  context,
+                                ).withValues(alpha: 0.9),
                               ),
                         ),
                         const SizedBox(height: AppSpacing.md),
 
-                        _KeyValueRow(label: 'Account name', value: virtualAccountName),
+                        _KeyValueRow(
+                          label: 'Account name',
+                          value: virtualAccountName,
+                        ),
                         const SizedBox(height: AppSpacing.sm),
 
                         _CopyRow(
                           label: 'Account number',
                           value: virtualAccountNumber,
-                          onCopy: onCopyAccountNumber ?? () => _toast(context, 'Copied account number'),
+                          onCopy:
+                              onCopyAccountNumber ??
+                              () => _toast(context, 'Copied account number'),
                         ),
                         const SizedBox(height: AppSpacing.sm),
 
                         _CopyRow(
                           label: 'Bank',
                           value: virtualBankName,
-                          onCopy: onCopyBankName ?? () => _toast(context, 'Copied bank name'),
+                          onCopy:
+                              onCopyBankName ??
+                              () => _toast(context, 'Copied bank name'),
                         ),
 
                         const SizedBox(height: AppSpacing.md),
                         _OutlineActionButton(
                           text: 'Link bank (optional)',
-                          onTap: onLinkBank ?? () => _toast(context, 'Link bank (wire later)'),
+                          onTap:
+                              onLinkBank ??
+                              () => _toast(context, 'Link bank (wire later)'),
                         ),
                       ],
                     ),
@@ -274,7 +296,10 @@ class _CardTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadii.sm),
                 border: Border.all(color: AppColors.overlay(context, 0.05)),
               ),
-              child: Icon(vm.brandIcon, color: AppColors.textSecondary(context)),
+              child: Icon(
+                vm.brandIcon,
+                color: AppColors.textSecondary(context),
+              ),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -289,7 +314,8 @@ class _CardTile extends StatelessWidget {
                           '${vm.label} ${vm.masked}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.navy,
                               ),
@@ -305,9 +331,11 @@ class _CardTile extends StatelessWidget {
                   Text(
                     'Exp ${vm.expiry}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textMuted(context).withValues(alpha: 0.9),
-                        ),
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textMuted(
+                        context,
+                      ).withValues(alpha: 0.9),
+                    ),
                   ),
                 ],
               ),
@@ -322,7 +350,10 @@ class _CardTile extends StatelessWidget {
                 PopupMenuItem(value: 'default', child: Text('Set as default')),
                 PopupMenuItem(value: 'remove', child: Text('Remove')),
               ],
-              icon: Icon(Icons.more_vert_rounded, color: AppColors.textMuted(context)),
+              icon: Icon(
+                Icons.more_vert_rounded,
+                color: AppColors.textMuted(context),
+              ),
             ),
           ],
         ),
@@ -338,7 +369,10 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: AppColors.overlay(context, 0.05),
         borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -347,9 +381,9 @@ class _Badge extends StatelessWidget {
       child: Text(
         text,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: AppColors.textSecondary(context),
-            ),
+          fontWeight: FontWeight.w900,
+          color: AppColors.textSecondary(context),
+        ),
       ),
     );
   }
@@ -381,9 +415,9 @@ class _TopAddButton extends StatelessWidget {
               Text(
                 text,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.navy,
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.navy,
+                ),
               ),
             ],
           ),
@@ -406,9 +440,9 @@ class _KeyValueRow extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textMuted(context).withValues(alpha: 0.9),
-                ),
+              fontWeight: FontWeight.w800,
+              color: AppColors.textMuted(context).withValues(alpha: 0.9),
+            ),
           ),
         ),
         // ✅ Fix: avoid overflow on long account names/bank names
@@ -419,9 +453,9 @@ class _KeyValueRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.navy,
-                ),
+              fontWeight: FontWeight.w900,
+              color: AppColors.navy,
+            ),
           ),
         ),
       ],
@@ -444,7 +478,9 @@ class _CopyRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: _KeyValueRow(label: label, value: value)),
+        Expanded(
+          child: _KeyValueRow(label: label, value: value),
+        ),
         const SizedBox(width: AppSpacing.sm),
         IconButton(
           onPressed: onCopy,
@@ -480,9 +516,9 @@ class _OutlineActionButton extends StatelessWidget {
             child: Text(
               text,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.navy,
+              ),
             ),
           ),
         ),

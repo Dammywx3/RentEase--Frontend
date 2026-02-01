@@ -17,12 +17,15 @@ import "../../../core/theme/app_radii.dart";
 import "../../../core/theme/app_spacing.dart";
 import "../../../core/theme/app_sizes.dart";
 
+import "data/viewings_api.dart";
+
 class ViewingsScreen extends StatefulWidget {
   const ViewingsScreen({
     super.key,
     this.viewings = const [],
     this.title,
-    this.useDemoWhenEmpty = true, // ✅ NEW: so it never looks empty while wiring backend
+    this.useDemoWhenEmpty = true,
+    this.fetchFromBackendWhenEmpty = true, // ✅ NEW
   });
 
   /// Data-driven: pass real backend viewings here.
@@ -34,6 +37,9 @@ class ViewingsScreen extends StatefulWidget {
   /// If true and [viewings] is empty, we show demo items (good for UI dev).
   final bool useDemoWhenEmpty;
 
+  /// If true and [viewings] is empty, we fetch from backend automatically.
+  final bool fetchFromBackendWhenEmpty;
+
   @override
   State<ViewingsScreen> createState() => _ViewingsScreenState();
 }
@@ -42,6 +48,10 @@ enum _Tab { upcoming, completed }
 
 class _ViewingsScreenState extends State<ViewingsScreen> {
   _Tab _tab = _Tab.upcoming;
+
+  bool _loading = false;
+  String? _error;
+  List<ViewingModel> _fetched = const [];
 
   int _parseMonthlyRent(String? priceText) {
     if (priceText == null) return 0;
@@ -85,8 +95,15 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
   }
 
   List<ViewingModel> get _source {
+    // 1) explicit passed viewings
     if (widget.viewings.isNotEmpty) return widget.viewings;
+
+    // 2) backend fetched
+    if (_fetched.isNotEmpty) return _fetched;
+
+    // 3) demo fallback
     if (widget.useDemoWhenEmpty) return _demoViewings();
+
     return const [];
   }
 
@@ -95,25 +112,22 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
 
     switch (_tab) {
       case _Tab.upcoming:
-        final list = all
-            .where(
-              (v) =>
-                  v.status == ViewingStatus.requested ||
-                  v.status == ViewingStatus.confirmed,
-            )
-            .toList()
-          ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+        final list =
+            all.where((v) => v.status == ViewingStatus.requested || v.status == ViewingStatus.confirmed).toList()
+              ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
         return list;
 
       case _Tab.completed:
-        final list = all
-            .where(
-              (v) =>
-                  v.status == ViewingStatus.completed ||
-                  v.status == ViewingStatus.cancelled,
-            )
-            .toList()
-          ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+        final list =
+            all
+                .where(
+                  (v) =>
+                      v.status == ViewingStatus.completed ||
+                      v.status == ViewingStatus.cancelled ||
+                      v.status == ViewingStatus.rejected,
+                )
+                .toList()
+              ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
         return list;
     }
   }
@@ -133,12 +147,61 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+
+    // only fetch if user didn't pass viewings
+    if (widget.viewings.isEmpty && widget.fetchFromBackendWhenEmpty) {
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    if (_loading) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final api = ViewingsApi();
+      final rows = await api.listMy(limit: 50, offset: 0);
+
+      final mapped = rows.map((j) {
+        final statusRaw = (j["status"] ?? "pending").toString();
+
+        // NOTE: backend list may not include listing title/location/agent unless you join them.
+        // We keep safe placeholders so UI still works.
+        return ViewingModel(
+          id: (j["id"] ?? "").toString(),
+          listingTitle: (j["listing_title"] ?? "Viewing").toString(),
+          location: (j["location"] ?? "").toString(),
+          agentName: (j["agent_name"] ?? "Agent").toString(),
+          dateTime: DateTime.parse((j["scheduled_at"] ?? DateTime.now().toIso8601String()).toString()).toLocal(),
+          status: ViewingStatusX.fromApi(statusRaw),
+          priceText: (j["price_text"] as String?),
+          listingId: (j["listing_id"] as String?),
+          propertyId: (j["property_id"] as String?),
+        );
+      }).toList();
+
+      if (!mounted) return;
+      setState(() => _fetched = mapped);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final items = _filtered;
 
     return Stack(
       children: [
-        // ✅ Option A: Gradient BEHIND the entire screen (including top bar / safe-area)
         Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -151,13 +214,14 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
           backgroundColor: Colors.transparent,
           safeAreaTop: true,
           safeAreaBottom: false,
-          // ✅ Use your AppTopBar (only screen name in the middle + back arrow)
+
           topBar: AppTopBar(
             title: widget.title ?? "Viewings",
             leadingIcon: Icons.arrow_back_rounded,
             onLeadingTap: () => Navigator.of(context).maybePop(),
             actions: const [],
           ),
+
           child: Column(
             children: [
               Padding(
@@ -172,19 +236,69 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
                   onChanged: (t) => setState(() => _tab = t),
                 ),
               ),
+
               Expanded(
-                child: items.isEmpty
-                    ? Center(
-                        child: Text(
-                          "No viewings yet",
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textMuted(context),
-                                  ),
-                        ),
-                      )
-                    : ListView.separated(
+                child: RefreshIndicator(
+                  onRefresh: _load,
+                  child: Builder(
+                    builder: (_) {
+                      if (_loading && widget.viewings.isEmpty && _fetched.isEmpty && !widget.useDemoWhenEmpty) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      if (_error != null && widget.viewings.isEmpty && _fetched.isEmpty && !widget.useDemoWhenEmpty) {
+                        return ListView(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.screenV,
+                            AppSpacing.lg,
+                            AppSpacing.screenV,
+                            AppSizes.screenBottomPad,
+                          ),
+                          children: [
+                            Text(
+                              "Couldn’t load viewings",
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.navy,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              _error!,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textMuted(context),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            _RetryButton(onTap: _load),
+                          ],
+                        );
+                      }
+
+                      if (items.isEmpty) {
+                        return ListView(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.screenV,
+                            AppSpacing.lg,
+                            AppSpacing.screenV,
+                            AppSizes.screenBottomPad,
+                          ),
+                          children: [
+                            Center(
+                              child: Text(
+                                "No viewings yet",
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textMuted(context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+
+                      return ListView.separated(
                         padding: const EdgeInsets.fromLTRB(
                           AppSpacing.screenV,
                           AppSpacing.sm,
@@ -192,14 +306,12 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
                           AppSizes.screenBottomPad,
                         ),
                         itemCount: items.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: AppSpacing.md),
+                        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
                         itemBuilder: (context, i) {
                           final v = items[i];
                           final badge = _ViewingBadge.from(context, v.status);
 
-                          final showApplyNow =
-                              v.status == ViewingStatus.completed;
+                          final showApplyNow = v.status == ViewingStatus.completed;
 
                           return _ViewingCard(
                             title: v.listingTitle,
@@ -217,36 +329,71 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
                                       id: v.id,
                                       title: v.listingTitle,
                                       location: v.location,
-                                      rentPerMonthNgn:
-                                          _parseMonthlyRent(v.priceText),
+                                      rentPerMonthNgn: _parseMonthlyRent(v.priceText),
                                       priceText: v.priceText ?? "",
-                                      photoAssetPath:
-                                          "assets/images/listing_011.png",
+                                      photoAssetPath: "assets/images/listing_011.png",
                                     ),
                                     guarantorRequiredThresholdNgn: 500000,
                                   ),
                                 ),
                               );
                             },
-                            onTap: () {
-                              Navigator.of(context).push(
+                            onTap: () async {
+                              final changed = await Navigator.of(context).push<bool>(
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      ViewingDetailScreen(viewing: v),
+                                  builder: (_) => ViewingDetailScreen(viewing: v),
                                 ),
                               );
+
+                              if (changed == true) {
+                                _load();
+                              }
                             },
                             onDirections: () {},
                             onReschedule: () {},
-                            onCancel: () {},
+                            onCancel: () async {
+                              // optional: you can wire quick-cancel from card later
+                            },
                           );
                         },
-                      ),
+                      );
+                    },
+                  ),
+                ),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _RetryButton extends StatelessWidget {
+  const _RetryButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.brandBlueSoft.withValues(alpha: 0.22),
+      borderRadius: BorderRadius.circular(AppRadii.button),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        child: SizedBox(
+          height: AppSizes.pillButtonHeight,
+          child: Center(
+            child: Text(
+              "Retry",
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: AppColors.navy,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -278,9 +425,9 @@ class _Tabs extends StatelessWidget {
                 child: Text(
                   label,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.navy,
+                  ),
                 ),
               ),
             ),
@@ -308,8 +455,6 @@ class _Tabs extends StatelessWidget {
     );
   }
 }
-
-// --- card code ---
 
 class _ViewingCard extends StatelessWidget {
   const _ViewingCard({
@@ -346,6 +491,7 @@ class _ViewingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCompleted = status == ViewingStatus.completed;
+    final canCancel = status == ViewingStatus.requested || status == ViewingStatus.confirmed;
 
     return _FrostCard(
       child: InkWell(
@@ -379,13 +525,10 @@ class _ViewingCard extends StatelessWidget {
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.navy,
-                              ),
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.navy,
+                          ),
                         ),
                         const SizedBox(height: AppSpacing.s6),
                         Row(
@@ -401,13 +544,10 @@ class _ViewingCard extends StatelessWidget {
                                 line1,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.textMuted(context),
-                                    ),
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textMuted(context),
+                                ),
                               ),
                             ),
                           ],
@@ -417,11 +557,10 @@ class _ViewingCard extends StatelessWidget {
                           location,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.brandBlueSoft,
-                                  ),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.brandBlueSoft,
+                          ),
                         ),
                       ],
                     ),
@@ -442,18 +581,15 @@ class _ViewingCard extends StatelessWidget {
                     child: Text(
                       badge.label,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: badge.color,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: badge.color,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
 
-              // ✅ RULE:
-              // - If Completed => hide Reschedule and show Apply Now
-              // - If NOT Completed => show Reschedule and hide Apply Now
               Wrap(
                 spacing: AppSpacing.s10,
                 runSpacing: AppSpacing.s10,
@@ -469,13 +605,14 @@ class _ViewingCard extends StatelessWidget {
                       text: "Reschedule",
                       onTap: onReschedule,
                     ),
-                  _MiniAction(
-                    icon: Icons.close_rounded,
-                    text: "Cancel",
-                    onTap: onCancel,
-                    textColor: AppColors.tenantDangerSoft,
-                    iconColor: AppColors.tenantDangerSoft,
-                  ),
+                  if (!isCompleted)
+                    _MiniAction(
+                      icon: Icons.close_rounded,
+                      text: "Cancel",
+                      onTap: canCancel ? onCancel : () {},
+                      textColor: canCancel ? AppColors.tenantDangerSoft : AppColors.textMutedLight,
+                      iconColor: canCancel ? AppColors.tenantDangerSoft : AppColors.textMutedLight,
+                    ),
                   if (isCompleted && showApplyNow)
                     _MiniAction(
                       icon: Icons.assignment_rounded,
@@ -533,9 +670,9 @@ class _MiniAction extends StatelessWidget {
               Text(
                 text,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: tc,
-                    ),
+                  fontWeight: FontWeight.w900,
+                  color: tc,
+                ),
               ),
             ],
           ),
@@ -560,12 +697,7 @@ class _FrostCard extends StatelessWidget {
           border: Border.all(
             color: AppColors.surface(context).withValues(alpha: 0.55),
           ),
-          boxShadow: AppShadows.lift(
-            context,
-            blur: 18,
-            y: 10,
-            alpha: 0.08,
-          ),
+          boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: child,
       ),
@@ -590,6 +722,11 @@ class _ViewingBadge {
         return const _ViewingBadge(
           label: "Confirmed",
           color: AppColors.brandGreenDeep,
+        );
+      case ViewingStatus.rejected:
+        return const _ViewingBadge(
+          label: "Rejected",
+          color: AppColors.tenantDangerDeep,
         );
       case ViewingStatus.completed:
         return const _ViewingBadge(

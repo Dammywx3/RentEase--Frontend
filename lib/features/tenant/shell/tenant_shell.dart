@@ -5,8 +5,8 @@ import '../../../core/ui/nav/tenant_bottom_nav.dart';
 import '../../../core/ui/nav/tenant_nav_scope.dart';
 
 import '../explore/explore_screen.dart';
-import '../search/search_screen.dart';
-import '../saved/saved_screen.dart';
+import '../search/search_screen.dart' as tenant_search;
+import '../saved/saved_screen.dart' as tenant_saved;
 import '../messages/messages_screen.dart';
 import '../messages/tenant_chat_screen.dart'; // for ChatMessageVM demo data
 import '../more/more_screen.dart';
@@ -77,13 +77,20 @@ class _TenantShellState extends State<TenantShell> {
       ),
     ];
 
-    final messagesBadgeCount =
-        demoConversations.fold<int>(0, (sum, c) => sum + c.unreadCount);
+    final messagesBadgeCount = demoConversations.fold<int>(
+      0,
+      (sum, c) => sum + c.unreadCount,
+    );
 
     final pages = <Widget>[
       const ExploreScreen(),
-      const SearchScreen(),
-      const SavedScreen(),
+
+      // ✅ SearchScreen is NOT const in your project, so do not use const here.
+      tenant_search.SearchScreen(),
+
+      // ✅ Avoid name clash by using the alias.
+      const tenant_saved.SavedScreen(),
+
       MessagesScreen(
         conversations: demoConversations,
         onExploreHomes: () => _setIndex(0), // go back to Explore

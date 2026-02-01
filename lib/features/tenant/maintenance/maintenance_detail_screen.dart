@@ -96,11 +96,20 @@ class MaintenanceDetailScreen extends StatelessWidget {
                         runSpacing: AppSpacing.sm,
                         children: [
                           if (safeCategory.isNotEmpty)
-                            _MetaChip(icon: Icons.category_rounded, text: safeCategory),
+                            _MetaChip(
+                              icon: Icons.category_rounded,
+                              text: safeCategory,
+                            ),
                           if (safeDate.isNotEmpty)
-                            _MetaChip(icon: Icons.event_rounded, text: safeDate),
+                            _MetaChip(
+                              icon: Icons.event_rounded,
+                              text: safeDate,
+                            ),
                           if (safePriority.isNotEmpty)
-                            _MetaChip(icon: Icons.flag_rounded, text: safePriority),
+                            _MetaChip(
+                              icon: Icons.flag_rounded,
+                              text: safePriority,
+                            ),
                         ],
                       ),
                     ),
@@ -117,12 +126,17 @@ class MaintenanceDetailScreen extends StatelessWidget {
 
                 // Photos
                 Container(
-                  height: AppSizes.listThumbSize + AppSpacing.xxxl + AppSpacing.lg,
+                  height:
+                      AppSizes.listThumbSize + AppSpacing.xxxl + AppSpacing.lg,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(AppRadii.card),
-                    color: AppColors.surface(context).withValues(alpha: _surfaceA),
-                    border: Border.all(color: AppColors.overlay(context, _borderA)),
+                    color: AppColors.surface(
+                      context,
+                    ).withValues(alpha: _surfaceA),
+                    border: Border.all(
+                      color: AppColors.overlay(context, _borderA),
+                    ),
                     boxShadow: AppShadows.soft(
                       context,
                       blur: AppSpacing.xxxl,
@@ -197,7 +211,9 @@ class MaintenanceDetailScreen extends StatelessWidget {
                   width: double.infinity,
                   height: AppSizes.pillButtonHeight + AppSpacing.sm,
                   child: FilledButton(
-                    onPressed: _canCancel ? () => _confirmCancel(context) : null,
+                    onPressed: _canCancel
+                        ? () => _confirmCancel(context)
+                        : null,
                     child: Text(_canCancel ? 'Cancel Request' : 'Update'),
                   ),
                 ),
@@ -308,7 +324,9 @@ class _MetaChip extends StatelessWidget {
     final muted = AppColors.textMuted(context);
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 240), // ✅ hard stop prevents overflow
+      constraints: const BoxConstraints(
+        maxWidth: 240,
+      ), // ✅ hard stop prevents overflow
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.s10,
@@ -330,9 +348,9 @@ class _MetaChip extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: muted,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  color: muted,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           ],
@@ -375,23 +393,26 @@ class _Timeline extends StatelessWidget {
         final raw = keys[i];
         final label = StatusBadgeMap.labelFor(StatusDomain.maintenance, raw);
 
-        final done = i <= currentIdx && raw != 'cancelled' && current != 'cancelled';
+        final done =
+            i <= currentIdx && raw != 'cancelled' && current != 'cancelled';
         final isCancelled = current == 'cancelled';
 
         final bg = isCancelled
             ? AppColors.textMuted(context).withValues(alpha: 0.18)
             : done
-                ? AppColors.brandGreen.withValues(alpha: 0.18)
-                : AppColors.surface(context).withValues(alpha: 0.18);
+            ? AppColors.brandGreen.withValues(alpha: 0.18)
+            : AppColors.surface(context).withValues(alpha: 0.18);
 
         final border = isCancelled
             ? AppColors.textMuted(context).withValues(alpha: 0.22)
             : done
-                ? AppColors.brandGreen.withValues(alpha: 0.22)
-                : AppColors.overlay(context, 0.10);
+            ? AppColors.brandGreen.withValues(alpha: 0.22)
+            : AppColors.overlay(context, 0.10);
 
         return ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 260), // ✅ prevents overflow
+          constraints: const BoxConstraints(
+            maxWidth: 260,
+          ), // ✅ prevents overflow
           child: Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,

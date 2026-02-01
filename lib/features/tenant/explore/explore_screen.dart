@@ -1,7 +1,10 @@
+// lib/features/tenant/explore/explore_screen.dart
 // ignore_for_file: unnecessary_underscores
 
 import 'package:flutter/material.dart';
 
+import '../../../core/config/env.dart';
+import '../../../core/network/marketplace_api.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
@@ -13,9 +16,9 @@ import '../../../core/ui/scaffold/app_top_bar.dart';
 
 import '../../../core/utils/money_format.dart';
 import '../../../shared/models/listing_model.dart';
+import '../../../shared/stores/saved_store.dart';
 
 import '../listing_detail/listing_detail_screen.dart';
-// import '../search/search_screen.dart';
 
 enum _ExploreMode { buy, rent, land }
 enum _MarketSegment { residential, commercial }
@@ -28,207 +31,296 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
-  int _activeChip = 0;
+  // ✅ Single source of truth:
+  late final MarketplaceApi _api = MarketplaceApi(baseUrl: Env.baseUrl);
 
-  final List<String> _chips = const [
-    'For You',
-    'Buy',
-    'Rent',
-    'Land',
-    'Verified',
-  ];
+  int _activeChip = 0;
+  final List<String> _chips = const ['For You', 'Buy', 'Rent', 'Land', 'Verified'];
 
   _ExploreMode _mode = _ExploreMode.buy;
   _MarketSegment _segment = _MarketSegment.residential;
 
-  // local saved state (later wire to backend)
-  final Set<String> _savedIds = <String>{};
+  // Pagination / loading
+  final List<ListingModel> _items = <ListingModel>[];
+  final Map<String, bool> _verifiedById = <String, bool>{};
+
+  bool _loading = false;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+  String? _error;
+  int _offset = 0;
+  static const int _limit = 20;
 
   // ---------- helpers (no hardcoded alphas) ----------
   double get _alphaSurfaceStrong =>
-      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs); // 32/36
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
 
   double get _alphaBorderSoft =>
-      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs); // 4/36
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
 
-  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl; // 4/32
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
 
   void _setModeFromChip(int index) {
     setState(() {
       _activeChip = index;
       final selected = _chips[index];
 
-      // If user is in Commercial and taps Buy/Rent/Land/ForYou, return to Residential.
-      if (_segment == _MarketSegment.commercial &&
-          selected != 'Verified' &&
-          selected != 'For You') {
-        _segment = _MarketSegment.residential;
-      }
+      // ✅ FIX: Do NOT force segment changes.
+      // Segment is UI-only for now; backend ignores it, but UI should not block user.
 
+      // ✅ FIX: "Verified" and "For You" should NOT reset the current mode.
+      // Verified respects current mode (buy/rent/land).
       if (selected == 'Rent') {
         _mode = _ExploreMode.rent;
       } else if (selected == 'Land') {
         _mode = _ExploreMode.land;
-      } else {
-        // For You, Buy, Verified -> default to buy mode (residential)
+      } else if (selected == 'Buy') {
         _mode = _ExploreMode.buy;
       }
+      // else: For You / Verified => keep _mode as-is.
     });
+
+    _refresh();
   }
 
   void _setSegment(_MarketSegment seg) {
     setState(() {
       _segment = seg;
-      // When Commercial is active, listings come from commercial bucket only.
-      // Verified chip still works (filters within that bucket).
+      // NOTE: backend does not support commercial vs residential filtering yet.
+      // When backend supports it, pass a category/segment param to fetchListings.
     });
+
+    _refresh();
   }
 
-  ListingModel _toListingModel(_DemoListing l) {
+  void _openSearch() => TenantNav.goToSearch(context);
+
+  String _locationText({
+    required String? city,
+    required String? state,
+    required String? country,
+  }) {
+    final parts = <String>[];
+    if (city != null && city.trim().isNotEmpty) parts.add(city.trim());
+    if (state != null && state.trim().isNotEmpty) parts.add(state.trim());
+
+    final c = (country ?? '').trim();
+    if (c.isNotEmpty) {
+      parts.add(_countryName(c));
+    } else if (parts.isEmpty) {
+      parts.add('Location not set');
+    }
+
+    return parts.join(' • ');
+  }
+
+  String _countryName(String codeOrName) {
+    final v = codeOrName.toUpperCase();
+    if (v == 'NG') return 'Nigeria';
+    if (v == 'US') return 'USA';
+    if (v == 'GB') return 'UK';
+    return codeOrName;
+  }
+
+  String _uiTypeFromPropertyType(String propertyType) {
+    switch (propertyType) {
+      case 'sale':
+        return 'Buy';
+      case 'rent':
+      case 'short_lease':
+      case 'long_lease':
+        return 'Rent';
+      default:
+        return propertyType;
+    }
+  }
+
+  // ✅ ListingModel.currency should be a CODE (NGN/USD/EUR), not a symbol.
+  String _currencyCode(String? currency) {
+    final c = (currency ?? 'NGN').toUpperCase();
+    if (c.isEmpty) return 'NGN';
+    return c;
+  }
+
+  ListingModel _toListingModel(MarketplaceItem x) {
+    final location =
+        _locationText(city: x.city, state: x.state, country: x.country);
+    final uiType = _uiTypeFromPropertyType(x.propertyType);
+    final code = _currencyCode(x.currency);
+
     return ListingModel(
-      id: l.id,
-      title: l.title,
-      price: l.price,
-      currency: '₦',
-      location: l.location,
-      status: 'published',
-      beds: l.beds == 0 ? null : l.beds,
-      baths: l.baths == 0 ? null : l.baths,
-      type: l.type, // Buy / Rent / Land / Commercial
-      mediaUrls: const [],
+      id: x.listingId,
+      title: x.title,
+      price: x.listedPrice,
+      currency: code,
+      location: location,
+      status: x.status,
+      beds: x.bedrooms,
+      baths: x.bathrooms,
+      type: uiType,
+      mediaUrls: x.coverUrl != null ? [x.coverUrl!] : const [],
       propertyStatus: 'available',
       ownerName: 'RentEase',
       ownerId: 'system',
     );
   }
 
-  void _toggleSaved(String id) {
+  bool _isVerifiedItem(MarketplaceItem x) {
+    return x.verificationStatus.toLowerCase() == 'verified';
+  }
+
+  /// ✅ IMPORTANT: Explore should be able to display ALL backend listings.
+  /// So we NEVER pass fake values like "__land__".
+  ///
+  /// - For You: types = null (show everything)
+  /// - Buy: only sale
+  /// - Rent: rent + leases
+  /// - Land: types = null (until backend supports land properly)
+  /// - Verified: verifiedOnly = true + types based on current mode
+  List<String>? _typesForCurrentSelection() {
+    final selected = _chips[_activeChip];
+
+    // Verified respects current mode
+    if (selected == 'Verified') {
+      return _typesForMode(_mode);
+    }
+
+    // For You = show everything
+    if (selected == 'For You') return null;
+
+    if (selected == 'Buy') return const ['sale'];
+    if (selected == 'Rent') return const ['rent', 'short_lease', 'long_lease'];
+
+    // ✅ FIX: Land should NOT send "__land__" (it blocks backend results).
+    // Until backend supports land as a property_type/category, show everything.
+    if (selected == 'Land') return null;
+
+    return null;
+  }
+
+  /// Types based on current mode (used by Verified chip)
+  List<String>? _typesForMode(_ExploreMode m) {
+    switch (m) {
+      case _ExploreMode.buy:
+        return const ['sale'];
+      case _ExploreMode.rent:
+        return const ['rent', 'short_lease', 'long_lease'];
+      case _ExploreMode.land:
+        // ✅ FIX: Land not supported yet => do not block results
+        return null;
+    }
+  }
+
+  bool get _verifiedOnly => _chips[_activeChip] == 'Verified';
+
+  Future<void> _refresh() async {
     setState(() {
-      if (_savedIds.contains(id)) {
-        _savedIds.remove(id);
-      } else {
-        _savedIds.add(id);
-      }
+      _loading = true;
+      _loadingMore = false;
+      _error = null;
+      _offset = 0;
+      _hasMore = true;
+      _items.clear();
+      _verifiedById.clear();
     });
+
+    try {
+      final types = _typesForCurrentSelection();
+
+      final rows = await _api.fetchListings(
+        types: types,
+        verifiedOnly: _verifiedOnly,
+        limit: _limit,
+        offset: 0,
+      );
+
+      final mapped = <ListingModel>[];
+      for (final x in rows) {
+        mapped.add(_toListingModel(x));
+        _verifiedById[x.listingId] = _isVerifiedItem(x);
+      }
+
+      setState(() {
+        _items.addAll(mapped);
+        _hasMore = rows.length >= _limit;
+        _loading = false;
+        _offset = 0;
+      });
+    } catch (e) {
+      setState(() {
+        _error = '$e';
+        _loading = false;
+      });
+    }
   }
 
-  void _openSearch() {
-    // ✅ Correct: switch bottom-nav tab instead of Navigator.push()
-    TenantNav.goToSearch(context);
+  Future<void> _loadMore() async {
+    if (_loading || _loadingMore || !_hasMore) return;
+
+    setState(() {
+      _loadingMore = true;
+      _error = null;
+    });
+
+    try {
+      final nextOffset = _offset + _limit;
+
+      final rows = await _api.fetchListings(
+        types: _typesForCurrentSelection(),
+        verifiedOnly: _verifiedOnly,
+        limit: _limit,
+        offset: nextOffset,
+      );
+
+      final mapped = <ListingModel>[];
+      for (final x in rows) {
+        mapped.add(_toListingModel(x));
+        _verifiedById[x.listingId] = _isVerifiedItem(x);
+      }
+
+      setState(() {
+        _offset = nextOffset;
+        _items.addAll(mapped);
+        _hasMore = rows.length >= _limit;
+        _loadingMore = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = '$e';
+        _loadingMore = false;
+      });
+    }
   }
 
-  /// IMPORTANT:
-  /// We must pass the SAME heroTag used by the tapped card into the detail screen.
-  void _openListing(_DemoListing demo, {required String heroTag}) {
-    final listing = _toListingModel(demo);
+  void _openListing(ListingModel listing, {required String heroTag}) {
+    final grad = AppColors.demoCardGradientA;
+    final verified = _verifiedById[listing.id] ?? false;
 
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ListingDetailScreen(
           listing: listing,
           heroTag: heroTag,
-          heroGradient: demo.gradient,
-          isVerified: demo.verified,
-          priceLabelOverride: demo.priceLabel,
+          heroGradient: grad,
+          isVerified: verified,
+          priceLabelOverride: null,
         ),
       ),
     );
   }
 
-  // ---------------- Demo data (token-sized; no random counts) ----------------
-  late final List<_DemoListing> _buyListings = List.generate(
-    AppSpacing.sm.toInt(), // 8
-    (i) => _DemoListing(
-      id: 'buy_$i',
-      title: i.isEven ? 'Premium Family Duplex' : 'Modern 2BR Apartment',
-      location: i.isEven ? 'Ikoyi • Lagos' : 'Lekki • Lagos',
-      priceLabel: '₦${(115000000 + (i * 2500000)).toString()}',
-      badge: i % 3 == 0 ? 'Verified' : 'Hot',
-      gradient:
-          i.isEven ? AppColors.demoCardGradientA : AppColors.demoCardGradientB,
-      beds: 3 + (i % 2),
-      baths: 2 + (i % 2),
-      sqft: 1800 + (i * 40),
-      verified: i % 3 == 0,
-      type: 'Buy',
-      price: 115000000 + (i * 2500000),
-      segment: _MarketSegment.residential,
-    ),
-  );
-
-  late final List<_DemoListing> _rentListings = List.generate(
-    AppSpacing.sm.toInt(), // 8
-    (i) => _DemoListing(
-      id: 'rent_$i',
-      title: i.isEven ? 'Luxury Studio Apartment' : 'Cozy 1BR Apartment',
-      location: i.isEven ? 'Ikeja • Lagos' : 'Yaba • Lagos',
-      priceLabel: '₦${(1200000 + (i * 85000)).toString()}/yr',
-      badge: i % 4 == 0 ? 'Verified' : 'New',
-      gradient:
-          i.isEven ? AppColors.demoCardGradientB : AppColors.demoCardGradientA,
-      beds: 1,
-      baths: 1,
-      sqft: 650 + (i * 25),
-      verified: i % 4 == 0,
-      type: 'Rent',
-      price: 1200000 + (i * 85000),
-      segment: _MarketSegment.residential,
-    ),
-  );
-
-  late final List<_DemoListing> _landListings = List.generate(
-    AppSpacing.sm.toInt(), // 8
-    (i) => _DemoListing(
-      id: 'land_$i',
-      title: 'Prime Land Plot',
-      location: i.isEven ? 'Ajah • Lagos' : 'Gwarinpa • Abuja',
-      priceLabel: '₦${(45000000 + (i * 1200000)).toString()}',
-      badge: i % 5 == 0 ? 'Verified' : 'Land',
-      gradient:
-          i.isEven ? AppColors.demoCardGradientA : AppColors.demoCardGradientB,
-      beds: 0,
-      baths: 0,
-      sqft: 5000 + (i * 250),
-      verified: i % 5 == 0,
-      type: 'Land',
-      price: 45000000 + (i * 1200000),
-      segment: _MarketSegment.residential,
-    ),
-  );
-
-  late final List<_DemoListing> _commercialListings = List.generate(
-    AppSpacing.sm.toInt(), // 8
-    (i) => _DemoListing(
-      id: 'com_$i',
-      title: i.isEven ? 'Prime Office Space' : 'Retail Shopfront',
-      location: i.isEven ? 'Victoria Island • Lagos' : 'Wuse 2 • Abuja',
-      priceLabel: '₦${(8500000 + (i * 500000)).toString()}/yr',
-      badge: i % 3 == 0 ? 'Featured' : 'Commercial',
-      gradient:
-          i.isEven ? AppColors.demoCardGradientB : AppColors.demoCardGradientA,
-      beds: 0,
-      baths: 0,
-      sqft: 120 + (i * 15),
-      verified: i % 3 == 0,
-      type: 'Commercial',
-      price: 8500000 + (i * 500000),
-      segment: _MarketSegment.commercial,
-    ),
-  );
-
-  List<_DemoListing> get _activeListings {
-    final bool onlyVerified = _chips[_activeChip] == 'Verified';
-
-    final List<_DemoListing> base = (_segment == _MarketSegment.commercial)
-        ? _commercialListings
-        : switch (_mode) {
-            _ExploreMode.buy => _buyListings,
-            _ExploreMode.rent => _rentListings,
-            _ExploreMode.land => _landListings,
-          };
-
-    if (!onlyVerified) return base;
-    return base.where((x) => x.verified).toList();
+  String _heroTag({
+    required String section,
+    required ListingModel listing,
+    required int index,
+  }) {
+    return 'listingHero:explore:$section:${listing.id}:$index';
   }
 
   String get _activeTitle {
@@ -240,210 +332,250 @@ class _ExploreScreenState extends State<ExploreScreen> {
     };
   }
 
-  String _heroTag({
-    required String section,
-    required _DemoListing demo,
-    required int index,
-  }) {
-    // Scoped + indexed to avoid duplicates across multiple lists/sections.
-    return 'listingHero:explore:$section:${demo.id}:$index';
-  }
-
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      backgroundColor: Colors.transparent,
-      safeAreaTop: true,
-      safeAreaBottom: false,
-      appBar: AppTopBar(
-        title: 'Explore',
-        subtitle: '$_activeTitle listings • tap any card',
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.screenH),
-            child: InkWell(
-              onTap: () {},
-              borderRadius: BorderRadius.circular(AppRadii.pill),
-              child: Container(
-                height: AppSizes.iconButtonBox,
-                width: AppSizes.iconButtonBox,
-                decoration: BoxDecoration(
-                  color: AppColors.surface(context)
-                      .withValues(alpha: _alphaSurfaceStrong),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.overlay(context, _alphaBorderSoft),
+    final featuredCount = _items.length < 6 ? _items.length : 6;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        appBar: AppTopBar(
+          title: 'Explore',
+          subtitle: '$_activeTitle listings • tap any card',
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.screenH),
+              child: InkWell(
+                onTap: () {},
+                borderRadius: BorderRadius.circular(AppRadii.pill),
+                child: Container(
+                  height: AppSizes.iconButtonBox,
+                  width: AppSizes.iconButtonBox,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface(context)
+                        .withValues(alpha: _alphaSurfaceStrong),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.overlay(context, _alphaBorderSoft),
+                    ),
+                    boxShadow: AppShadows.soft(
+                      context,
+                      blur: AppSpacing.xxxl,
+                      y: AppSpacing.lg,
+                      alpha: _alphaShadowSoft,
+                    ),
                   ),
-                  boxShadow: AppShadows.soft(
-                    context,
-                    blur: AppSpacing.xxxl,
-                    y: AppSpacing.lg,
-                    alpha: _alphaShadowSoft,
+                  child: Icon(
+                    Icons.notifications_none_rounded,
+                    color: AppColors.textMuted(context),
                   ),
-                ),
-                child: Icon(
-                  Icons.notifications_none_rounded,
-                  color: AppColors.textMuted(context),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-      scroll: true,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screenH,
-        AppSpacing.sm,
-        AppSpacing.screenH,
-        AppSizes.screenBottomPad,
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+          ],
+        ),
+        scroll: true,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH,
+          AppSpacing.sm,
+          AppSpacing.screenH,
+          AppSizes.screenBottomPad,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: AppSpacing.sm),
             _SearchStub(onTap: _openSearch),
             const SizedBox(height: AppSpacing.md),
-
             _QuickActionsRow(
               segment: _segment,
               onFilter: () {},
               onResidential: () => _setSegment(_MarketSegment.residential),
               onCommercial: () => _setSegment(_MarketSegment.commercial),
             ),
-
             const SizedBox(height: AppSpacing.md),
-
             _ChipRow(
               chips: _chips,
               activeIndex: _activeChip,
               onTap: _setModeFromChip,
             ),
-
             const SizedBox(height: AppSpacing.lg),
 
-            Text(
-              'Featured',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary(context),
+            if (_loading && _items.isEmpty) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: CircularProgressIndicator(
+                    color: AppColors.brandGreenDeep,
                   ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+            ] else if (_error != null && _items.isEmpty) ...[
+              _ErrorBox(message: _error!, onRetry: _refresh),
+            ] else if (_items.isEmpty) ...[
+              _InfoBox(
+                title: 'No listings found',
+                message: 'Try another tab or remove Verified filter.',
+                onAction: _refresh,
+                actionText: 'Refresh',
+              ),
+            ] else ...[
+              Text(
+                'Featured',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary(context),
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
 
-            // ✅ Responsive: 2 cards fully visible
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final gap = AppSpacing.md.toDouble();
-                final viewport = constraints.maxWidth;
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final gap = AppSpacing.md.toDouble();
+                  final viewport = constraints.maxWidth;
 
-                var cardW = (viewport - gap) / AppSpacing.s2; // 2 cards
-                cardW = cardW.clamp(
-                  AppSizes.featuredCardMinW,
-                  AppSizes.featuredCardMaxW,
-                );
+                  var cardW = (viewport - gap) / 2;
+                  cardW = cardW.clamp(
+                    AppSizes.featuredCardMinW,
+                    AppSizes.featuredCardMaxW,
+                  );
 
-                final cardH = cardW * AppSizes.featuredCardAspect;
-                final rowH = cardH + AppSpacing.lg;
+                  final cardH = cardW * AppSizes.featuredCardAspect;
+                  final rowH = cardH + AppSpacing.lg;
 
-                final featuredCount =
-                    _activeListings.length < AppSpacing.s6.toInt()
-                        ? _activeListings.length
-                        : AppSpacing.s6.toInt();
+                  return SizedBox(
+                    height: rowH,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: featuredCount,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(width: AppSpacing.md),
+                      itemBuilder: (context, i) {
+                        final listing = _items[i];
+                        final priceText = fmtMoneyCompact(
+                          listing.price,
+                          currencyCode: listing.currency,
+                        );
 
-                return SizedBox(
-                  height: rowH,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: featuredCount,
+                        final heroTag = _heroTag(
+                          section: 'featured',
+                          listing: listing,
+                          index: i,
+                        );
+
+                        final verified = _verifiedById[listing.id] ?? false;
+                        final badge = verified ? 'Verified' : 'Hot';
+
+                        return _FeaturedCard(
+                          width: cardW,
+                          height: cardH,
+                          heroTag: heroTag,
+                          title: listing.title,
+                          location: listing.location,
+                          price: priceText,
+                          badge: badge,
+                          gradient: AppColors.demoCardGradientA,
+                          onTap: () => _openListing(listing, heroTag: heroTag),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              Row(
+                children: [
+                  Text(
+                    'Popular near you',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary(context),
+                        ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: _hasMore ? _loadMore : null,
+                    child: Text(
+                      _loadingMore
+                          ? 'Loading…'
+                          : (_hasMore ? 'Load more  ›' : 'No more'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+
+              if (_error != null) ...[
+                _InlineError(text: _error!),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+
+              // ✅ SavedStore is the source of truth for hearts
+              ListenableBuilder(
+                listenable: SavedStore.I,
+                builder: (context, _) {
+                  return ListView.separated(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: _items.length,
                     separatorBuilder: (_, __) =>
-                        const SizedBox(width: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.md),
                     itemBuilder: (context, i) {
-                      final demo = _activeListings[i];
+                      final listing = _items[i];
 
-                      final priceText =
-                          (demo.type == 'Rent' || demo.type == 'Commercial')
-                              ? demo.priceLabel
-                              : fmtNairaCompact(demo.price);
+                      final meta =
+                          (listing.beds == null && listing.baths == null)
+                              ? 'Details not set'
+                              : '${listing.beds ?? 0} Beds • ${listing.baths ?? 0} Baths';
+
+                      final priceText = fmtMoneyCompact(
+                        listing.price,
+                        currencyCode: listing.currency,
+                      );
 
                       final heroTag = _heroTag(
-                        section: 'featured',
-                        demo: demo,
+                        section: 'nearby',
+                        listing: listing,
                         index: i,
                       );
 
-                      return _FeaturedCard(
-                        width: cardW,
-                        height: cardH,
+                      final isSaved = SavedStore.I.isSaved(listing);
+
+                      return _ListingRowCard(
                         heroTag: heroTag,
-                        title: demo.title,
-                        location: demo.location,
+                        title: listing.title,
+                        location: listing.location,
                         price: priceText,
-                        badge: demo.verified ? 'Verified' : demo.badge,
-                        gradient: demo.gradient,
-                        onTap: () => _openListing(demo, heroTag: heroTag),
+                        meta: meta,
+                        onTap: () => _openListing(listing, heroTag: heroTag),
+                        onToggleSaved: () => SavedStore.I.toggle(listing),
+                        isSaved: isSaved,
                       );
                     },
+                  );
+                },
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+              if (_hasMore) ...[
+                Center(
+                  child: FilledButton(
+                    onPressed: _loadingMore ? null : _loadMore,
+                    child: Text(_loadingMore ? 'Loading…' : 'Load more'),
                   ),
-                );
-              },
-            ),
+                ),
+              ],
+            ],
 
             const SizedBox(height: AppSpacing.lg),
-
-            Row(
-              children: [
-                Text(
-                  'Popular near you',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary(context),
-                      ),
-                ),
-                const Spacer(),
-                TextButton(onPressed: () {}, child: const Text('See all  ›')),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-
-            ListView.separated(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount:
-                  _activeListings.length.clamp(0, AppSpacing.sm.toInt()),
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-              itemBuilder: (context, i) {
-                final demo = _activeListings[i];
-
-                final meta = demo.beds == 0
-                    ? 'Size • ${demo.sqft} sqft'
-                    : '${demo.beds} Beds • ${demo.baths} Baths • ${demo.sqft} sqft';
-
-                final priceText =
-                    (demo.type == 'Rent' || demo.type == 'Commercial')
-                        ? demo.priceLabel
-                        : fmtNairaCompact(demo.price);
-
-                final heroTag = _heroTag(
-                  section: 'nearby',
-                  demo: demo,
-                  index: i,
-                );
-
-                return _ListingRowCard(
-                  heroTag: heroTag,
-                  title: demo.title,
-                  location: demo.location,
-                  price: priceText,
-                  meta: meta,
-                  onTap: () => _openListing(demo, heroTag: heroTag),
-                  onToggleSaved: () => _toggleSaved(demo.id),
-                  isSaved: _savedIds.contains(demo.id),
-                );
-              },
-            ),
           ],
         ),
       ),
@@ -473,8 +605,7 @@ class _SearchStub extends StatelessWidget {
         height: AppSizes.searchFieldHeight,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
         decoration: BoxDecoration(
-          color:
-              AppColors.surface(context).withValues(alpha: alphaSurfaceStrong),
+          color: AppColors.surface(context).withValues(alpha: alphaSurfaceStrong),
           borderRadius: BorderRadius.circular(AppRadii.button),
           border: Border.all(color: AppColors.overlay(context, alphaBorderSoft)),
           boxShadow: AppShadows.lift(
@@ -594,8 +725,7 @@ class _ChipRow extends StatelessWidget {
                     ? null
                     : AppColors.surface(context).withValues(alpha: alphaSurface),
                 borderRadius: BorderRadius.circular(AppRadii.chip),
-                border:
-                    Border.all(color: AppColors.overlay(context, alphaBorder)),
+                border: Border.all(color: AppColors.overlay(context, alphaBorder)),
               ),
               child: Center(
                 child: Text(
@@ -658,7 +788,7 @@ class _FeaturedCard extends StatelessWidget {
               context,
               blur: AppSpacing.xxxl + AppSpacing.lg,
               y: AppSpacing.xl,
-              alpha: AppSpacing.xs / AppSpacing.xxl,
+              alpha: AppSpacing.xs / AppSpacing.xxxl,
             ),
           ),
           child: Stack(
@@ -709,10 +839,7 @@ class _FeaturedCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.white.withValues(
-                              alpha: AppSpacing.xxxl /
-                                  (AppSpacing.xxxl + AppSpacing.sm),
-                            ),
+                            color: AppColors.white.withValues(alpha: 0.85),
                             fontWeight: FontWeight.w700,
                           ),
                     ),
@@ -723,16 +850,10 @@ class _FeaturedCard extends StatelessWidget {
                         vertical: AppSpacing.sm,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.white.withValues(
-                          alpha:
-                              AppSpacing.lg / (AppSpacing.xxxl + AppSpacing.lg),
-                        ),
+                        color: AppColors.white.withValues(alpha: 0.20),
                         borderRadius: BorderRadius.circular(AppRadii.button),
                         border: Border.all(
-                          color: AppColors.white.withValues(
-                            alpha: AppSpacing.lg /
-                                (AppSpacing.xxxl + AppSpacing.lg),
-                          ),
+                          color: AppColors.white.withValues(alpha: 0.20),
                         ),
                       ),
                       child: Text(
@@ -804,17 +925,11 @@ class _ListingRowCard extends StatelessWidget {
                 height: AppSizes.listThumbSize,
                 width: AppSizes.listThumbSize,
                 decoration: BoxDecoration(
-                  color: AppColors.brandBlueSoft.withValues(
-                    alpha: AppSpacing.md / (AppSpacing.xxxl + AppSpacing.md),
-                  ),
+                  color: AppColors.brandBlueSoft.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(AppRadii.sm),
-                  border:
-                      Border.all(color: AppColors.overlay(context, alphaBorder)),
+                  border: Border.all(color: AppColors.overlay(context, alphaBorder)),
                 ),
-                child: const Icon(
-                  Icons.home_rounded,
-                  color: AppColors.brandBlueSoft,
-                ),
+                child: const Icon(Icons.home_rounded, color: AppColors.brandBlueSoft),
               ),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -829,11 +944,10 @@ class _ListingRowCard extends StatelessWidget {
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textPrimary(context),
-                                  ),
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textPrimary(context),
+                              ),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
@@ -887,8 +1001,10 @@ class _ListingRowCard extends StatelessWidget {
                       ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Icon(Icons.chevron_right_rounded,
-                    color: AppColors.textMuted(context)),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textMuted(context),
+                ),
               ],
             ),
           ],
@@ -962,36 +1078,96 @@ class _PillButton extends StatelessWidget {
   }
 }
 
-// ---------------- demo data ----------------
+class _ErrorBox extends StatelessWidget {
+  const _ErrorBox({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
 
-class _DemoListing {
-  const _DemoListing({
-    required this.id,
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context).withValues(alpha: 0.70),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Could not load listings',
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(message, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: AppSpacing.md),
+          FilledButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoBox extends StatelessWidget {
+  const _InfoBox({
     required this.title,
-    required this.location,
-    required this.priceLabel,
-    required this.badge,
-    required this.gradient,
-    required this.beds,
-    required this.baths,
-    required this.sqft,
-    required this.verified,
-    required this.type,
-    required this.price,
-    required this.segment,
+    required this.message,
+    required this.onAction,
+    required this.actionText,
   });
 
-  final String id;
   final String title;
-  final String location;
-  final String priceLabel;
-  final String badge;
-  final Gradient gradient;
-  final int beds;
-  final int baths;
-  final int sqft;
-  final bool verified;
-  final String type; // Buy / Rent / Land / Commercial
-  final int price;
-  final _MarketSegment segment;
+  final String message;
+  final VoidCallback onAction;
+  final String actionText;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context).withValues(alpha: 0.70),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        border: Border.all(color: AppColors.overlay(context, 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(message, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton(onPressed: onAction, child: Text(actionText)),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineError extends StatelessWidget {
+  const _InlineError({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.danger,
+            fontWeight: FontWeight.w700,
+          ),
+    );
+  }
 }

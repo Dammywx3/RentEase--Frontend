@@ -64,11 +64,14 @@ class _CreateMaintenanceRequestScreenState
   void initState() {
     super.initState();
 
-    _category = widget.defaultCategory ??
+    _category =
+        widget.defaultCategory ??
         (widget.categories.isNotEmpty ? widget.categories.first : '');
-    _priority = widget.defaultPriority ??
+    _priority =
+        widget.defaultPriority ??
         (widget.priorities.isNotEmpty ? widget.priorities.first : '');
-    _visit = widget.defaultVisitWindow ??
+    _visit =
+        widget.defaultVisitWindow ??
         (widget.visitWindows.isNotEmpty ? widget.visitWindows.first : '');
   }
 
@@ -105,8 +108,9 @@ class _CreateMaintenanceRequestScreenState
           safeAreaBottom: false,
           topBar: AppTopBar(
             title: topTitle.isEmpty ? 'New Maintenance Request' : topTitle,
-            subtitle:
-                topSubtitle.isEmpty ? 'Create and submit a request' : topSubtitle,
+            subtitle: topSubtitle.isEmpty
+                ? 'Create and submit a request'
+                : topSubtitle,
             leadingIcon: Icons.arrow_back_rounded,
             onLeadingTap: () => Navigator.of(context).maybePop(),
             actions: const [],
@@ -114,7 +118,8 @@ class _CreateMaintenanceRequestScreenState
           child: LayoutBuilder(
             builder: (context, constraints) {
               return SingleChildScrollView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.screenH,
                   AppSpacing.sm,
@@ -139,8 +144,9 @@ class _CreateMaintenanceRequestScreenState
                                 items: widget.categories,
                                 onChanged: (v) =>
                                     setState(() => _category = v ?? ''),
-                                hintText:
-                                    widget.categories.isEmpty ? 'No categories' : null,
+                                hintText: widget.categories.isEmpty
+                                    ? 'No categories'
+                                    : null,
                               ),
                               const SizedBox(height: AppSpacing.md),
 
@@ -154,8 +160,9 @@ class _CreateMaintenanceRequestScreenState
                                   isDense: true,
                                   hintText: 'Title',
                                   hintStyle: TextStyle(
-                                    color: AppColors.textMuted(context)
-                                        .withValues(alpha: 0.80),
+                                    color: AppColors.textMuted(
+                                      context,
+                                    ).withValues(alpha: 0.80),
                                   ),
                                 ),
                               ),
@@ -171,8 +178,9 @@ class _CreateMaintenanceRequestScreenState
                                   border: const OutlineInputBorder(),
                                   hintText: 'Describe the issue...',
                                   hintStyle: TextStyle(
-                                    color: AppColors.textMuted(context)
-                                        .withValues(alpha: 0.80),
+                                    color: AppColors.textMuted(
+                                      context,
+                                    ).withValues(alpha: 0.80),
                                   ),
                                 ),
                               ),
@@ -186,8 +194,9 @@ class _CreateMaintenanceRequestScreenState
                                 items: widget.priorities,
                                 onChanged: (v) =>
                                     setState(() => _priority = v ?? ''),
-                                hintText:
-                                    widget.priorities.isEmpty ? 'No priorities' : null,
+                                hintText: widget.priorities.isEmpty
+                                    ? 'No priorities'
+                                    : null,
                               ),
                             ],
                           ),
@@ -202,8 +211,9 @@ class _CreateMaintenanceRequestScreenState
                               const _H('Photos'),
                               const SizedBox(height: AppSpacing.sm),
                               InkWell(
-                                borderRadius:
-                                    BorderRadius.circular(AppRadii.button),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadii.button,
+                                ),
                                 onTap: () => ToastService.show(
                                   context,
                                   'Photo upload (wire later)',
@@ -214,12 +224,17 @@ class _CreateMaintenanceRequestScreenState
                                       AppSizes.listThumbSize + AppSpacing.xxxl,
                                   width: double.infinity,
                                   decoration: BoxDecoration(
-                                    borderRadius:
-                                        BorderRadius.circular(AppRadii.button),
-                                    color: AppColors.surface(context)
-                                        .withValues(alpha: _surfaceA),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadii.button,
+                                    ),
+                                    color: AppColors.surface(
+                                      context,
+                                    ).withValues(alpha: _surfaceA),
                                     border: Border.all(
-                                      color: AppColors.overlay(context, _borderA),
+                                      color: AppColors.overlay(
+                                        context,
+                                        _borderA,
+                                      ),
                                     ),
                                     boxShadow: AppShadows.soft(
                                       context,
@@ -244,8 +259,9 @@ class _CreateMaintenanceRequestScreenState
                                               .bodyMedium
                                               ?.copyWith(
                                                 fontWeight: FontWeight.w900,
-                                                color:
-                                                    AppColors.textPrimary(context),
+                                                color: AppColors.textPrimary(
+                                                  context,
+                                                ),
                                               ),
                                         ),
                                       ],
@@ -260,9 +276,7 @@ class _CreateMaintenanceRequestScreenState
                               if (widget.visitWindows.isEmpty)
                                 Text(
                                   'No visit windows',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
+                                  style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
                                         fontWeight: FontWeight.w900,
                                         color: AppColors.textMuted(context),
@@ -295,7 +309,9 @@ class _CreateMaintenanceRequestScreenState
                                           .bodySmall
                                           ?.copyWith(
                                             fontWeight: FontWeight.w900,
-                                            color: AppColors.textPrimary(context),
+                                            color: AppColors.textPrimary(
+                                              context,
+                                            ),
                                           ),
                                     ),
                                   ),
@@ -331,18 +347,27 @@ class _CreateMaintenanceRequestScreenState
 
                               final now = DateTime.now();
 
-                              ToastService.show(context, 'Submitted', success: true);
+                              ToastService.show(
+                                context,
+                                'Submitted',
+                                success: true,
+                              );
 
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
                                   builder: (_) => MaintenanceDetailScreen(
-                                    requestId: 'new_${now.millisecondsSinceEpoch}',
+                                    requestId:
+                                        'new_${now.millisecondsSinceEpoch}',
                                     status: 'open',
                                     title: title,
-                                    category: _category.isEmpty ? null : _category,
+                                    category: _category.isEmpty
+                                        ? null
+                                        : _category,
                                     dateLabel: _formatShortDate(context, now),
                                     address: widget.addressLabel,
-                                    priority: _priority.isEmpty ? null : _priority,
+                                    priority: _priority.isEmpty
+                                        ? null
+                                        : _priority,
                                     description: desc,
                                     permissionToEnter: _permissionToEnter,
                                   ),
@@ -399,9 +424,9 @@ class _H extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary(context),
-          ),
+        fontWeight: FontWeight.w900,
+        color: AppColors.textPrimary(context),
+      ),
     );
   }
 }
@@ -429,11 +454,7 @@ class _Dropdown extends StatelessWidget {
           .map(
             (x) => DropdownMenuItem(
               value: x,
-              child: Text(
-                x,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: Text(x, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           )
           .toList(),
@@ -469,7 +490,9 @@ class _ChoicePill extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadii.pill),
       onTap: onTap,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 260), // ✅ prevents tiny overflow
+        constraints: const BoxConstraints(
+          maxWidth: 260,
+        ), // ✅ prevents tiny overflow
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.screenV,
           vertical: AppSpacing.s10,
@@ -490,9 +513,9 @@ class _ChoicePill extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: selected ? base.primary : AppColors.textPrimary(context),
-              ),
+            fontWeight: FontWeight.w900,
+            color: selected ? base.primary : AppColors.textPrimary(context),
+          ),
         ),
       ),
     );

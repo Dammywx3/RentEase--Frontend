@@ -12,9 +12,9 @@ class AgentAppShell extends StatelessWidget {
       body: Center(
         child: Text(
           'Agent Dashboard (stub)',
-          style: AppTypography.h2(context).copyWith(
-            color: AppColors.textPrimary(context),
-          ),
+          style: AppTypography.h2(
+            context,
+          ).copyWith(color: AppColors.textPrimary(context)),
         ),
       ),
     );
