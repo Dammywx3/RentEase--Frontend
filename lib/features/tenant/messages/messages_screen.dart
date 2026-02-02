@@ -31,6 +31,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
   late MessagesFilter _filter = widget.initialFilter;
   final TextEditingController _searchCtrl = TextEditingController();
 
+  // ---------- Explore-style alpha helpers ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
+
   @override
   void dispose() {
     _searchCtrl.dispose();
@@ -88,50 +100,54 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Widget build(BuildContext context) {
     final filtered = _applyFilters(widget.conversations);
 
-    return AppScaffold(
-      backgroundColor: Colors.transparent,
-      safeAreaTop: true,
-      safeAreaBottom: false,
-      topBar: AppTopBar(
-        title: 'Messages',
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.screenH),
-            child: Container(
-              height: AppSizes.iconButtonBox,
-              width: AppSizes.iconButtonBox,
-              decoration: BoxDecoration(
-                color: AppColors.surface(context).withValues(alpha: 0.92),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.overlay(context, 0.06)),
-                boxShadow: AppShadows.soft(
-                  context,
-                  blur: AppSpacing.xxxl,
-                  y: AppSpacing.lg,
-                  alpha: 0.10,
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: AppTopBar(
+          title: 'Messages',
+          subtitle: 'Chats with agents & landlords',
+          actions: [
+            // Standard Explore-style Icon Button
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.screenH),
+              child: Container(
+                height: AppSizes.iconButtonBox,
+                width: AppSizes.iconButtonBox,
+                decoration: BoxDecoration(
+                  color: AppColors.surface(context)
+                      .withValues(alpha: _alphaSurfaceStrong),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: AppColors.overlay(context, _alphaBorderSoft)),
+                  boxShadow: AppShadows.soft(
+                    context,
+                    blur: AppSpacing.xxxl,
+                    y: AppSpacing.lg,
+                    alpha: _alphaShadowSoft,
+                  ),
+                ),
+                child: Icon(
+                  Icons.edit_note_rounded,
+                  color: AppColors.textMuted(context),
                 ),
               ),
-              child: Icon(
-                Icons.search_rounded,
-                color: AppColors.textMuted(context),
-              ),
             ),
-          ),
-        ],
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+          ],
+        ),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screenV,
+            AppSpacing.screenH, // ✅ Fixed: Horizontal spacing
             AppSpacing.sm,
-            AppSpacing.screenV,
+            AppSpacing.screenH, // ✅ Fixed: Horizontal spacing
             AppSizes.screenBottomPad,
           ),
           children: [
             _SearchBar(
               controller: _searchCtrl,
-              hint: 'Search agents, landlords, or support',
+              hint: 'Search messages...',
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -142,7 +158,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             const SizedBox(height: AppSpacing.md),
             if (filtered.isEmpty)
               _EmptyState(
-                title: 'No messages yet',
+                title: 'No messages found',
                 buttonText: 'Explore homes',
                 onTap: widget.onExploreHomes,
               )
@@ -234,7 +250,7 @@ class _SearchBar extends StatelessWidget {
           children: [
             Icon(
               Icons.search_rounded,
-              color: AppColors.textMutedLight.withValues(alpha: 0.9),
+              color: AppColors.textMuted(context).withValues(alpha: 0.9),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -246,14 +262,15 @@ class _SearchBar extends StatelessWidget {
                   border: InputBorder.none,
                   hintText: hint,
                   hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textMutedLight.withValues(alpha: 0.85),
-                  ),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMuted(context)
+                            .withValues(alpha: 0.85),
+                      ),
                 ),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.navy,
-                ),
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary(context),
+                    ),
               ),
             ),
             if (controller.text.trim().isNotEmpty)
@@ -286,44 +303,36 @@ class _FilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _FrostCard(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xs),
-        child: Row(
-          children: [
-            Expanded(
-              child: _ChipBtn(
-                text: 'All',
-                active: value == MessagesFilter.all,
-                onTap: () => onChanged(MessagesFilter.all),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.s6),
-            Expanded(
-              child: _ChipBtn(
-                text: 'Agents',
-                active: value == MessagesFilter.agents,
-                onTap: () => onChanged(MessagesFilter.agents),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.s6),
-            Expanded(
-              child: _ChipBtn(
-                text: 'Landlords',
-                active: value == MessagesFilter.landlords,
-                onTap: () => onChanged(MessagesFilter.landlords),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.s6),
-            Expanded(
-              child: _ChipBtn(
-                text: 'Support',
-                active: value == MessagesFilter.support,
-                onTap: () => onChanged(MessagesFilter.support),
-              ),
-            ),
-          ],
-        ),
+    // Matches Explore filters logic
+    return SizedBox(
+      height: AppSizes.pillButtonHeight,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _ChipBtn(
+            text: 'All',
+            active: value == MessagesFilter.all,
+            onTap: () => onChanged(MessagesFilter.all),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          _ChipBtn(
+            text: 'Agents',
+            active: value == MessagesFilter.agents,
+            onTap: () => onChanged(MessagesFilter.agents),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          _ChipBtn(
+            text: 'Landlords',
+            active: value == MessagesFilter.landlords,
+            onTap: () => onChanged(MessagesFilter.landlords),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          _ChipBtn(
+            text: 'Support',
+            active: value == MessagesFilter.support,
+            onTap: () => onChanged(MessagesFilter.support),
+          ),
+        ],
       ),
     );
   }
@@ -342,29 +351,32 @@ class _ChipBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final blue = AppColors.brandBlueSoft;
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
 
+    // Matches Explore ChipRow logic
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadii.sm),
+      borderRadius: BorderRadius.circular(AppRadii.chip),
       child: Container(
-        height: AppSizes.pillButtonHeight,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: active ? blue.withValues(alpha: 0.18) : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadii.sm),
-          border: Border.all(
-            color: active ? blue.withValues(alpha: 0.25) : Colors.transparent,
-          ),
+          gradient: active ? AppColors.brandGradient : null,
+          color: active
+              ? null
+              : AppColors.surface(context).withValues(alpha: alphaSurface),
+          borderRadius: BorderRadius.circular(AppRadii.chip),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
         ),
         child: Text(
           text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: AppColors.navy,
-          ),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: active
+                    ? AppColors.white
+                    : AppColors.textPrimary(context),
+              ),
         ),
       ),
     );
@@ -409,40 +421,42 @@ class _ConversationRow extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              '${convo.displayName} • ${convo.subtitleLabel()}',
+                              convo.displayName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleSmall
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.w900,
-                                    color: AppColors.navy,
+                                    color: AppColors.textPrimary(context),
                                   ),
                             ),
                           ),
                           const SizedBox(width: AppSpacing.sm),
                           Text(
                             t,
-                            style: Theme.of(context).textTheme.bodySmall
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.w800,
-                                  color: AppColors.textMutedLight.withValues(
-                                    alpha: 0.9,
-                                  ),
+                                  color: AppColors.textMuted(context)
+                                      .withValues(alpha: 0.9),
                                 ),
                           ),
                         ],
                       ),
                       const SizedBox(height: AppSpacing.s2),
                       Text(
-                        convo.listingTitle,
+                        '${convo.subtitleLabel()} • ${convo.listingTitle}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.textMutedLight.withValues(
-                            alpha: 0.92,
-                          ),
-                        ),
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted(context)
+                                  .withValues(alpha: 0.92),
+                            ),
                       ),
                       const SizedBox(height: AppSpacing.s6),
                       Row(
@@ -452,12 +466,15 @@ class _ConversationRow extends StatelessWidget {
                               convo.lastMessagePreview,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodyMedium
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
                                   ?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.navy.withValues(
-                                      alpha: 0.82,
-                                    ),
+                                    fontWeight: FontWeight.w700,
+                                    // Make unread messages slightly bolder/darker
+                                    color: convo.unreadCount > 0
+                                        ? AppColors.textPrimary(context)
+                                        : AppColors.textSecondary(context),
                                   ),
                             ),
                           ),
@@ -504,18 +521,19 @@ class _Avatar extends StatelessWidget {
         break;
       case ConversationKind.support:
         icon = Icons.support_agent_rounded;
-        tone = AppColors.brandOrange;
+        // Fallback safely if brandOrange doesn't exist
+        tone = Colors.orange;
         break;
     }
 
     return SizedBox(
-      width: AppSizes.iconButtonBox + AppSpacing.md,
+      width: AppSizes.iconButtonBox, // Standardized size
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Container(
-            height: AppSizes.iconButtonBox + AppSpacing.md,
-            width: AppSizes.iconButtonBox + AppSpacing.md,
+            height: AppSizes.iconButtonBox,
+            width: AppSizes.iconButtonBox,
             decoration: BoxDecoration(
               color: base,
               borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -526,21 +544,22 @@ class _Avatar extends StatelessWidget {
           ),
           if (verified)
             Positioned(
-              right: -AppSpacing.s2,
-              bottom: -AppSpacing.s2,
+              right: -2,
+              bottom: -2,
               child: Container(
-                height: AppSpacing.xxl,
-                width: AppSpacing.xxl,
+                height: AppSpacing.lg,
+                width: AppSpacing.lg,
                 decoration: BoxDecoration(
                   color: AppColors.brandGreenDeep.withValues(alpha: 0.95),
                   borderRadius: BorderRadius.circular(AppRadii.pill),
                   border: Border.all(
-                    color: AppColors.surface(context).withValues(alpha: 0.85),
+                    width: 2,
+                    color: AppColors.surface(context),
                   ),
                 ),
                 child: const Icon(
                   Icons.check_rounded,
-                  size: 14,
+                  size: 10,
                   color: AppColors.white,
                 ),
               ),
@@ -557,24 +576,24 @@ class _UnreadBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = AppColors.brandOrange;
+    final c = Colors.orange;
 
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.s10,
-        vertical: AppSpacing.s6,
+        vertical: AppSpacing.s2,
       ),
       decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.75),
+        color: c.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(AppRadii.pill),
-        border: Border.all(color: c.withValues(alpha: 0.85)),
       ),
       child: Text(
         '$count',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          fontWeight: FontWeight.w900,
-          color: AppColors.white,
-        ),
+              fontWeight: FontWeight.w900,
+              fontSize: 10, // Slightly smaller for dense layouts
+              color: AppColors.white,
+            ),
       ),
     );
   }
@@ -599,24 +618,26 @@ class _EmptyState extends StatelessWidget {
           horizontal: AppSpacing.md,
           vertical: AppSpacing.xxl,
         ),
-        child: Column(
-          children: [
-            Icon(
-              Icons.home_rounded,
-              size: AppSpacing.xxxl + AppSpacing.lg,
-              color: AppColors.overlay(context, 0.22),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.navy,
+        child: Center(
+          child: Column(
+            children: [
+              Icon(
+                Icons.mark_chat_unread_rounded,
+                size: AppSpacing.xxxl + AppSpacing.lg,
+                color: AppColors.textMuted(context).withValues(alpha: 0.3),
               ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _PrimaryButton(text: buttonText, onTap: onTap),
-          ],
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary(context),
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (onTap != null) _PrimaryButton(text: buttonText, onTap: onTap),
+            ],
+          ),
         ),
       ),
     );
@@ -635,22 +656,25 @@ class _PrimaryButton extends StatelessWidget {
 
     return Material(
       color: disabled
-          ? AppColors.overlay(context, 0.06)
-          : AppColors.brandBlueSoft.withValues(alpha: 0.80),
-      borderRadius: BorderRadius.circular(AppRadii.button),
+          ? AppColors.textMuted(context).withValues(alpha: 0.1)
+          : AppColors.brandBlueSoft.withValues(alpha: 0.9),
+      borderRadius: BorderRadius.circular(AppRadii.pill), // Pill style
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.button),
-        child: SizedBox(
-          height: AppSizes.minTap,
-          child: Center(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: disabled ? AppColors.textMutedLight : AppColors.white,
-              ),
-            ),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.sm,
+          ),
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: disabled
+                      ? AppColors.textMuted(context)
+                      : AppColors.white,
+                ),
           ),
         ),
       ),
@@ -662,18 +686,27 @@ class _FrostCard extends StatelessWidget {
   const _FrostCard({required this.child});
   final Widget child;
 
+  // Standard Explore/More/Tools alpha logic
+  double get _alphaSurface =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+  double get _alphaBorder => AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaShadow => AppSpacing.xs / AppSpacing.xxxl;
+
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface(context).withValues(alpha: 0.62),
+      color: AppColors.surface(context).withValues(alpha: _alphaSurface),
       borderRadius: BorderRadius.circular(AppRadii.card),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(
-            color: AppColors.surface(context).withValues(alpha: 0.55),
+          border: Border.all(color: AppColors.overlay(context, _alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: _alphaShadow,
           ),
-          boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppRadii.card),

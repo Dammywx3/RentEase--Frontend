@@ -1,8 +1,11 @@
 // lib/features/tenant/applications/my_applications_screen.dart
+// ignore_for_file: unnecessary_underscores
+
 import "package:flutter/material.dart";
 
 import "../../../core/ui/scaffold/app_scaffold.dart";
 import "../../../core/ui/scaffold/app_top_bar.dart";
+import "../../../core/ui/nav/tenant_nav.dart"; // Assuming existance based on Explore
 
 import "../../../core/theme/app_colors.dart";
 import "../../../core/theme/app_radii.dart";
@@ -10,749 +13,505 @@ import "../../../core/theme/app_shadows.dart";
 import "../../../core/theme/app_sizes.dart";
 import "../../../core/theme/app_spacing.dart";
 
+import "../../../core/network/api_client.dart";
+import "../../../core/network/applications_api.dart";
+
+import "../../../shared/models/application_model.dart";
+
 import "application_detail_screen.dart";
 
-enum ApplicationStatus { submitted, inReview, approved, rejected }
-
-class ApplicationModel {
-  const ApplicationModel({
-    required this.id,
-    required this.propertyTitle,
-    required this.location,
-    required this.rentText,
-    required this.submittedAt,
-    required this.status,
-    required this.agentName,
-    this.thumbnailAssetPath,
-  });
-
-  final String id;
-  final String propertyTitle;
-  final String location;
-  final String rentText;
-  final DateTime submittedAt;
-  final ApplicationStatus status;
-  final String agentName;
-  final String? thumbnailAssetPath;
-}
-
-enum ApplicationsTab { all, pending, approved, rejected }
+enum ApplicationsTab { all, pending, approved, rejected, withdrawn }
 
 class MyApplicationsScreen extends StatefulWidget {
   const MyApplicationsScreen({
     super.key,
-    this.applications = const [],
     this.initialTab = ApplicationsTab.all,
-    this.useDemoWhenEmpty = true,
-    this.enableSearch = true,
-    this.enableFilter = true,
   });
 
-  /// Pass real backend items here.
-  final List<ApplicationModel> applications;
-
-  /// ✅ After submitting, open pending by default from caller:
-  /// MyApplicationsScreen(initialTab: ApplicationsTab.pending)
   final ApplicationsTab initialTab;
-
-  /// UI dev friendly.
-  final bool useDemoWhenEmpty;
-
-  /// Optional icons in top bar.
-  final bool enableSearch;
-  final bool enableFilter;
 
   @override
   State<MyApplicationsScreen> createState() => _MyApplicationsScreenState();
 }
 
 class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
-  late ApplicationsTab _tab = widget.initialTab;
+  // ✅ Single source of truth
+  late final ApplicationsApi _api = ApplicationsApi(ApiClient());
 
-  List<ApplicationModel> _demo() {
-    final now = DateTime.now();
-    return [
-      ApplicationModel(
-        id: "APP-1001",
-        propertyTitle: "Modern 2-Bed Apartment",
-        location: "Lekki, Lagos",
-        rentText: "₦450,000/mo",
-        submittedAt: now.subtract(const Duration(days: 3)),
-        status: ApplicationStatus.inReview,
-        agentName: "Chinedu Okafor",
-        thumbnailAssetPath: "assets/images/listing_011.png",
-      ),
-      ApplicationModel(
-        id: "APP-1002",
-        propertyTitle: "Cozy Studio Apartment",
-        location: "Magodo, Lagos",
-        rentText: "₦230,000/mo",
-        submittedAt: now.subtract(const Duration(days: 5)),
-        status: ApplicationStatus.submitted,
-        agentName: "Aisha Bello",
-        thumbnailAssetPath: "assets/images/listing_011.png",
-      ),
-      ApplicationModel(
-        id: "APP-0999",
-        propertyTitle: "3-Bed Terrace House",
-        location: "Ikoyi, Lagos",
-        rentText: "₦800,000/mo",
-        submittedAt: now.subtract(const Duration(days: 9)),
-        status: ApplicationStatus.rejected,
-        agentName: "Emeka Nwosu",
-        thumbnailAssetPath: "assets/images/listing_011.png",
-      ),
-      ApplicationModel(
-        id: "APP-0988",
-        propertyTitle: "1-Bed Serviced Flat",
-        location: "VI, Lagos",
-        rentText: "₦520,000/mo",
-        submittedAt: now.subtract(const Duration(days: 12)),
-        status: ApplicationStatus.approved,
-        agentName: "Kemi Adeyemi",
-        thumbnailAssetPath: "assets/images/listing_011.png",
-      ),
-    ];
+  late ApplicationsTab _currentTab = widget.initialTab;
+  
+  // Maps Enum to UI Chip index
+  int get _activeChipIndex => ApplicationsTab.values.indexOf(_currentTab);
+  final List<String> _chips = const ['All', 'Pending', 'Approved', 'Rejected', 'Withdrawn'];
+
+  bool _loading = true;
+  String? _error;
+  List<ApplicationModel> _items = const [];
+
+  // ---------- helpers (consistent with Explore) ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
   }
 
-  List<ApplicationModel> get _source {
-    if (widget.applications.isNotEmpty) return widget.applications;
-    if (widget.useDemoWhenEmpty) return _demo();
-    return const [];
+  void _setTabFromChip(int index) {
+    if (index >= 0 && index < ApplicationsTab.values.length) {
+      setState(() {
+        _currentTab = ApplicationsTab.values[index];
+      });
+    }
   }
 
-  bool _isPending(ApplicationStatus s) =>
-      s == ApplicationStatus.submitted || s == ApplicationStatus.inReview;
+  Future<void> _refresh() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+      // Note: We don't clear items immediately to avoid flicker if just switching tabs locally,
+      // but if fetching fresh from API, clearing is safer for consistency.
+      _items = []; 
+    });
+
+    try {
+      // Fetching "All" and filtering locally for now, similar to original logic.
+      // If API supports filtering, pass _currentTab params here.
+      final rows = await _api.listMyApplications(limit: 60, offset: 0);
+      
+      if (!mounted) return;
+      setState(() {
+        _items = rows;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  List<ApplicationModel> get _sorted {
+    final all = [..._items];
+    all.sort((a, b) {
+      final aT = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bT = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bT.compareTo(aT);
+    });
+    return all;
+  }
 
   List<ApplicationModel> get _filtered {
-    final all = _source;
-
-    switch (_tab) {
+    final all = _sorted;
+    switch (_currentTab) {
       case ApplicationsTab.all:
-        return [...all]..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
-
+        return all;
       case ApplicationsTab.pending:
-        return all.where((a) => _isPending(a.status)).toList()
-          ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
-
+        return all.where((a) => a.status == ApplicationStatus.pending).toList();
       case ApplicationsTab.approved:
-        return all.where((a) => a.status == ApplicationStatus.approved).toList()
-          ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
-
+        return all.where((a) => a.status == ApplicationStatus.approved).toList();
       case ApplicationsTab.rejected:
-        return all.where((a) => a.status == ApplicationStatus.rejected).toList()
-          ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+        return all.where((a) => a.status == ApplicationStatus.rejected).toList();
+      case ApplicationsTab.withdrawn:
+        return all.where((a) => a.status == ApplicationStatus.withdrawn).toList();
     }
   }
 
-  int get _pendingCount => _source.where((a) => _isPending(a.status)).length;
-
-  String _submittedLabel(BuildContext context, DateTime dt) {
+  String _dateLabel(BuildContext context, ApplicationModel a) {
+    final dt = a.createdAt;
+    if (dt == null) return "Unknown date";
     final loc = MaterialLocalizations.of(context);
-    return "Submitted: ${loc.formatShortMonthDay(dt)}";
+    return loc.formatShortMonthDay(dt);
   }
 
-  void _openDetails(ApplicationModel a) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ApplicationDetailScreen(application: a),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final items = _filtered;
-
-    return Stack(
-      children: [
-        // ✅ Option A: gradient BEHIND the entire page (top bar + safe-area included)
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: AppColors.pageBgGradient(context),
-            ),
+  Future<void> _withdraw(ApplicationModel a) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Withdraw application?"),
+        content: const Text("You can’t undo this action."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
           ),
-        ),
-
-        AppScaffold(
-          backgroundColor: Colors.transparent,
-          safeAreaTop: true,
-          safeAreaBottom: false,
-          topBar: AppTopBar(
-            title: "My Applications",
-            leadingIcon: Icons.arrow_back_rounded,
-            onLeadingTap: () => Navigator.of(context).maybePop(),
-            actions: [
-              if (widget.enableSearch)
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.s10),
-                  child: _TopIcon(
-                    icon: Icons.search_rounded,
-                    onTap: () {
-                      // wire later
-                    },
-                  ),
-                ),
-              if (widget.enableFilter)
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.screenH),
-                  child: _TopIcon(
-                    icon: Icons.tune_rounded,
-                    onTap: () {
-                      // wire later
-                    },
-                  ),
-                ),
-            ],
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text("Withdraw"),
           ),
-
-          // ✅ No inner DecoratedBox needed; prevents black top-area on non-shell routes
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenV,
-              AppSpacing.sm,
-              AppSpacing.screenV,
-              AppSizes.screenBottomPad,
-            ),
-            children: [
-              _Tabs(
-                value: _tab,
-                pendingCount: _pendingCount,
-                onChanged: (t) => setState(() => _tab = t),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              if (_tab == ApplicationsTab.pending)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: Text(
-                    "${items.length} Pending",
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textMuted(context),
-                    ),
-                  ),
-                ),
-
-              if (items.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.xxl),
-                  child: Center(
-                    child: Text(
-                      "No applications yet",
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textMuted(context),
-                      ),
-                    ),
-                  ),
-                )
-              else
-                ...items.map(
-                  (a) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: _ApplicationCard(
-                      application: a,
-                      submittedLabel: _submittedLabel(context, a.submittedAt),
-                      onTap: () => _openDetails(a),
-                      onViewDetails: () => _openDetails(a),
-                      onMessageAgent: () {
-                        // wire later
-                      },
-                      onWithdraw: () {
-                        // wire later (confirm dialog)
-                      },
-                      onPayNow: () {
-                        // wire later
-                      },
-                      onViewTenancyTerms: () {
-                        // wire later
-                      },
-                      onViewReason: () {
-                        _openDetails(a);
-                      },
-                      onBrowseSimilar: () {
-                        // wire later
-                      },
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/* -------------------------- Top widgets -------------------------- */
-
-class _TopIcon extends StatelessWidget {
-  const _TopIcon({required this.icon, required this.onTap});
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppRadii.pill),
-      onTap: onTap,
-      child: Container(
-        height: AppSizes.iconButtonBox,
-        width: AppSizes.iconButtonBox,
-        decoration: BoxDecoration(
-          color: AppColors.surface(context).withValues(alpha: 0.92),
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.overlay(context, 0.06)),
-          boxShadow: AppShadows.soft(context, blur: 18, y: 10, alpha: 0.08),
-        ),
-        child: Icon(icon, color: AppColors.textMuted(context), size: 20),
-      ),
-    );
-  }
-}
-
-class _Tabs extends StatelessWidget {
-  const _Tabs({
-    required this.value,
-    required this.pendingCount,
-    required this.onChanged,
-  });
-
-  final ApplicationsTab value;
-  final int pendingCount;
-  final ValueChanged<ApplicationsTab> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget tab(ApplicationsTab t, String label) {
-      final selected = value == t;
-      final bg = selected
-          ? AppColors.brandBlueSoft.withValues(alpha: 0.22)
-          : AppColors.surface(context).withValues(alpha: 0.55);
-
-      return Expanded(
-        child: Material(
-          color: bg,
-          borderRadius: BorderRadius.circular(AppRadii.md),
-          child: InkWell(
-            onTap: () => onChanged(t),
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.s10),
-              child: Center(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // keep label text-only (avoid hardcoding counts into UI unless you want it later)
-    final pendingLabel = "Pending";
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.s6),
-      decoration: BoxDecoration(
-        color: AppColors.surface(context).withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        border: Border.all(
-          color: AppColors.surface(context).withValues(alpha: 0.45),
-        ),
-      ),
-      child: Row(
-        children: [
-          tab(ApplicationsTab.all, "All"),
-          const SizedBox(width: AppSpacing.sm),
-          tab(ApplicationsTab.pending, pendingLabel),
-          const SizedBox(width: AppSpacing.sm),
-          tab(ApplicationsTab.approved, "Approved"),
-          const SizedBox(width: AppSpacing.sm),
-          tab(ApplicationsTab.rejected, "Rejected"),
         ],
       ),
     );
-  }
-}
 
-/* -------------------------- Card -------------------------- */
+    if (ok != true) return;
 
-class _ApplicationCard extends StatelessWidget {
-  const _ApplicationCard({
-    required this.application,
-    required this.submittedLabel,
-    required this.onTap,
-    required this.onViewDetails,
-    required this.onMessageAgent,
-    required this.onWithdraw,
-    required this.onPayNow,
-    required this.onViewTenancyTerms,
-    required this.onViewReason,
-    required this.onBrowseSimilar,
-  });
+    try {
+      final updated = await _api.withdraw(a.id);
+      if (!mounted) return;
 
-  final ApplicationModel application;
-  final String submittedLabel;
+      setState(() {
+        // Update item in local list
+        final index = _items.indexWhere((x) => x.id == a.id);
+        if (index != -1) {
+          final newItems = [..._items];
+          newItems[index] = updated;
+          _items = newItems;
+        }
+      });
 
-  final VoidCallback onTap;
-
-  // Actions
-  final VoidCallback onViewDetails;
-  final VoidCallback onMessageAgent;
-  final VoidCallback onWithdraw;
-
-  final VoidCallback onPayNow;
-  final VoidCallback onViewTenancyTerms;
-
-  final VoidCallback onViewReason;
-  final VoidCallback onBrowseSimilar;
-
-  int _stageFor(ApplicationStatus s) {
-    // Submitted -> Review -> Decision
-    switch (s) {
-      case ApplicationStatus.submitted:
-        return 0;
-      case ApplicationStatus.inReview:
-        return 1;
-      case ApplicationStatus.approved:
-      case ApplicationStatus.rejected:
-        return 2;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Application withdrawn.")),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Withdraw failed: $e")),
+      );
     }
+  }
+
+  void _openDetails(ApplicationModel a) {
+    // Keeping navigation logic consistent
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ApplicationDetailScreen(
+          application: a,
+          onWithdraw: a.status == ApplicationStatus.pending ? () => _withdraw(a) : null,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final badge = _StatusBadge.from(context, application.status);
-    final stage = _stageFor(application.status);
+    final displayItems = _filtered;
 
-    final isPending =
-        application.status == ApplicationStatus.submitted ||
-        application.status == ApplicationStatus.inReview;
-
-    return _FrostCard(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadii.md),
-                    child: Container(
-                      height: AppSizes.listThumbSize,
-                      width: AppSizes.listThumbSize + AppSpacing.sm,
-                      color: AppColors.tenantPanel.withValues(alpha: 0.85),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.home_rounded,
-                        color: AppColors.brandBlueSoft,
-                      ),
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        appBar: AppTopBar(
+          title: "My Applications",
+          subtitle: "${displayItems.length} ${_chips[_activeChipIndex]} items",
+          leadingIcon: Icons.arrow_back_rounded,
+          onLeadingTap: () => Navigator.of(context).maybePop(),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.screenH),
+              child: InkWell(
+                onTap: _refresh,
+                borderRadius: BorderRadius.circular(AppRadii.pill),
+                child: Container(
+                  height: AppSizes.iconButtonBox,
+                  width: AppSizes.iconButtonBox,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface(context)
+                        .withValues(alpha: _alphaSurfaceStrong),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.overlay(context, _alphaBorderSoft),
+                    ),
+                    boxShadow: AppShadows.soft(
+                      context,
+                      blur: AppSpacing.xxxl,
+                      y: AppSpacing.lg,
+                      alpha: _alphaShadowSoft,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          application.propertyTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.navy,
-                              ),
-                        ),
-                        const SizedBox(height: AppSpacing.s2),
-                        Text(
-                          application.location,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textMuted(context),
-                              ),
-                        ),
-                        const SizedBox(height: AppSpacing.s6),
-                        Text(
-                          application.rentText,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.navy.withValues(alpha: 0.90),
-                              ),
-                        ),
-                      ],
-                    ),
+                  child: Icon(
+                    Icons.refresh_rounded,
+                    color: AppColors.textMuted(context),
                   ),
-                  const SizedBox(width: AppSpacing.s10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.s10,
-                      vertical: AppSpacing.s7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: badge.color.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(AppRadii.pill),
-                      border: Border.all(
-                        color: badge.color.withValues(alpha: 0.22),
-                      ),
-                    ),
-                    child: Text(
-                      badge.label,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: badge.color,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
+            ),
+          ],
+        ),
+        scroll: true,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH,
+          AppSpacing.sm,
+          AppSpacing.screenH,
+          AppSizes.screenBottomPad,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            
+            // Replaced custom Tab Row with Explore-style ChipRow
+            _ChipRow(
+              chips: _chips,
+              activeIndex: _activeChipIndex,
+              onTap: _setTabFromChip,
+            ),
+            
+            const SizedBox(height: AppSpacing.lg),
 
-              const SizedBox(height: AppSpacing.md),
-
-              // Mini timeline (Submitted → Review → Decision)
-              _MiniProgress(stage: stage),
-
-              const SizedBox(height: AppSpacing.s10),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      submittedLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textMuted(
-                          context,
-                        ).withValues(alpha: 0.92),
-                      ),
-                    ),
+            if (_loading && displayItems.isEmpty) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: CircularProgressIndicator(
+                    color: AppColors.brandGreenDeep,
                   ),
-                  if (isPending)
-                    InkWell(
-                      onTap: onWithdraw,
-                      borderRadius: BorderRadius.circular(AppRadii.pill),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: AppSpacing.s6,
-                        ),
-                        child: Text(
-                          "Withdraw",
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.textMuted(context),
-                              ),
-                        ),
-                      ),
-                    ),
-                ],
+                ),
               ),
+            ] else if (_error != null && displayItems.isEmpty) ...[
+              _ErrorBox(message: _error!, onRetry: _refresh),
+            ] else if (displayItems.isEmpty) ...[
+              _InfoBox(
+                title: 'No applications',
+                message: 'No applications found in this category.',
+                onAction: () => _setTabFromChip(0), // Go to All
+                actionText: 'View All',
+              ),
+            ] else ...[
+               ListView.separated(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                itemCount: displayItems.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: AppSpacing.md),
+                itemBuilder: (context, i) {
+                  final item = displayItems[i];
+                  final date = _dateLabel(context, item);
 
-              const SizedBox(height: AppSpacing.md),
+                  // Formatting details for the "Meta" line
+                  final meta = "Prop: ${item.propertyId}";
 
-              // Status-specific actions
-              if (isPending) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: _CardButton(
-                        text: "View details",
-                        filled: true,
-                        color: AppColors.brandBlueSoft,
-                        onTap: onViewDetails,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.s10),
-                    Expanded(
-                      child: _CardButton(
-                        text: "Message agent",
-                        filled: false,
-                        color: AppColors.brandBlueSoft,
-                        onTap: onMessageAgent,
-                        icon: Icons.chat_bubble_rounded,
-                      ),
-                    ),
-                  ],
-                ),
-              ] else if (application.status == ApplicationStatus.approved) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: _CardButton(
-                        text: "Pay now",
-                        filled: true,
-                        color: AppColors.brandGreenDeep,
-                        onTap: onPayNow,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.s10),
-                    Expanded(
-                      child: _CardButton(
-                        text: "Tenancy terms",
-                        filled: false,
-                        color: AppColors.brandGreenDeep,
-                        onTap: onViewTenancyTerms,
-                        icon: Icons.description_rounded,
-                      ),
-                    ),
-                  ],
-                ),
-              ] else ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: _CardButton(
-                        text: "View reason",
-                        filled: true,
-                        color: AppColors.tenantDangerSoft,
-                        onTap: onViewReason,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.s10),
-                    Expanded(
-                      child: _CardButton(
-                        text: "Browse similar",
-                        filled: false,
-                        color: AppColors.brandBlueSoft,
-                        onTap: onBrowseSimilar,
-                        icon: Icons.search_rounded,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  return _ApplicationRowCard(
+                    title: "Application",
+                    subtitle: "Listing: ${item.listingId}",
+                    meta: meta,
+                    date: date,
+                    status: item.status,
+                    onTap: () => _openDetails(item),
+                    onWithdraw: item.status == ApplicationStatus.pending
+                        ? () => _withdraw(item)
+                        : null,
+                  );
+                },
+              ),
             ],
-          ),
+            
+            const SizedBox(height: AppSpacing.lg),
+          ],
         ),
       ),
     );
   }
 }
 
-class _MiniProgress extends StatelessWidget {
-  const _MiniProgress({required this.stage});
-  final int stage;
+// ---------------- UI widgets (Consolidated from Explore Screen) ----------------
 
-  Color _activeDot(BuildContext context, int idx) {
-    if (idx < stage) return AppColors.brandBlueSoft;
-    if (idx == stage && stage == 2) return AppColors.brandGreenDeep;
-    if (idx == stage) return AppColors.brandBlueSoft;
-    return AppColors.textMutedLight.withValues(alpha: 0.35);
-  }
+class _ChipRow extends StatelessWidget {
+  const _ChipRow({
+    required this.chips,
+    required this.activeIndex,
+    required this.onTap,
+  });
+
+  final List<String> chips;
+  final int activeIndex;
+  final ValueChanged<int> onTap;
 
   @override
   Widget build(BuildContext context) {
-    Widget dot(int i) {
-      final c = _activeDot(context, i);
-      return Container(
-        height: AppSpacing.md,
-        width: AppSpacing.md,
-        decoration: BoxDecoration(
-          color: c.withValues(alpha: 0.22),
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-          border: Border.all(color: c.withValues(alpha: 0.70), width: 2),
-        ),
-      );
-    }
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
 
-    Widget line(bool active) {
-      return Expanded(
-        child: Container(
-          height: AppSpacing.s2,
-          color: active
-              ? AppColors.brandBlueSoft
-              : AppColors.textMutedLight.withValues(alpha: 0.25),
-        ),
-      );
-    }
-
-    return Row(
-      children: [
-        dot(0),
-        const SizedBox(width: AppSpacing.sm),
-        line(stage >= 1),
-        const SizedBox(width: AppSpacing.sm),
-        dot(1),
-        const SizedBox(width: AppSpacing.sm),
-        line(stage >= 2),
-        const SizedBox(width: AppSpacing.sm),
-        dot(2),
-      ],
+    return SizedBox(
+      height: AppSpacing.s44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: chips.length,
+        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
+        itemBuilder: (context, i) {
+          final active = i == activeIndex;
+          return InkWell(
+            onTap: () => onTap(i),
+            borderRadius: BorderRadius.circular(AppRadii.chip),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
+              decoration: BoxDecoration(
+                gradient: active ? AppColors.brandGradient : null,
+                color: active
+                    ? null
+                    : AppColors.surface(context).withValues(alpha: alphaSurface),
+                borderRadius: BorderRadius.circular(AppRadii.chip),
+                border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+              ),
+              child: Center(
+                child: Text(
+                  chips[i],
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: active
+                        ? AppColors.white
+                        : AppColors.textPrimary(context),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
-/* -------------------------- Small UI -------------------------- */
-
-class _CardButton extends StatelessWidget {
-  const _CardButton({
-    required this.text,
-    required this.filled,
-    required this.color,
+class _ApplicationRowCard extends StatelessWidget {
+  const _ApplicationRowCard({
+    required this.title,
+    required this.subtitle,
+    required this.meta,
+    required this.date,
+    required this.status,
     required this.onTap,
-    this.icon,
+    required this.onWithdraw,
   });
 
-  final String text;
-  final bool filled;
-  final Color color;
+  final String title;
+  final String subtitle;
+  final String meta;
+  final String date;
+  final ApplicationStatus status;
   final VoidCallback onTap;
-  final IconData? icon;
+  final VoidCallback? onWithdraw;
 
   @override
   Widget build(BuildContext context) {
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadii.button),
+      borderRadius: BorderRadius.circular(AppRadii.card),
       child: Container(
-        height: AppSizes.minTap,
-        alignment: Alignment.center,
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: filled ? color.withValues(alpha: 0.80) : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadii.button),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
+          color: AppColors.surface(context).withValues(alpha: alphaSurface),
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: AppSpacing.xs / AppSpacing.xxxl,
+          ),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 18,
-                color: filled ? AppColors.white : AppColors.navy,
+            // Thumbnail / Icon
+            Container(
+              height: AppSizes.listThumbSize,
+              width: AppSizes.listThumbSize,
+              decoration: BoxDecoration(
+                color: AppColors.brandBlueSoft.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+                border: Border.all(color: AppColors.overlay(context, alphaBorder)),
               ),
-              const SizedBox(width: AppSpacing.s6),
-            ],
-            Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: filled ? AppColors.white : AppColors.navy,
+              child: const Icon(Icons.assignment_rounded, color: AppColors.brandBlueSoft),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary(context),
+                        ),
+                  ),
+                  const SizedBox(height: AppSpacing.s2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary(context),
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      Text(
+                        meta,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textMuted(context),
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        "•  $date",
+                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textMuted(context),
+                              fontWeight: FontWeight.w700,
+                            ),
+                      )
+                    ],
+                  ),
+                ],
               ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            
+            // Status & Action
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _StatusBadge(status: status),
+                
+                if (onWithdraw != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  InkWell(
+                    onTap: onWithdraw,
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
+                      child: Text(
+                        "Withdraw",
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w900,
+                          decoration: TextDecoration.underline,
+                          decorationColor: AppColors.danger
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                   const SizedBox(height: AppSpacing.sm),
+                   Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textMuted(context),
+                    size: 20,
+                  ),
+                ]
+              ],
             ),
           ],
         ),
@@ -761,58 +520,132 @@ class _CardButton extends StatelessWidget {
   }
 }
 
-class _FrostCard extends StatelessWidget {
-  const _FrostCard({required this.child});
-  final Widget child;
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+  final ApplicationStatus status;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface(context).withValues(alpha: 0.70),
-      borderRadius: BorderRadius.circular(AppRadii.card),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(
-            color: AppColors.surface(context).withValues(alpha: 0.55),
-          ),
-          boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
-        ),
-        child: child,
+    Color color;
+    String label;
+
+    switch (status) {
+      case ApplicationStatus.pending:
+        color = AppColors.brandBlueSoft;
+        label = "Pending";
+        break;
+      case ApplicationStatus.approved:
+        color = AppColors.brandGreenDeep;
+        label = "Approved";
+        break;
+      case ApplicationStatus.rejected:
+        color = AppColors.danger; // Using Danger for consistency
+        label = "Rejected";
+        break;
+      case ApplicationStatus.withdrawn:
+        color = AppColors.textMuted(context);
+        label = "Withdrawn";
+        break;
+    }
+
+    final alphaBg = AppSpacing.sm / (AppSpacing.xxxl + AppSpacing.sm);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s10,
+        vertical: AppSpacing.s6,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: alphaBg),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        border: Border.all(color: color.withValues(alpha: alphaBg + 0.1)),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: color,
+              fontSize: 10, // Slightly smaller for badge
+            ),
       ),
     );
   }
 }
 
-class _StatusBadge {
-  const _StatusBadge({required this.label, required this.color});
-  final String label;
-  final Color color;
+class _ErrorBox extends StatelessWidget {
+  const _ErrorBox({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
 
-  static _StatusBadge from(BuildContext context, ApplicationStatus s) {
-    switch (s) {
-      case ApplicationStatus.submitted:
-        return const _StatusBadge(
-          label: "Submitted",
-          color: AppColors.brandBlueSoft,
-        );
-      case ApplicationStatus.inReview:
-        // ✅ Don’t hardcode a new color token; fall back to an existing theme color.
-        // If you DO have AppColors.brandOrange, it will use it. If not, use brandBlueSoft.
-        return const _StatusBadge(
-          label: "In Review",
-          color: AppColors.brandBlueSoft,
-        );
-      case ApplicationStatus.approved:
-        return const _StatusBadge(
-          label: "Approved",
-          color: AppColors.brandGreenDeep,
-        );
-      case ApplicationStatus.rejected:
-        return const _StatusBadge(
-          label: "Rejected",
-          color: AppColors.tenantDangerSoft,
-        );
-    }
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context).withValues(alpha: 0.70),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Could not load applications',
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(message, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: AppSpacing.md),
+          FilledButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoBox extends StatelessWidget {
+  const _InfoBox({
+    required this.title,
+    required this.message,
+    required this.onAction,
+    required this.actionText,
+  });
+
+  final String title;
+  final String message;
+  final VoidCallback onAction;
+  final String actionText;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context).withValues(alpha: 0.70),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        border: Border.all(color: AppColors.overlay(context, 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(message, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton(onPressed: onAction, child: Text(actionText)),
+        ],
+      ),
+    );
   }
 }

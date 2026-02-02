@@ -6,7 +6,9 @@ import 'package:rentease_frontend/core/theme/app_colors.dart';
 import 'package:rentease_frontend/core/theme/app_radii.dart';
 import 'package:rentease_frontend/core/theme/app_shadows.dart';
 import 'package:rentease_frontend/core/theme/app_spacing.dart';
-import 'package:rentease_frontend/core/theme/app_typography.dart';
+import 'package:rentease_frontend/core/theme/app_sizes.dart';
+
+import 'package:rentease_frontend/core/ui/scaffold/app_scaffold.dart';
 
 import 'forgot_password_controller.dart';
 import 'forgot_password_state.dart';
@@ -21,6 +23,18 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   late final ForgotPasswordController _c;
+
+  // ---------- Explore-style alpha helpers ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
 
   @override
   void initState() {
@@ -60,19 +74,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final textPrimary = AppColors.textPrimary(context);
     final textMuted = AppColors.textMuted(context);
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: null,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
+              horizontal: AppSpacing.screenH, // Standard Horizontal Padding
               vertical: AppSpacing.lg,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ Top bar: back + centered "Forgot password" (no brand)
                 _TopBar(
                   title: 'Forgot password',
                   disabled: s.loading,
@@ -81,10 +98,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                 const SizedBox(height: AppSpacing.xl),
 
-                // ✅ Only this line (no "Reset your password")
                 Text(
                   'Enter your email and we’ll send you a 6-digit code.',
-                  style: AppTypography.body(context).copyWith(color: textMuted),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: textMuted,
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
 
                 const SizedBox(height: AppSpacing.lg),
@@ -102,55 +121,64 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   const SizedBox(height: AppSpacing.md),
                 ],
 
-                _GlassCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Email address',
-                        style: AppTypography.label(context).copyWith(
-                          color: textPrimary,
-                          fontWeight: FontWeight.w800,
+                // --- Main Frost Card ---
+                _FrostCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Email address',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: textPrimary,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
+                        const SizedBox(height: AppSpacing.sm),
 
-                      _Field(
-                        controller: _c.emailCtrl,
-                        focusNode: _c.emailFocus,
-                        hint: 'jane.doe@email.com',
-                        keyboardType: TextInputType.emailAddress,
-                        enabled: !s.loading,
-                        prefixIcon: Icons.mail_outline_rounded,
-                        textInputAction: TextInputAction.done,
-                        onChanged: _c.setEmail,
-                        onSubmitted: (_) => _sendCode(),
-                      ),
+                        _Field(
+                          controller: _c.emailCtrl,
+                          focusNode: _c.emailFocus,
+                          hint: 'damilare.vic@email.com',
+                          keyboardType: TextInputType.emailAddress,
+                          enabled: !s.loading,
+                          prefixIcon: Icons.mail_outline_rounded,
+                          textInputAction: TextInputAction.done,
+                          onChanged: _c.setEmail,
+                          onSubmitted: (_) => _sendCode(),
+                        ),
 
-                      const SizedBox(height: AppSpacing.lg),
+                        const SizedBox(height: AppSpacing.lg),
 
-                      _PrimaryButton(
-                        text: s.loading ? 'Sending...' : 'Send reset code',
-                        loading: s.loading,
-                        onPressed: s.loading ? null : _sendCode,
-                      ),
+                        _PrimaryButton(
+                          text: s.loading ? 'Sending...' : 'Send reset code',
+                          loading: s.loading,
+                          onPressed: s.loading ? null : _sendCode,
+                        ),
 
-                      const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.md),
 
-                      Center(
-                        child: TextButton(
-                          onPressed:
-                              s.loading ? null : () => Navigator.of(context).pop(),
-                          child: Text(
-                            'Back to sign in',
-                            style: AppTypography.body(context).copyWith(
-                              color: AppColors.textMuted(context),
-                              fontWeight: FontWeight.w800,
+                        Center(
+                          child: TextButton(
+                            onPressed: s.loading
+                                ? null
+                                : () => Navigator.of(context).pop(),
+                            child: Text(
+                              'Back to sign in',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: AppColors.textMuted(context),
+                                    fontWeight: FontWeight.w800,
+                                  ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
 
@@ -163,6 +191,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 }
+
+/* --------------------------------------------------------------------------
+   UI COMPONENTS (Matched to Design System)
+   -------------------------------------------------------------------------- */
 
 class _TopBar extends StatelessWidget {
   const _TopBar({
@@ -177,8 +209,6 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textPrimary = AppColors.textPrimary(context);
-
     return SizedBox(
       height: 48,
       child: Stack(
@@ -186,20 +216,24 @@ class _TopBar extends StatelessWidget {
         children: [
           Align(
             alignment: Alignment.centerLeft,
-            child: IconButton(
-              onPressed: disabled ? null : onBack,
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: AppColors.textSecondary(context),
+            child: InkWell(
+              onTap: disabled ? null : onBack,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Icon(
+                  Icons.arrow_back_rounded,
+                  color: AppColors.textPrimary(context),
+                ),
               ),
             ),
           ),
           Text(
             title,
-            style: AppTypography.h3(context).copyWith(
-              color: textPrimary,
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: AppColors.textPrimary(context),
+                  fontWeight: FontWeight.w900,
+                ),
           ),
         ],
       ),
@@ -207,24 +241,33 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  const _GlassCard({required this.child});
+class _FrostCard extends StatelessWidget {
+  const _FrostCard({required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.surface2(context).withValues(alpha: 0.70);
-    final border = AppColors.border(context).withValues(alpha: 0.60);
+    // Matches Explore/Login logic
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+    final alphaShadow = AppSpacing.xs / AppSpacing.xxxl;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: border),
-        boxShadow: AppShadows.card(context),
+    return Material(
+      color: AppColors.surface(context).withValues(alpha: alphaSurface),
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: alphaShadow,
+          ),
+        ),
+        child: child,
       ),
-      child: child,
     );
   }
 }
@@ -254,10 +297,10 @@ class _Banner extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: AppTypography.body(context).copyWith(
-                color: AppColors.textPrimary(context),
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary(context),
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
           ),
         ],
@@ -292,50 +335,44 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fill = AppColors.surface(context).withValues(alpha: 0.85);
-    final border = AppColors.border(context);
-
-    return TextField(
-      controller: controller,
-      focusNode: focusNode,
-      enabled: enabled,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      onSubmitted: onSubmitted,
-      onChanged: onChanged,
-      style: AppTypography.body(context).copyWith(
-        color: AppColors.textPrimary(context),
-        fontWeight: FontWeight.w800,
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.s2,
       ),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: fill,
-        hintText: hint,
-        hintStyle: AppTypography.body(context).copyWith(
-          color: AppColors.textMuted(context),
-          fontWeight: FontWeight.w600,
-        ),
-        prefixIcon: prefixIcon == null
-            ? null
-            : Icon(prefixIcon, color: AppColors.textMuted(context)),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.md,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: BorderSide(color: border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: BorderSide(color: border.withValues(alpha: 0.70)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: const BorderSide(
-            color: AppColors.brandBlueSoft,
-            width: 1.4,
-          ),
+      decoration: BoxDecoration(
+        color: AppColors.overlay(context, 0.04), // Subtle input background
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        border: Border.all(color: AppColors.overlay(context, 0.08)),
+      ),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        enabled: enabled,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        onSubmitted: onSubmitted,
+        onChanged: onChanged,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary(context),
+            ),
+        cursorColor: AppColors.brandGreenDeep,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          hintText: hint,
+          hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textMuted(context).withValues(alpha: 0.6),
+                fontWeight: FontWeight.w600,
+              ),
+          prefixIcon: prefixIcon == null
+              ? null
+              : Icon(
+                  prefixIcon,
+                  color: AppColors.textMuted(context),
+                  size: 20,
+                ),
+          contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
         ),
       ),
     );
@@ -355,35 +392,41 @@ class _PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.brandGreenDeep.withValues(alpha: 0.95);
-    final fg = AppColors.textLight;
+    final disabled = loading || onPressed == null;
 
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bg,
-          foregroundColor: fg,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.lg),
+    return Material(
+      color: disabled
+          ? AppColors.overlay(context, 0.1)
+          : AppColors.brandGreenDeep.withValues(alpha: 0.95),
+      borderRadius: BorderRadius.circular(AppRadii.button),
+      child: InkWell(
+        onTap: disabled ? null : onPressed,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        child: SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: Center(
+            child: loading
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.textLight,
+                    ),
+                  )
+                : Text(
+                    text,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: disabled
+                              ? AppColors.textMuted(context)
+                              : AppColors.textLight,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15.5,
+                        ),
+                  ),
           ),
         ),
-        child: loading
-            ? const SizedBox(
-                height: 22,
-                width: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Text(
-                text,
-                style: AppTypography.button(context).copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
       ),
     );
   }

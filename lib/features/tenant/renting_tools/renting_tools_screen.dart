@@ -1,5 +1,6 @@
 // lib/features/tenant/renting_tools/renting_tools_screen.dart
-// ✅ Only change: wire "My Applications" tile to MyApplicationsScreen (auto-open Pending)
+// ignore_for_file: unnecessary_underscores
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -10,11 +11,13 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/ui/scaffold/app_scaffold.dart';
 import '../../../core/ui/scaffold/app_top_bar.dart';
 
+import '../../../shared/models/viewing_model.dart';
+
 import '../tenancy/pay_rent/pay_rent_sheet.dart';
 import '../tenancy/tenancies_screen.dart';
 import '../viewings/viewings_screen.dart';
+import '../viewings/data/viewings_api.dart';
 
-// ✅ NEW
 import '../applications/my_applications_screen.dart';
 
 class RentingToolsScreen extends StatefulWidget {
@@ -25,12 +28,65 @@ class RentingToolsScreen extends StatefulWidget {
 }
 
 class _RentingToolsScreenState extends State<RentingToolsScreen> {
-  // Keep these as design tokens (not “random” colors)
-  static const _bgTop = AppColors.lightBg;
-  static const _bgBottom = AppColors.mist;
+  // ---------- Explore-style alpha helpers ----------
+  // Matches ExploreScreen & MoreScreen exactly
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurface =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
 
   final PageController _pc = PageController(viewportFraction: 0.92);
   int _idx = 0;
+
+  // -------- Viewings (REAL) --------
+  final ViewingsApi _viewingsApi = ViewingsApi();
+  bool _viewingsLoading = false;
+  String? _viewingsError;
+  List<ViewingModel> _myViewings = const [];
+
+  int get _upcomingCount {
+    return _myViewings.where((v) =>
+        v.status == ViewingStatus.requested ||
+        v.status == ViewingStatus.confirmed).length;
+  }
+
+  int get _completedCount {
+    return _myViewings.where((v) =>
+        v.status == ViewingStatus.completed ||
+        v.status == ViewingStatus.cancelled ||
+        v.status == ViewingStatus.rejected).length;
+  }
+
+  Future<void> _loadMyViewings() async {
+    if (_viewingsLoading) return;
+
+    setState(() {
+      _viewingsLoading = true;
+      _viewingsError = null;
+    });
+
+    try {
+      final list = await _viewingsApi.listMy(limit: 50, offset: 0);
+      if (!mounted) return;
+
+      setState(() {
+        _myViewings = list;
+        _viewingsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _viewingsError = e.toString();
+        _viewingsLoading = false;
+      });
+    }
+  }
 
   // Demo (wire from backend later)
   late final List<TenancyCardVM> _active = const [
@@ -89,6 +145,12 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
     ),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadMyViewings();
+  }
+
   String _fmtNaira(int v) {
     final s = v.toString();
     final buf = StringBuffer();
@@ -118,8 +180,25 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => const MyApplicationsScreen(
-          // ✅ open Pending by default (matches your “2 Pending” pill)
           initialTab: ApplicationsTab.pending,
+        ),
+      ),
+    );
+  }
+
+  void _openViewings() async {
+    if (_myViewings.isEmpty && !_viewingsLoading) {
+      await _loadMyViewings();
+    }
+
+    if (!mounted) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ViewingsScreen(
+          title: "My Visits",
+          viewings: _myViewings,
+          fetchWhenEmpty: false,
         ),
       ),
     );
@@ -130,22 +209,27 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
   }
 
   @override
+  void dispose() {
+    _pc.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final activeCount = _active.length;
 
-    // height tokens (no magic)
-    final carouselH = (AppSpacing.xxxl * 6) + AppSpacing.md; // ~204
-    final thumbW = (AppSpacing.xxxl * 3) + AppSpacing.md; // ~108
+    final carouselH = (AppSpacing.xxxl * 6) + AppSpacing.md;
+    final thumbW = (AppSpacing.xxxl * 3) + AppSpacing.md;
     final thumbR = AppRadii.button;
 
+    final viewingsPill = _viewingsLoading
+        ? "Loading…"
+        : (_viewingsError != null
+            ? "Tap to retry"
+            : "${_upcomingCount} Upcoming");
+
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_bgTop, _bgBottom],
-        ),
-      ),
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
       child: AppScaffold(
         backgroundColor: Colors.transparent,
         safeAreaTop: true,
@@ -153,18 +237,18 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
         topBar: const AppTopBar(title: 'Renting Tools', subtitle: ''),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screenV,
+            AppSpacing.screenH, // ✅ Aligned to Explore (Horizontal spacing)
             AppSpacing.sm,
-            AppSpacing.screenV,
+            AppSpacing.screenH, // ✅ Aligned to Explore (Horizontal spacing)
             AppSizes.screenBottomPad,
           ),
           children: [
             Text(
               'Active Tenancies ($activeCount)',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.navy,
-              ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary(context),
+                  ),
             ),
             const SizedBox(height: AppSpacing.s10),
 
@@ -189,14 +273,23 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
                               child: Container(
                                 width: thumbW,
                                 height: double.infinity,
-                                color: AppColors.tenantPanel.withValues(
-                                  alpha: 0.85,
+                                decoration: BoxDecoration(
+                                  color: AppColors.overlay(
+                                    context,
+                                    AppSpacing.sm / AppSpacing.xxxl,
+                                  ),
+                                  border: Border.all(
+                                    color: AppColors.overlay(
+                                      context,
+                                      AppSpacing.xs / AppSpacing.xxxl,
+                                    ),
+                                  ),
                                 ),
                                 alignment: Alignment.center,
-                                child: const Icon(
+                                child: Icon(
                                   Icons.home_rounded,
                                   size: AppSpacing.xxxl,
-                                  color: AppColors.brandBlueSoft,
+                                  color: AppColors.textMuted(context),
                                 ),
                               ),
                             ),
@@ -214,16 +307,16 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
                                         .titleSmall
                                         ?.copyWith(
                                           fontWeight: FontWeight.w900,
-                                          color: AppColors.navy,
+                                          color: AppColors.textPrimary(context),
                                         ),
                                   ),
                                   const SizedBox(height: AppSpacing.sm),
                                   Row(
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.event_rounded,
                                         size: AppSpacing.lg,
-                                        color: AppColors.tenantDangerDeep,
+                                        color: AppColors.textMuted(context),
                                       ),
                                       const SizedBox(width: AppSpacing.s6),
                                       Expanded(
@@ -236,8 +329,9 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
                                               .bodyMedium
                                               ?.copyWith(
                                                 fontWeight: FontWeight.w900,
-                                                color: AppColors.navy
-                                                    .withValues(alpha: 0.90),
+                                                color: AppColors
+                                                    .textPrimary(context)
+                                                    .withValues(alpha: 0.92),
                                               ),
                                         ),
                                       ),
@@ -273,13 +367,22 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
                               child: Container(
                                 width: AppSpacing.xxxl + AppSpacing.sm,
                                 height: double.infinity,
-                                color: AppColors.tenantPanel.withValues(
-                                  alpha: 0.55,
+                                decoration: BoxDecoration(
+                                  color: AppColors.overlay(
+                                    context,
+                                    AppSpacing.xs / AppSpacing.xxxl,
+                                  ),
+                                  border: Border.all(
+                                    color: AppColors.overlay(
+                                      context,
+                                      AppSpacing.xs / AppSpacing.xxxl,
+                                    ),
+                                  ),
                                 ),
                                 alignment: Alignment.center,
-                                child: const Icon(
+                                child: Icon(
                                   Icons.photo_rounded,
-                                  color: AppColors.textMutedLight,
+                                  color: AppColors.textMuted(context),
                                 ),
                               ),
                             ),
@@ -313,31 +416,57 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
               subtitle: 'Submitted, In Review, Approved, Rejected',
               pillText: '2 Pending',
               pillTone: _PillTone.warning,
-              onTap: _openApplications, // ✅ WIRED
+              onTap: _openApplications,
             ),
 
             const SizedBox(height: AppSpacing.md),
             _ToolTile(
               icon: Icons.remove_red_eye_rounded,
               title: 'My Viewings',
-              subtitle: 'Upcoming  Completed',
-              pillText: '2 Upcoming',
+              subtitle: _viewingsError != null
+                  ? 'Couldn’t load viewings'
+                  : 'Upcoming  Completed',
+              pillText: viewingsPill,
               pillTone: _PillTone.blue,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ViewingsScreen()),
-                );
+              onTap: () async {
+                if (_viewingsError != null) {
+                  await _loadMyViewings(); // ✅ tap to retry
+                  if (!mounted) return;
+                }
+                _openViewings();
               },
             ),
+
+            if (_viewingsError != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _viewingsError!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color:
+                          AppColors.textMuted(context).withValues(alpha: 0.92),
+                    ),
+              ),
+            ] else ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'My Viewings: ${_upcomingCount} upcoming • ${_completedCount} completed',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color:
+                          AppColors.textMuted(context).withValues(alpha: 0.92),
+                    ),
+              ),
+            ],
 
             const SizedBox(height: AppSpacing.xxl),
 
             Text(
               'Shortcuts',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.navy,
-              ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary(context),
+                  ),
             ),
             const SizedBox(height: AppSpacing.s10),
 
@@ -367,50 +496,6 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
               fullWidth: true,
               onTap: () {},
             ),
-
-            const SizedBox(height: AppSpacing.xxl),
-
-            Text(
-              'Recent Activity',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.navy,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s10),
-
-            _FrostCard(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  children: const [
-                    _ActivityRow(
-                      dotTone: _PillTone.green,
-                      icon: Icons.event_available_rounded,
-                      title: 'Viewing confirmed for Sat 2pm',
-                      leftSub: '2 days ago',
-                      rightSub: '2 days ago',
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _ActivityRow(
-                      dotTone: _PillTone.warning,
-                      icon: Icons.check_circle_rounded,
-                      title: 'Application approved',
-                      leftSub: '',
-                      rightSub: '3 days ago',
-                    ),
-                    SizedBox(height: AppSpacing.md),
-                    _ActivityRow(
-                      dotTone: _PillTone.blue,
-                      icon: Icons.notifications_active_rounded,
-                      title: 'Rent reminder, due in 5 days',
-                      leftSub: '',
-                      rightSub: '5 days ago',
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -418,22 +503,32 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
   }
 }
 
-/* ------------------ Small reusable UI (unchanged) ------------------ */
+/* ------------------ Small reusable UI (Explore style) ------------------ */
 
 class _FrostCard extends StatelessWidget {
   const _FrostCard({required this.child});
   final Widget child;
 
+  double get _alphaSurface =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+  double get _alphaBorder => AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaShadow => AppSpacing.xs / AppSpacing.xxxl;
+
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface(context).withValues(alpha: 0.68),
+      color: AppColors.surface(context).withValues(alpha: _alphaSurface),
       borderRadius: BorderRadius.circular(AppRadii.card),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: AppColors.overlay(context, 0.05)),
-          boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
+          border: Border.all(color: AppColors.overlay(context, _alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: _alphaShadow,
+          ),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppRadii.card),
@@ -495,18 +590,21 @@ class _PillButton extends StatelessWidget {
       case _PillTone.green:
         return AppColors.brandGreenDeep;
       case _PillTone.warning:
-        return AppColors.brandOrange;
+        // Safe fallback if AppColors.brandOrange missing
+        return Colors.orange;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final c = _toneColor();
+    final aFill = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
     return Material(
-      color: c.withValues(alpha: 0.78),
-      borderRadius: BorderRadius.circular(AppRadii.md),
+      color: c.withValues(alpha: aFill),
+      borderRadius: BorderRadius.circular(AppRadii.pill), // ✅ Aligned to Pill
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadii.md),
+        borderRadius: BorderRadius.circular(AppRadii.pill), // ✅ Aligned to Pill
         onTap: onTap,
         child: SizedBox(
           height: AppSizes.pillButtonHeight,
@@ -516,9 +614,9 @@ class _PillButton extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.white,
-                fontWeight: FontWeight.w900,
-              ),
+                    color: AppColors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
             ),
           ),
         ),
@@ -551,13 +649,17 @@ class _ToolTile extends StatelessWidget {
       case _PillTone.green:
         return AppColors.brandGreenDeep;
       case _PillTone.warning:
-        return AppColors.brandOrange;
+        return Colors.orange;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final c = _toneColor();
+
+    final alphaSurfaceStrong =
+        AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+    final alphaBorderSoft = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
 
     return _FrostCard(
       child: Material(
@@ -572,9 +674,12 @@ class _ToolTile extends StatelessWidget {
                   height: AppSizes.iconButtonBox,
                   width: AppSizes.iconButtonBox,
                   decoration: BoxDecoration(
-                    color: AppColors.surface(context).withValues(alpha: 0.85),
+                    color: AppColors.surface(context)
+                        .withValues(alpha: alphaSurfaceStrong),
                     borderRadius: BorderRadius.circular(AppRadii.md),
-                    border: Border.all(color: AppColors.overlay(context, 0.06)),
+                    border: Border.all(
+                      color: AppColors.overlay(context, alphaBorderSoft),
+                    ),
                   ),
                   child: Icon(icon, color: AppColors.brandGreenDeep),
                 ),
@@ -586,17 +691,18 @@ class _ToolTile extends StatelessWidget {
                       Text(
                         title,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.navy,
-                        ),
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary(context),
+                            ),
                       ),
                       const SizedBox(height: AppSpacing.s2),
                       Text(
                         subtitle,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textMutedLight,
-                        ),
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted(context)
+                                  .withValues(alpha: 0.92),
+                            ),
                       ),
                     ],
                   ),
@@ -614,9 +720,9 @@ class _ToolTile extends StatelessWidget {
                   child: Text(
                     pillText,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.navy,
-                    ),
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary(context),
+                        ),
                   ),
                 ),
               ],
@@ -658,124 +764,20 @@ class _ShortcutChip extends StatelessWidget {
                   ? MainAxisAlignment.center
                   : MainAxisAlignment.start,
               children: [
-                Icon(icon, color: AppColors.textMutedLight),
+                Icon(icon, color: AppColors.textMuted(context)),
                 const SizedBox(width: AppSpacing.md),
                 Text(
                   label,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary(context),
+                      ),
                 ),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({
-    required this.dotTone,
-    required this.icon,
-    required this.title,
-    required this.leftSub,
-    required this.rightSub,
-  });
-
-  final _PillTone dotTone;
-  final IconData icon;
-  final String title;
-  final String leftSub;
-  final String rightSub;
-
-  Color _toneColor() {
-    switch (dotTone) {
-      case _PillTone.blue:
-        return AppColors.brandBlueSoft;
-      case _PillTone.green:
-        return AppColors.brandGreenDeep;
-      case _PillTone.warning:
-        return AppColors.brandOrange;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = _toneColor();
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Column(
-          children: [
-            Container(
-              height: AppSpacing.s10,
-              width: AppSpacing.s10,
-              decoration: BoxDecoration(
-                color: c.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(AppRadii.pill),
-                border: Border.all(color: c.withValues(alpha: 0.55)),
-              ),
-            ),
-            Container(
-              height: AppSpacing.xxxl,
-              width: AppSpacing.s2,
-              color: AppColors.overlay(context, 0.10),
-            ),
-          ],
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Row(
-            children: [
-              Container(
-                height: AppSizes.iconButtonBox,
-                width: AppSizes.iconButtonBox,
-                decoration: BoxDecoration(
-                  color: AppColors.overlay(context, 0.04),
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                ),
-                child: Icon(icon, color: AppColors.textMutedLight),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy,
-                      ),
-                    ),
-                    if (leftSub.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.s2),
-                      Text(
-                        leftSub,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textMutedLight,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Text(
-                rightSub,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textMutedLight,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

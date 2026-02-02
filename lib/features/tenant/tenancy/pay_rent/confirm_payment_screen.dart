@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radii.dart';
 import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_sizes.dart';
 
 class ConfirmPaymentScreen extends StatefulWidget {
   const ConfirmPaymentScreen({
@@ -31,6 +32,15 @@ class ConfirmPaymentScreen extends StatefulWidget {
 class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
   bool _full = true;
 
+  // --- Explore-style alpha helpers (no hardcoded opacity) ---
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
+
   String _fmt(int v) {
     final s = v.toString();
     final buf = StringBuffer();
@@ -47,149 +57,153 @@ class _ConfirmPaymentScreenState extends State<ConfirmPaymentScreen> {
   int get _fee => widget.includeServiceCharge ? 0 : 0; // demo
   int get _total => widget.amountNgn + _fee;
 
+  void _confirmPay() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => PaymentSuccessScreen(
+          receiptId: "6300121679",
+          title: widget.title,
+          amountNgn: _total,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      topBar: const AppTopBar(title: 'Confirm Payment'),
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.tenantBgTop, AppColors.tenantBgBottom],
-          ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: AppColors.pageBgGradient(context),
+      ),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        appBar: const AppTopBar(
+          title: 'Confirm Payment',
         ),
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.s10,
-                  AppSpacing.sm,
-                  AppSpacing.s10,
-                  AppSpacing.sm,
-                ),
-                child: Row(
+        scroll: true,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH,
+          AppSpacing.sm,
+          AppSpacing.screenH,
+          AppSizes.screenBottomPad,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+
+            // Summary card
+            _GlassCard(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.screenV),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                    ),
-                    Expanded(
-                      child: Text(
-                        "Confirm Payment",
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.navy,
-                            ),
-                      ),
-                    ),
-                    // ✅ FIX
-                    const SizedBox(width: AppSpacing.s44),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenV,
-                    AppSpacing.s10,
-                    AppSpacing.screenV,
-                    120,
-                  ),
-                  children: [
-                    _Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.screenV),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Rent",
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.navy,
-                                  ),
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            _RowLine(
-                              left: "Tenancy:",
-                              right: _fmt(widget.amountNgn),
-                            ),
-                            const SizedBox(height: AppSpacing.s10),
-                            _RowLine(left: "Tenancy", right: widget.title),
-                            const SizedBox(height: AppSpacing.s10),
-                            _RowLine(left: "Fees:", right: _fmt(_fee)),
-                            const SizedBox(height: AppSpacing.s10),
-                            _RowLine(left: "Total:", right: _fmt(_total)),
-                            const SizedBox(height: AppSpacing.s10),
-                            _RowLine(
-                              left: "Method:",
-                              right: widget.methodLabel,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
                     Text(
-                      "Choose what to pay",
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy,
-                      ),
+                      "Rent",
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary(context),
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _RowLine(
+                      left: "Tenancy:",
+                      right: _fmt(widget.amountNgn),
                     ),
                     const SizedBox(height: AppSpacing.s10),
-                    _Choice(
-                      label: "Full rent (${_fmt(widget.amountNgn)})",
-                      selected: _full,
-                      onTap: () => setState(() => _full = true),
-                    ),
+                    _RowLine(left: "Tenancy", right: widget.title),
                     const SizedBox(height: AppSpacing.s10),
-                    _Choice(
-                      label: "Part payment",
-                      selected: !_full,
-                      onTap: () => setState(() => _full = false),
-                    ),
-                    const SizedBox(height: AppSpacing.screenH),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => PaymentSuccessScreen(
-                                receiptId: "6300121679",
-                                title: widget.title,
-                                amountNgn: _total,
-                              ),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.tenantActionGreen,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: AppSpacing.screenV,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadii.sm),
-                          ),
-                        ),
-                        child: const Text(
-                          "Confirm & Pay",
-                          style: TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                      ),
+                    _RowLine(left: "Fees:", right: _fmt(_fee)),
+                    const SizedBox(height: AppSpacing.s10),
+                    _RowLine(left: "Total:", right: _fmt(_total)),
+                    const SizedBox(height: AppSpacing.s10),
+                    _RowLine(
+                      left: "Method:",
+                      right: widget.methodLabel,
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            Text(
+              "Choose what to pay",
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary(context),
+                  ),
+            ),
+            const SizedBox(height: AppSpacing.s10),
+
+            _Choice(
+              label: "Full rent (${_fmt(widget.amountNgn)})",
+              selected: _full,
+              onTap: () => setState(() => _full = true),
+            ),
+            const SizedBox(height: AppSpacing.s10),
+            _Choice(
+              label: "Part payment",
+              selected: !_full,
+              onTap: () => setState(() => _full = false),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            // CTA
+            SizedBox(
+              width: double.infinity,
+              child: Material(
+                color: AppColors.brandGreenDeep.withValues(alpha: _alphaSurfaceSoft),
+                borderRadius: BorderRadius.circular(AppRadii.button),
+                child: InkWell(
+                  onTap: _confirmPay,
+                  borderRadius: BorderRadius.circular(AppRadii.button),
+                  child: Container(
+                    height: AppSizes.pillButtonHeight,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadii.button),
+                      border: Border.all(
+                        color: AppColors.overlay(context, _alphaBorderSoft),
+                      ),
+                      boxShadow: AppShadows.soft(
+                        context,
+                        blur: AppSpacing.xxxl,
+                        y: AppSpacing.xl,
+                        alpha: _alphaShadowSoft,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        "Confirm & Pay",
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.white,
+                            ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            // Small note (optional, consistent muted text)
+            Text(
+              "You can review details above before confirming.",
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textMuted(context).withValues(alpha: 0.92),
+                  ),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+          ],
         ),
       ),
     );
@@ -209,9 +223,9 @@ class _RowLine extends StatelessWidget {
           child: Text(
             left,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: AppColors.textMutedLight,
-            ),
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textMuted(context),
+                ),
           ),
         ),
         Expanded(
@@ -219,9 +233,9 @@ class _RowLine extends StatelessWidget {
             right,
             textAlign: TextAlign.right,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: AppColors.navy,
-            ),
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textPrimary(context),
+                ),
           ),
         ),
       ],
@@ -240,20 +254,37 @@ class _Choice extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  // Explore-style alpha helpers
+  double get _alphaSelected => AppSpacing.md / (AppSpacing.xxxl + AppSpacing.md);
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
   @override
   Widget build(BuildContext context) {
+    final bg = selected
+        ? AppColors.brandBlueSoft.withValues(alpha: _alphaSelected)
+        : AppColors.surface(context).withValues(alpha: _alphaSurfaceSoft);
+
+    final border = selected
+        ? AppColors.brandBlueSoft.withValues(alpha: _alphaSelected)
+        : AppColors.overlay(context, _alphaBorderSoft);
+
     return Material(
-      color: selected
-          ? AppColors.tenantActionBlue.withValues(alpha: 0.22)
-          : AppColors.surface(context).withValues(alpha: 0.55),
+      color: bg,
       borderRadius: BorderRadius.circular(AppRadii.md),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        child: Padding(
+        child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.md,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            border: Border.all(color: border),
           ),
           child: Row(
             children: [
@@ -261,33 +292,12 @@ class _Choice extends StatelessWidget {
                 child: Text(
                   label,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary(context),
+                      ),
                 ),
               ),
-              Container(
-                height: 22,
-                width: 22,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? AppColors.tenantActionBlue
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadii.xxs),
-                  border: Border.all(
-                    color: selected
-                        ? AppColors.tenantActionBlue
-                        : AppColors.tenantBorderMuted,
-                  ),
-                ),
-                child: selected
-                    ? const Icon(
-                        Icons.check_rounded,
-                        size: 16,
-                        color: AppColors.white,
-                      )
-                    : null,
-              ),
+              _CheckBox(selected: selected),
             ],
           ),
         ),
@@ -296,25 +306,67 @@ class _Choice extends StatelessWidget {
   }
 }
 
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
-  final Widget child;
+class _CheckBox extends StatelessWidget {
+  const _CheckBox({required this.selected});
+  final bool selected;
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface(context).withValues(alpha: 0.62),
-      borderRadius: BorderRadius.circular(AppRadii.card),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(
-            color: AppColors.surface(context).withValues(alpha: 0.55),
-          ),
-          boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
-        ),
-        child: child,
+    final fill = selected
+        ? AppColors.brandBlueSoft
+        : Colors.transparent;
+
+    final stroke = selected
+        ? AppColors.brandBlueSoft
+        : AppColors.overlay(context, _alphaBorderSoft);
+
+    return Container(
+      height: 22,
+      width: 22,
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(AppRadii.xxs),
+        border: Border.all(color: stroke),
       ),
+      child: selected
+          ? const Icon(
+              Icons.check_rounded,
+              size: 16,
+              color: AppColors.white,
+            )
+          : null,
+    );
+  }
+}
+
+class _GlassCard extends StatelessWidget {
+  const _GlassCard({required this.child});
+  final Widget child;
+
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface(context).withValues(alpha: _alphaSurfaceStrong),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        border: Border.all(color: AppColors.overlay(context, _alphaBorderSoft)),
+        boxShadow: AppShadows.lift(
+          context,
+          blur: AppSpacing.xxxl,
+          y: AppSpacing.xl,
+          alpha: _alphaShadowSoft,
+        ),
+      ),
+      child: child,
     );
   }
 }

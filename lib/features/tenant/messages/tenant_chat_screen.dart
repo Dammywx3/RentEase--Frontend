@@ -40,6 +40,18 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
 
   late List<ChatMessageVM> _messages = List.of(widget.initialMessages);
 
+  // ---------- Explore-style alpha helpers ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
+
   @override
   void dispose() {
     _ctrl.dispose();
@@ -92,19 +104,13 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
 
     return AppScaffold(
       backgroundColor: Colors.transparent,
-
-      // ✅ important: let our gradient reach the top (we handle SafeArea ourselves)
       safeAreaTop: false,
       safeAreaBottom: false,
-
-      // ✅ remove topBar slot so it doesn't paint outside the gradient
       topBar: null,
-
       child: DecoratedBox(
         decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
         child: Column(
           children: [
-            // ✅ AppTopBar is now INSIDE the gradient
             SafeArea(
               bottom: false,
               child: AppTopBar(
@@ -119,18 +125,17 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                         height: AppSizes.iconButtonBox,
                         width: AppSizes.iconButtonBox,
                         decoration: BoxDecoration(
-                          color: AppColors.surface(
-                            context,
-                          ).withValues(alpha: 0.92),
+                          color: AppColors.surface(context)
+                              .withValues(alpha: _alphaSurfaceStrong),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: AppColors.overlay(context, 0.06),
+                            color: AppColors.overlay(context, _alphaBorderSoft),
                           ),
                           boxShadow: AppShadows.soft(
                             context,
                             blur: AppSpacing.xxxl,
                             y: AppSpacing.lg,
-                            alpha: 0.10,
+                            alpha: _alphaShadowSoft,
                           ),
                         ),
                         child: Icon(
@@ -143,13 +148,11 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                 ],
               ),
             ),
-
-            // verified badge line under topbar (like mock)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenV,
+                AppSpacing.screenH,
                 AppSpacing.s2,
-                AppSpacing.screenV,
+                AppSpacing.screenH,
                 AppSpacing.sm,
               ),
               child: Row(
@@ -160,10 +163,11 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                       vertical: AppSpacing.s6,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.surface(context).withValues(alpha: 0.60),
+                      color: AppColors.surface(context)
+                          .withValues(alpha: _alphaSurfaceSoft),
                       borderRadius: BorderRadius.circular(AppRadii.pill),
                       border: Border.all(
-                        color: AppColors.overlay(context, 0.06),
+                        color: AppColors.overlay(context, _alphaBorderSoft),
                       ),
                     ),
                     child: Row(
@@ -173,20 +177,22 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                           c.isVerified
                               ? Icons.verified_rounded
                               : Icons.info_outline_rounded,
-                          size: 18,
+                          size: 16,
                           color: c.isVerified
                               ? AppColors.brandGreenDeep
-                              : AppColors.textMutedLight,
+                              : AppColors.textMuted(context),
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
                           c.isVerified
                               ? 'Verified ${c.subtitleLabel()}'
                               : c.subtitleLabel(),
-                          style: Theme.of(context).textTheme.bodySmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
                               ?.copyWith(
                                 fontWeight: FontWeight.w900,
-                                color: AppColors.navy,
+                                color: AppColors.textPrimary(context),
                               ),
                         ),
                       ],
@@ -195,11 +201,9 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                 ],
               ),
             ),
-
-            // pinned listing mini card
             Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.screenV,
+                horizontal: AppSpacing.screenH,
               ),
               child: _ListingMiniCard(
                 title: c.listingTitle,
@@ -209,23 +213,20 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-
-            // messages
             Expanded(
               child: ListView.builder(
                 controller: _sc,
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenV,
+                  AppSpacing.screenH,
                   AppSpacing.sm,
-                  AppSpacing.screenV,
+                  AppSpacing.screenH,
                   AppSpacing.md,
                 ),
                 itemCount: _messages.length,
                 itemBuilder: (_, i) {
                   final m = _messages[i];
 
-                  final showDay =
-                      i == 0 ||
+                  final showDay = i == 0 ||
                       (_messages[i - 1].at.year != m.at.year ||
                           _messages[i - 1].at.month != m.at.month ||
                           _messages[i - 1].at.day != m.at.day);
@@ -251,13 +252,11 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                 },
               ),
             ),
-
-            // quick actions
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenV,
+                AppSpacing.screenH,
                 0,
-                AppSpacing.screenV,
+                AppSpacing.screenH,
                 AppSpacing.sm,
               ),
               child: SingleChildScrollView(
@@ -283,8 +282,6 @@ class _TenantChatScreenState extends State<TenantChatScreen> {
                 ),
               ),
             ),
-
-            // composer
             _Composer(
               controller: _ctrl,
               onAttach: () {},
@@ -318,7 +315,8 @@ class ChatMessageVM {
     required String id,
     required String text,
     required DateTime at,
-  }) => ChatMessageVM._(id: id, type: ChatMessageType.user, text: text, at: at);
+  }) =>
+      ChatMessageVM._(id: id, type: ChatMessageType.user, text: text, at: at);
 
   factory ChatMessageVM.other({
     required String id,
@@ -365,19 +363,19 @@ class _ListingMiniCard extends StatelessWidget {
                 child: Container(
                   height: AppSizes.listThumbSize,
                   width: AppSizes.listThumbSize + AppSpacing.md,
-                  color: AppColors.tenantPanel.withValues(alpha: 0.85),
+                  color: AppColors.surface(context).withValues(alpha: 0.5),
                   child: thumbAsset.trim().isEmpty
-                      ? const Icon(
+                      ? Icon(
                           Icons.photo_rounded,
-                          color: AppColors.textMutedLight,
+                          color: AppColors.textMuted(context),
                         )
                       : Image.asset(
                           thumbAsset,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Center(
+                          errorBuilder: (_, __, ___) => Center(
                             child: Icon(
                               Icons.photo_rounded,
-                              color: AppColors.textMutedLight,
+                              color: AppColors.textMuted(context),
                             ),
                           ),
                         ),
@@ -393,9 +391,10 @@ class _ListingMiniCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy,
-                      ),
+                            fontWeight: FontWeight.w900,
+                            // ✅ Fixed: Ensure visible in Dark Mode
+                            color: AppColors.textPrimary(context),
+                          ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
@@ -403,16 +402,19 @@ class _ListingMiniCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.navy.withValues(alpha: 0.86),
-                      ),
+                            fontWeight: FontWeight.w900,
+                            // ✅ Fixed: Ensure visible in Dark Mode
+                            color: AppColors.textPrimary(context)
+                                .withValues(alpha: 0.86),
+                          ),
                     ),
                   ],
                 ),
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: AppColors.textMutedLight.withValues(alpha: 0.9),
+                // ✅ Fixed: Ensure visible in Dark Mode
+                color: AppColors.textMuted(context).withValues(alpha: 0.9),
               ),
             ],
           ),
@@ -441,9 +443,10 @@ class _SystemMsg extends StatelessWidget {
       child: Text(
         text,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          fontWeight: FontWeight.w900,
-          color: AppColors.textMutedLight.withValues(alpha: 0.92),
-        ),
+              fontWeight: FontWeight.w900,
+              // ✅ Fixed: Uses standard Muted color
+              color: AppColors.textMuted(context).withValues(alpha: 0.92),
+            ),
       ),
     );
   }
@@ -468,9 +471,10 @@ class _DatePill extends StatelessWidget {
       child: Text(
         text,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          fontWeight: FontWeight.w900,
-          color: AppColors.textMutedLight.withValues(alpha: 0.92),
-        ),
+              fontWeight: FontWeight.w900,
+              // ✅ Fixed: Uses standard Muted color
+              color: AppColors.textMuted(context).withValues(alpha: 0.92),
+            ),
       ),
     );
   }
@@ -485,13 +489,20 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Fix: Distinct Backgrounds for Agent vs User in all modes
     final bg = isMe
         ? AppColors.brandBlueSoft.withValues(alpha: 0.45)
-        : AppColors.surface(context).withValues(alpha: 0.58);
+        : AppColors.surface(context).withValues(alpha: 0.85);
 
+    // ✅ Fix: Borders
     final border = isMe
         ? AppColors.brandBlueSoft.withValues(alpha: 0.35)
-        : AppColors.overlay(context, 0.06);
+        : AppColors.overlay(context, 0.12);
+
+    // ✅ Fix: Text Color (Always legible on Surface or BlueSoft)
+    // Note: BrandBlueSoft (light blue) + White text is readable.
+    // Surface (Dark/Light) + TextPrimary (White/Black) is readable.
+    final textColor = AppColors.textPrimary(context);
 
     return Row(
       mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -513,9 +524,9 @@ class _Bubble extends StatelessWidget {
                 Text(
                   text,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navy,
-                  ),
+                        fontWeight: FontWeight.w800,
+                        color: textColor,
+                      ),
                 ),
                 const SizedBox(height: AppSpacing.s6),
                 Align(
@@ -523,9 +534,10 @@ class _Bubble extends StatelessWidget {
                   child: Text(
                     time,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textMutedLight.withValues(alpha: 0.9),
-                    ),
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMuted(context)
+                              .withValues(alpha: 0.9),
+                        ),
                   ),
                 ),
               ],
@@ -558,9 +570,10 @@ class _QuickChip extends StatelessWidget {
           child: Text(
             text,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: AppColors.navy,
-            ),
+                  fontWeight: FontWeight.w900,
+                  // ✅ Fixed: Use TextPrimary
+                  color: AppColors.textPrimary(context),
+                ),
           ),
         ),
       ),
@@ -584,9 +597,9 @@ class _Composer extends StatelessWidget {
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(
-        AppSpacing.screenV,
+        AppSpacing.screenH,
         0,
-        AppSpacing.screenV,
+        AppSpacing.screenH,
         AppSpacing.md,
       ),
       child: _FrostCard(
@@ -618,14 +631,17 @@ class _Composer extends StatelessWidget {
                     border: InputBorder.none,
                     hintText: 'Type a message…',
                     hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textMutedLight.withValues(alpha: 0.85),
-                    ),
+                          fontWeight: FontWeight.w700,
+                          // ✅ Fixed
+                          color: AppColors.textMuted(context)
+                              .withValues(alpha: 0.85),
+                        ),
                   ),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                        fontWeight: FontWeight.w900,
+                        // ✅ Fixed
+                        color: AppColors.textPrimary(context),
+                      ),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -639,7 +655,8 @@ class _Composer extends StatelessWidget {
                     height: AppSizes.iconButtonBox,
                     width: AppSizes.iconButtonBox,
                     child: const Icon(
-                      Icons.check_rounded,
+                      Icons.send_rounded,
+                      size: 20,
                       color: AppColors.white,
                     ),
                   ),
@@ -657,18 +674,27 @@ class _FrostCard extends StatelessWidget {
   const _FrostCard({required this.child});
   final Widget child;
 
+  // Standard Explore/More/Tools alpha logic
+  double get _alphaSurface =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+  double get _alphaBorder => AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaShadow => AppSpacing.xs / AppSpacing.xxxl;
+
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface(context).withValues(alpha: 0.62),
+      color: AppColors.surface(context).withValues(alpha: _alphaSurface),
       borderRadius: BorderRadius.circular(AppRadii.card),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(
-            color: AppColors.surface(context).withValues(alpha: 0.55),
+          border: Border.all(color: AppColors.overlay(context, _alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: _alphaShadow,
           ),
-          boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppRadii.card),

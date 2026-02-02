@@ -3,8 +3,12 @@
 
 import 'package:flutter/material.dart';
 
-// ✅ Shared booking screen
-import '../listing_detail/schedule_visit_screen.dart';
+// ✅ Shared booking screen (same folder)
+import 'schedule_visit_screen.dart';
+
+// ✅ Apply flow
+import '../applications/apply_flow_screens.dart' show ApplyPreCheckScreen;
+import '../../../shared/models/application_form_models.dart' show ApplyListingVM;
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
@@ -16,7 +20,6 @@ import '../../../core/ui/scaffold/app_scaffold.dart';
 import '../../../core/utils/money_format.dart';
 import '../../../shared/models/listing_model.dart';
 import '../../../shared/stores/saved_store.dart';
-import '../../../shared/widgets/primary_button.dart';
 import '../../../shared/widgets/secondary_button.dart';
 
 enum ListingKind { buy, rent, land, commercial }
@@ -102,7 +105,6 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   }
 
   /// ✅ Pull amenities from backend (ListingModel must carry it)
-  /// If your model uses a different field name, replace below.
   List<String> get _amenities {
     try {
       final dynamic any = widget.listing;
@@ -119,7 +121,6 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   }
 
   /// ✅ Pull description from backend (ListingModel must carry it)
-  /// If your model uses a different field name, replace below.
   String get _description {
     try {
       final dynamic any = widget.listing;
@@ -129,10 +130,56 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     return '';
   }
 
+  // ✅ IMPORTANT:
+  // Backend requires property_listings.id as listingId.
+  // We try listing.listingId if it exists; otherwise fallback to listing.id.
+  String _safeListingId() {
+    try {
+      final dynamic any = widget.listing;
+      final v = any.listingId;
+      if (v is String && v.trim().isNotEmpty) return v.trim();
+    } catch (_) {}
+    return widget.listing.id.trim();
+  }
+
+  // ✅ Property id (if you have it). If not available yet, we safely fallback to listingId.
+  String _safePropertyId({required String fallbackListingId}) {
+    try {
+      final dynamic any = widget.listing;
+      final v = any.propertyId ?? any.property_id ?? any.propertyID;
+      if (v is String && v.trim().isNotEmpty) return v.trim();
+      if (v != null) {
+        final s = v.toString().trim();
+        if (s.isNotEmpty) return s;
+      }
+    } catch (_) {}
+    return fallbackListingId;
+  }
+
+  int _priceToIntNgn() {
+    final p = widget.listing.price;
+    if (p == null) return 0;
+    if (p is int) return p;
+    if (p is double) return p.round();
+    final s = p.toString();
+    final digits = s.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(digits) ?? 0;
+  }
+
   // ✅ Open shared booking screen (ScheduleVisitScreen)
   void _openBooking() {
-    final title = (widget.listing.title).trim();
-    final location = (widget.listing.location).trim();
+    final title = widget.listing.title.trim();
+    final location = widget.listing.location.trim();
+
+    // ✅ Cover image (first media)
+    final cover = _media.isNotEmpty ? _media.first.trim() : '';
+    final isAsset = cover.startsWith('assets/');
+    final isUrl = cover.startsWith('http://') || cover.startsWith('https://');
+
+    final listingId = _safeListingId().trim();
+
+    // If listingId is empty somehow, do nothing (avoid sending bad request)
+    if (listingId.isEmpty) return;
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -142,11 +189,59 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             title: title.isEmpty ? 'Listing' : title,
             location: location.isEmpty ? 'Location' : location,
             priceLine: _priceText,
+            photoAssetPath: isAsset ? cover : null,
+            photoUrl: isUrl ? cover : null,
             locationTitle: location.isEmpty ? 'Location' : location,
-            addressLine:
-                location.isEmpty ? 'Open in Maps to view address' : location,
+            addressLine: location.isEmpty ? 'Open in Maps to view address' : location,
+
+            // ✅ REQUIRED by booking + backend
+            listingId: listingId,
+
+            // ✅ Optional now (backend derives propertyId)
+            propertyId: "",
           ),
           instantBooking: false,
+        ),
+      ),
+    );
+  }
+
+  // ✅ APPLY NOW (Rent only) -> Apply flow
+  void _openApplyNow() {
+    if (_kind != ListingKind.rent) return;
+
+    final listingId = _safeListingId().trim();
+    if (listingId.isEmpty) return;
+
+    final propertyId = _safePropertyId(fallbackListingId: listingId);
+
+    final title = widget.listing.title.trim().isEmpty ? "Listing" : widget.listing.title.trim();
+    final location =
+        widget.listing.location.trim().isEmpty ? "Location" : widget.listing.location.trim();
+
+    // ✅ Use actual rent price (numeric) if you have it, else parse from UI text
+    final rentNgn = _priceToIntNgn();
+
+    // ✅ For ApplyListingVM, we keep priceText as your formatted price line
+    final priceText = _priceText.trim().isEmpty ? "₦0" : _priceText.trim();
+
+    // ✅ Cover image -> ApplyListingVM expects ASSET path only (so use it if it’s an asset).
+    final cover = _media.isNotEmpty ? _media.first.trim() : '';
+    final photoAssetPath = cover.startsWith('assets/') ? cover : null;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ApplyPreCheckScreen(
+          listing: ApplyListingVM(
+            listingId: listingId,
+            propertyId: propertyId,
+            title: title,
+            location: location,
+            rentPerMonthNgn: rentNgn,
+            priceText: priceText,
+            photoAssetPath: photoAssetPath,
+          ),
+          guarantorRequiredThresholdNgn: 500000,
         ),
       ),
     );
@@ -187,27 +282,27 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                 slivers: [
                   SliverToBoxAdapter(
                     child: ListenableBuilder(
-  listenable: SavedStore.I,
-  builder: (context, _) {
-    final isSaved = SavedStore.I.isSaved(widget.listing);
+                      listenable: SavedStore.I,
+                      builder: (context, _) {
+                        final isSaved = SavedStore.I.isSaved(widget.listing);
 
-    return _GalleryHeader(
-      topPad: topPad,
-      heroTag: widget.heroTag,
-      gradient: galleryGradient,
-      isVerified: widget.isVerified,
-      isSaved: isSaved,
-      index: _pageIndex,
-      total: galleryTotal,
-      controller: _page,
-      mediaUrls: _media,
-      onPageChanged: (i) => setState(() => _pageIndex = i),
-      onBack: () => Navigator.of(context).maybePop(),
-      onShare: () {},
-      onToggleSave: () => SavedStore.I.toggle(widget.listing),
-    );
-  },
-),
+                        return _GalleryHeader(
+                          topPad: topPad,
+                          heroTag: widget.heroTag,
+                          gradient: galleryGradient,
+                          isVerified: widget.isVerified,
+                          isSaved: isSaved,
+                          index: _pageIndex,
+                          total: galleryTotal,
+                          controller: _page,
+                          mediaUrls: _media,
+                          onPageChanged: (i) => setState(() => _pageIndex = i),
+                          onBack: () => Navigator.of(context).maybePop(),
+                          onShare: () {},
+                          onToggleSave: () => SavedStore.I.toggle(widget.listing),
+                        );
+                      },
+                    ),
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
@@ -229,9 +324,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                             priceText: _priceText,
                             beds: widget.listing.beds,
                             baths: widget.listing.baths,
-                            sizeLabel: _kind == ListingKind.commercial
-                                ? 'Size'
-                                : 'Sqft',
+                            sizeLabel: _kind == ListingKind.commercial ? 'Size' : 'Sqft',
                           ),
                           const SizedBox(height: AppSpacing.lg),
 
@@ -297,7 +390,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                   onMessage: () {},
                   onCall: () {},
                   onPrimary: _openBooking,
-                  onSecondary: () {},
+
+                  // ✅ APPLY NOW wired to Apply flow
+                  onSecondary: _openApplyNow,
                 ),
               ),
             ],
@@ -326,6 +421,7 @@ class _GalleryHeader extends StatelessWidget {
     required this.onShare,
     required this.onToggleSave,
   });
+
   final double topPad;
   final String heroTag;
   final Gradient gradient;
@@ -341,16 +437,13 @@ class _GalleryHeader extends StatelessWidget {
   final VoidCallback onShare;
   final VoidCallback onToggleSave;
 
-  double get _alphaBtnSurface =>
-      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
-  double get _alphaBtnBorder =>
-      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaBtnSurface => AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaBtnBorder => AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
 
   @override
   Widget build(BuildContext context) {
     final headerH =
-        (MediaQuery.of(context).size.width * AppSizes.featuredCardAspect) +
-            (AppSpacing.xxxl + AppSpacing.lg);
+        (MediaQuery.of(context).size.width * AppSizes.featuredCardAspect) + (AppSpacing.xxxl + AppSpacing.lg);
 
     final countText = '${(index + 1).clamp(1, total)}/$total';
 
@@ -397,11 +490,11 @@ class _GalleryHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 _CircleIconButton(
-  icon: isSaved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-  onTap: onToggleSave,
-  alphaSurface: _alphaBtnSurface,
-  alphaBorder: _alphaBtnBorder,
-),
+                  icon: isSaved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  onTap: onToggleSave,
+                  alphaSurface: _alphaBtnSurface,
+                  alphaBorder: _alphaBtnBorder,
+                ),
               ],
             ),
           ),
@@ -442,8 +535,7 @@ class _GalleryBody extends StatelessWidget {
   final int total;
   final ValueChanged<int> onPageChanged;
 
-  bool _isUrl(String s) =>
-      s.startsWith('http://') || s.startsWith('https://');
+  bool _isUrl(String s) => s.startsWith('http://') || s.startsWith('https://');
 
   @override
   Widget build(BuildContext context) {
@@ -488,13 +580,9 @@ class _GalleryBody extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(
-                    alpha: AppSpacing.xs / AppSpacing.xxxl,
-                  ),
+                  Colors.black.withValues(alpha: AppSpacing.xs / AppSpacing.xxxl),
                   Colors.transparent,
-                  Colors.black.withValues(
-                    alpha: AppSpacing.sm / AppSpacing.xxxl,
-                  ),
+                  Colors.black.withValues(alpha: AppSpacing.sm / AppSpacing.xxxl),
                 ],
               ),
             ),
@@ -543,7 +631,6 @@ class _GalleryPlaceholder extends StatelessWidget {
 }
 
 // ---------------- Main cards / sections / sticky actions ----------------
-// Everything below is your same UI. Keep as-is.
 
 class _PriceInfoCard extends StatelessWidget {
   const _PriceInfoCard({
@@ -619,29 +706,16 @@ class _PriceInfoCard extends StatelessWidget {
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: [
+              if (showBedsBaths) _MiniChip(icon: Icons.bed_rounded, text: '${beds ?? 0} Beds'),
               if (showBedsBaths)
-                _MiniChip(icon: Icons.bed_rounded, text: '${beds ?? 0} Beds'),
-              if (showBedsBaths)
-                _MiniChip(
-                  icon: Icons.bathtub_rounded,
-                  text: '${baths ?? 0} Baths',
-                ),
+                _MiniChip(icon: Icons.bathtub_rounded, text: '${baths ?? 0} Baths'),
               _MiniChip(icon: Icons.square_foot_rounded, text: sizeLabel),
               if (kind == ListingKind.land)
-                const _MiniChip(
-                  icon: Icons.description_rounded,
-                  text: 'Title docs',
-                ),
+                const _MiniChip(icon: Icons.description_rounded, text: 'Title docs'),
               if (kind == ListingKind.rent)
-                const _MiniChip(
-                  icon: Icons.receipt_long_rounded,
-                  text: 'Deposit & fees',
-                ),
+                const _MiniChip(icon: Icons.receipt_long_rounded, text: 'Deposit & fees'),
               if (kind == ListingKind.commercial)
-                const _MiniChip(
-                  icon: Icons.apartment_rounded,
-                  text: 'Commercial',
-                ),
+                const _MiniChip(icon: Icons.apartment_rounded, text: 'Commercial'),
             ],
           ),
         ],
@@ -659,10 +733,7 @@ class _MiniChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final alphaSurface = AppSpacing.md / (AppSpacing.xxxl + AppSpacing.md);
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.overlay(context, alphaSurface),
         borderRadius: BorderRadius.circular(AppRadii.chip),
@@ -671,11 +742,7 @@ class _MiniChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: AppSpacing.xl - AppSpacing.s2,
-            color: AppColors.textPrimary(context),
-          ),
+          Icon(icon, size: AppSpacing.xl - AppSpacing.s2, color: AppColors.textPrimary(context)),
           const SizedBox(width: AppSpacing.sm),
           Text(
             text,
@@ -768,10 +835,7 @@ class _ExpandableTextState extends State<_ExpandableText> {
           onTap: () => setState(() => _expanded = !_expanded),
           borderRadius: BorderRadius.circular(AppRadii.chip),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xs,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
             child: Text(
               _expanded ? 'Read less' : 'Read more',
               style: const TextStyle(
@@ -820,11 +884,7 @@ class _FeatureGrid extends StatelessWidget {
               child: _SurfaceCard(
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.check_circle_rounded,
-                      color: AppColors.success,
-                      size: AppSpacing.xl,
-                    ),
+                    Icon(Icons.check_circle_rounded, color: AppColors.success, size: AppSpacing.xl),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
@@ -862,17 +922,9 @@ class _LocationCard extends StatelessWidget {
           Container(
             height: AppSizes.listThumbSize * (AppSpacing.lg / AppSpacing.md),
             decoration: BoxDecoration(
-              color: AppColors.overlay(
-                context,
-                AppSpacing.sm / AppSpacing.xxxl,
-              ),
+              color: AppColors.overlay(context, AppSpacing.sm / AppSpacing.xxxl),
               borderRadius: BorderRadius.circular(AppRadii.card),
-              border: Border.all(
-                color: AppColors.overlay(
-                  context,
-                  AppSpacing.xs / AppSpacing.xxxl,
-                ),
-              ),
+              border: Border.all(color: AppColors.overlay(context, AppSpacing.xs / AppSpacing.xxxl)),
             ),
             child: Center(
               child: Icon(
@@ -930,17 +982,9 @@ class _AgentCard extends StatelessWidget {
                 alpha: AppSpacing.md / (AppSpacing.xxxl + AppSpacing.md),
               ),
               borderRadius: BorderRadius.circular(AppRadii.card),
-              border: Border.all(
-                color: AppColors.overlay(
-                  context,
-                  AppSpacing.xs / AppSpacing.xxxl,
-                ),
-              ),
+              border: Border.all(color: AppColors.overlay(context, AppSpacing.xs / AppSpacing.xxxl)),
             ),
-            child: Icon(
-              Icons.person_rounded,
-              color: AppColors.textPrimary(context),
-            ),
+            child: Icon(Icons.person_rounded, color: AppColors.textPrimary(context)),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -962,11 +1006,7 @@ class _AgentCard extends StatelessWidget {
                     ),
                     if (verified) ...[
                       const SizedBox(width: AppSpacing.sm),
-                      Icon(
-                        Icons.verified_rounded,
-                        color: AppColors.info,
-                        size: AppSpacing.xl,
-                      ),
+                      Icon(Icons.verified_rounded, color: AppColors.info, size: AppSpacing.xl),
                     ],
                   ],
                 ),
@@ -1009,9 +1049,7 @@ class _SmallAction extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface(context).withValues(alpha: alpha),
           shape: BoxShape.circle,
-          border: Border.all(
-            color: AppColors.overlay(context, AppSpacing.xs / AppSpacing.xxxl),
-          ),
+          border: Border.all(color: AppColors.overlay(context, AppSpacing.xs / AppSpacing.xxxl)),
         ),
         child: Icon(icon, color: AppColors.textPrimary(context)),
       ),
@@ -1026,22 +1064,14 @@ class _FeesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = <_FeeRowData>[
-      if (kind == ListingKind.rent)
-        const _FeeRowData('Deposit', 'See breakdown'),
-      if (kind == ListingKind.rent)
-        const _FeeRowData('Agency / Legal', 'See breakdown'),
-      if (kind == ListingKind.buy)
-        const _FeeRowData('Escrow', 'Protected checkout'),
-      if (kind == ListingKind.buy)
-        const _FeeRowData('Inspection', 'Schedule with agent'),
-      if (kind == ListingKind.land)
-        const _FeeRowData('Documents', 'Survey / C of O'),
-      if (kind == ListingKind.land)
-        const _FeeRowData('Inspection', 'Request inspection'),
-      if (kind == ListingKind.commercial)
-        const _FeeRowData('Lease terms', 'Request details'),
-      if (kind == ListingKind.commercial)
-        const _FeeRowData('Service charge', 'Request details'),
+      if (kind == ListingKind.rent) const _FeeRowData('Deposit', 'See breakdown'),
+      if (kind == ListingKind.rent) const _FeeRowData('Agency / Legal', 'See breakdown'),
+      if (kind == ListingKind.buy) const _FeeRowData('Escrow', 'Protected checkout'),
+      if (kind == ListingKind.buy) const _FeeRowData('Inspection', 'Schedule with agent'),
+      if (kind == ListingKind.land) const _FeeRowData('Documents', 'Survey / C of O'),
+      if (kind == ListingKind.land) const _FeeRowData('Inspection', 'Request inspection'),
+      if (kind == ListingKind.commercial) const _FeeRowData('Lease terms', 'Request details'),
+      if (kind == ListingKind.commercial) const _FeeRowData('Service charge', 'Request details'),
     ];
 
     return _SurfaceCard(
@@ -1069,10 +1099,7 @@ class _FeesCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      color: AppColors.textMuted(context),
-                    ),
+                    Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(context)),
                   ],
                 ),
               ),
@@ -1098,10 +1125,7 @@ class _SimilarRow extends StatelessWidget {
     return _SurfaceCard(
       child: Row(
         children: [
-          Icon(
-            Icons.view_carousel_rounded,
-            color: AppColors.textMuted(context),
-          ),
+          Icon(Icons.view_carousel_rounded, color: AppColors.textMuted(context)),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
@@ -1112,10 +1136,7 @@ class _SimilarRow extends StatelessWidget {
               ),
             ),
           ),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: AppColors.textMuted(context),
-          ),
+          Icon(Icons.chevron_right_rounded, color: AppColors.textMuted(context)),
         ],
       ),
     );
@@ -1158,9 +1179,7 @@ class _StickyActions extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: AppColors.surface(context).withValues(alpha: alphaSurface),
-          border: Border(
-            top: BorderSide(color: AppColors.overlay(context, alphaBorder)),
-          ),
+          border: Border(top: BorderSide(color: AppColors.overlay(context, alphaBorder))),
           boxShadow: AppShadows.soft(
             context,
             blur: AppSpacing.xxxl,
@@ -1175,21 +1194,65 @@ class _StickyActions extends StatelessWidget {
             _StickyIcon(icon: Icons.call_rounded, onTap: onCall),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: PrimaryButton(
+              child: _PrimaryActionButton(
                 label: primaryText,
-                onPressed: onPrimary,
-                fullWidth: true,
+                onTap: onPrimary,
               ),
             ),
             if (showSecondaryRentApply) ...[
               const SizedBox(width: 12),
               SecondaryButton(
                 label: 'Apply Now',
-                onPressed: onSecondary,
+                onPressed: onSecondary, // ✅ now wired
                 fullWidth: false,
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PrimaryActionButton extends StatelessWidget {
+  const _PrimaryActionButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final alphaFill = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+    return Material(
+      color: AppColors.brandGreenDeep.withValues(alpha: alphaFill),
+      borderRadius: BorderRadius.circular(AppRadii.button),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        child: SizedBox(
+          height: AppSizes.pillButtonHeight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.white,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -1213,9 +1276,7 @@ class _StickyIcon extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.overlay(context, a),
           shape: BoxShape.circle,
-          border: Border.all(
-            color: AppColors.overlay(context, AppSpacing.xs / AppSpacing.xxxl),
-          ),
+          border: Border.all(color: AppColors.overlay(context, AppSpacing.xs / AppSpacing.xxxl)),
         ),
         child: Icon(icon, color: AppColors.textPrimary(context)),
       ),
@@ -1267,10 +1328,7 @@ class _GlassPill extends StatelessWidget {
     final a = AppSpacing.sm / (AppSpacing.xxxl + AppSpacing.sm);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.white.withValues(alpha: a),
         borderRadius: BorderRadius.circular(AppRadii.chip),

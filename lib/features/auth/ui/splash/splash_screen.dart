@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:rentease_frontend/app/router/app_router.dart';
 import 'package:rentease_frontend/core/storage/app_prefs.dart';
 import 'package:rentease_frontend/core/theme/app_colors.dart';
+import 'package:rentease_frontend/core/ui/scaffold/app_scaffold.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -34,25 +35,28 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
-        child: SafeArea(
-          child: Center(
-            child: Image.asset(
-              'assets/images/Splash_logo.png',
-              width: 180,
-              height: 180,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) {
-                // fallback if image path is wrong
-                return Icon(
-                  Icons.home_rounded,
-                  size: 90,
-                  color: AppColors.brandGreen,
-                );
-              },
-            ),
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: false, // Let content center naturally
+        safeAreaBottom: false,
+        topBar: null,
+        child: Center(
+          child: Image.asset(
+            'assets/images/Splash_logo.png',
+            width: 180,
+            height: 180,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) {
+              // fallback if image path is wrong
+              return Icon(
+                Icons.home_rounded,
+                size: 90,
+                // Matches the brand green used in other auth screens
+                color: AppColors.brandGreenDeep,
+              );
+            },
           ),
         ),
       ),

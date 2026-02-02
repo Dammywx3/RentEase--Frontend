@@ -5,8 +5,9 @@ import 'package:rentease_frontend/core/theme/app_colors.dart';
 import 'package:rentease_frontend/core/theme/app_radii.dart';
 import 'package:rentease_frontend/core/theme/app_shadows.dart';
 import 'package:rentease_frontend/core/theme/app_spacing.dart';
-import 'package:rentease_frontend/core/theme/app_typography.dart';
+import 'package:rentease_frontend/core/theme/app_sizes.dart';
 
+import 'package:rentease_frontend/core/ui/scaffold/app_scaffold.dart';
 import 'package:rentease_frontend/app/router/app_router.dart';
 
 class AccountCreatedScreen extends StatelessWidget {
@@ -16,6 +17,18 @@ class AccountCreatedScreen extends StatelessWidget {
   });
 
   final String email;
+
+  // ---------- Explore-style alpha helpers ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
 
   void _goToLogin(BuildContext context) {
     final cleanEmail = email.trim();
@@ -36,13 +49,17 @@ class AccountCreatedScreen extends StatelessWidget {
     final textPrimary = AppColors.textPrimary(context);
     final textMuted = AppColors.textMuted(context);
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: null,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
+              horizontal: AppSpacing.screenH, // Standard Horizontal Padding
               vertical: AppSpacing.lg,
             ),
             child: Column(
@@ -55,43 +72,55 @@ class AccountCreatedScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xl),
 
                 Text(
-                  'Account created ✅',
-                  style: AppTypography.h1(context).copyWith(color: textPrimary),
+                  'All set! ✅',
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        color: textPrimary,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Your email is verified. You can now sign in.',
-                  style: AppTypography.body(context).copyWith(color: textMuted),
+                  'Your email is verified. You can now sign in to start exploring homes.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: textMuted,
+                        fontWeight: FontWeight.w700,
+                        height: 1.4,
+                      ),
                 ),
 
                 const SizedBox(height: AppSpacing.xl),
 
-                _GlassCard(
-                  child: Column(
-                    children: [
-                      Container(
-                        height: 110,
-                        width: 110,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface(context).withValues(alpha: 0.75),
-                          borderRadius: BorderRadius.circular(AppRadii.xl),
-                          border: Border.all(
-                            color: AppColors.border(context).withValues(alpha: 0.70),
+                _FrostCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      children: [
+                        Container(
+                          height: 110,
+                          width: 110,
+                          decoration: BoxDecoration(
+                            color: AppColors.brandGreenDeep
+                                .withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(AppRadii.xl),
+                            border: Border.all(
+                              color: AppColors.brandGreenDeep
+                                  .withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.check_circle_rounded,
+                            size: 46,
+                            color: AppColors.brandGreenDeep,
                           ),
                         ),
-                        child: Icon(
-                          Icons.check_circle_outline_rounded,
-                          size: 46,
-                          color: AppColors.brandGreen,
+                        const SizedBox(height: AppSpacing.lg),
+                        _PrimaryButton(
+                          text: 'Go to Login',
+                          onPressed: () => _goToLogin(context),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-
-                      _PrimaryButton(
-                        text: 'Go to Login',
-                        onPressed: () => _goToLogin(context),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
 
@@ -117,12 +146,13 @@ class _TopBarCentered extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
+          // Optional: Add back button here if needed, but usually not for success screens
           Text(
             title,
-            style: AppTypography.h3(context).copyWith(
-              color: AppColors.textPrimary(context),
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: AppColors.textPrimary(context),
+                  fontWeight: FontWeight.w900,
+                ),
           ),
         ],
       ),
@@ -130,24 +160,33 @@ class _TopBarCentered extends StatelessWidget {
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  const _GlassCard({required this.child});
+class _FrostCard extends StatelessWidget {
+  const _FrostCard({required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.surface2(context).withValues(alpha: 0.70);
-    final border = AppColors.border(context).withValues(alpha: 0.60);
+    // Matches Explore/Login logic
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+    final alphaShadow = AppSpacing.xs / AppSpacing.xxxl;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: border),
-        boxShadow: AppShadows.card(context),
+    return Material(
+      color: AppColors.surface(context).withValues(alpha: alphaSurface),
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: alphaShadow,
+          ),
+        ),
+        child: child,
       ),
-      child: child,
     );
   }
 }
@@ -176,15 +215,15 @@ class _PrimaryButton extends StatelessWidget {
           foregroundColor: fg,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.lg),
+            borderRadius: BorderRadius.circular(AppRadii.button),
           ),
         ),
         child: Text(
           text,
-          style: AppTypography.button(context).copyWith(
-            color: fg,
-            fontWeight: FontWeight.w900,
-          ),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: fg,
+                fontWeight: FontWeight.w900,
+              ),
         ),
       ),
     );

@@ -1,3 +1,4 @@
+// lib/features/tenant/viewings/viewings_screen.dart
 // ignore_for_file: unnecessary_underscores
 
 import "package:flutter/material.dart";
@@ -8,8 +9,10 @@ import "../../../core/ui/scaffold/app_top_bar.dart";
 import "../../../shared/models/viewing_model.dart";
 import "viewing_detail_screen.dart";
 
-// ✅ IMPORTANT: path to your apply flow file
-import "../applications/apply_flow_screens.dart";
+// ✅ Import ONLY the screen we need (avoids ApplyListingVM name clashes)
+import "../applications/apply_flow_screens.dart" show ApplyPreCheckScreen;
+
+import "data/viewings_api.dart";
 
 import "../../../core/theme/app_colors.dart";
 import "../../../core/theme/app_shadows.dart";
@@ -17,28 +20,24 @@ import "../../../core/theme/app_radii.dart";
 import "../../../core/theme/app_spacing.dart";
 import "../../../core/theme/app_sizes.dart";
 
-import "data/viewings_api.dart";
+import "../../../shared/models/application_form_models.dart";
 
 class ViewingsScreen extends StatefulWidget {
   const ViewingsScreen({
     super.key,
     this.viewings = const [],
     this.title,
-    this.useDemoWhenEmpty = true,
-    this.fetchFromBackendWhenEmpty = true, // ✅ NEW
+    this.fetchWhenEmpty = true, // ✅ fetch from backend by default
   });
 
-  /// Data-driven: pass real backend viewings here.
+  /// If you pass real viewings, the screen uses them.
   final List<ViewingModel> viewings;
 
-  /// Optional override (still a screen name)
+  /// Optional screen title
   final String? title;
 
-  /// If true and [viewings] is empty, we show demo items (good for UI dev).
-  final bool useDemoWhenEmpty;
-
-  /// If true and [viewings] is empty, we fetch from backend automatically.
-  final bool fetchFromBackendWhenEmpty;
+  /// If true and [viewings] is empty, the screen will fetch from backend
+  final bool fetchWhenEmpty;
 
   @override
   State<ViewingsScreen> createState() => _ViewingsScreenState();
@@ -49,9 +48,18 @@ enum _Tab { upcoming, completed }
 class _ViewingsScreenState extends State<ViewingsScreen> {
   _Tab _tab = _Tab.upcoming;
 
+  final ViewingsApi _api = ViewingsApi();
+
   bool _loading = false;
   String? _error;
   List<ViewingModel> _fetched = const [];
+
+  /// Local overrides after actions (cancel/reschedule) so UI always reflects
+  /// latest state even if parent passed a const list.
+  final Map<String, ViewingModel> _overrides = <String, ViewingModel>{};
+
+  /// Track per-item action loading
+  final Set<String> _busyIds = <String>{};
 
   int _parseMonthlyRent(String? priceText) {
     if (priceText == null) return 0;
@@ -60,51 +68,47 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
     return int.tryParse(raw) ?? 0;
   }
 
-  List<ViewingModel> _demoViewings() {
-    final now = DateTime.now();
+  @override
+  void initState() {
+    super.initState();
+    _maybeFetch();
+  }
 
-    return [
-      ViewingModel(
-        id: "VIS-1001",
-        listingTitle: "2 Bedroom Apartment",
-        location: "Lekki Phase 1, Lagos",
-        agentName: "Chinedu Okafor",
-        dateTime: now.add(const Duration(days: 1, hours: 3)),
-        status: ViewingStatus.confirmed,
-        priceText: "₦850,000 / year",
-      ),
-      ViewingModel(
-        id: "VIS-1002",
-        listingTitle: "Mini Flat",
-        location: "Yaba, Lagos",
-        agentName: "Aisha Bello",
-        dateTime: now.add(const Duration(days: 4, hours: 2)),
-        status: ViewingStatus.requested,
-        priceText: "₦500,000 / year",
-      ),
-      ViewingModel(
-        id: "VIS-0999",
-        listingTitle: "Studio Apartment",
-        location: "Gwarinpa, Abuja",
-        agentName: "Emeka Nwosu",
-        dateTime: now.subtract(const Duration(days: 5)),
-        status: ViewingStatus.completed,
-        priceText: "₦300,000 / year",
-      ),
-    ];
+  Future<void> _maybeFetch() async {
+    if (!widget.fetchWhenEmpty) return;
+    if (widget.viewings.isNotEmpty) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final list = await _api.listMy(limit: 50, offset: 0);
+      if (!mounted) return;
+
+      setState(() {
+        _fetched = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshFromBackendIfUsingFetched() async {
+    if (widget.viewings.isNotEmpty) return; // parent controls data
+    await _maybeFetch();
   }
 
   List<ViewingModel> get _source {
-    // 1) explicit passed viewings
-    if (widget.viewings.isNotEmpty) return widget.viewings;
-
-    // 2) backend fetched
-    if (_fetched.isNotEmpty) return _fetched;
-
-    // 3) demo fallback
-    if (widget.useDemoWhenEmpty) return _demoViewings();
-
-    return const [];
+    final base = widget.viewings.isNotEmpty ? widget.viewings : _fetched;
+    if (_overrides.isEmpty) return base;
+    return base.map((v) => _overrides[v.id] ?? v).toList();
   }
 
   List<ViewingModel> get _filtered {
@@ -112,22 +116,26 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
 
     switch (_tab) {
       case _Tab.upcoming:
-        final list =
-            all.where((v) => v.status == ViewingStatus.requested || v.status == ViewingStatus.confirmed).toList()
-              ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+        final list = all
+            .where(
+              (v) =>
+                  v.status == ViewingStatus.requested ||
+                  v.status == ViewingStatus.confirmed,
+            )
+            .toList()
+          ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
         return list;
 
       case _Tab.completed:
-        final list =
-            all
-                .where(
-                  (v) =>
-                      v.status == ViewingStatus.completed ||
-                      v.status == ViewingStatus.cancelled ||
-                      v.status == ViewingStatus.rejected,
-                )
-                .toList()
-              ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+        final list = all
+            .where(
+              (v) =>
+                  v.status == ViewingStatus.completed ||
+                  v.status == ViewingStatus.cancelled ||
+                  v.status == ViewingStatus.rejected,
+            )
+            .toList()
+          ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
         return list;
     }
   }
@@ -141,58 +149,131 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
     return "${loc.formatFullDate(dt)} • $time";
   }
 
-  String _fmtLine2(BuildContext context, DateTime dt) {
-    final loc = MaterialLocalizations.of(context);
-    return loc.formatShortDate(dt);
+  void _toast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
-  @override
-  void initState() {
-    super.initState();
+  bool _canReschedule(ViewingModel v) {
+    return v.status == ViewingStatus.requested ||
+        v.status == ViewingStatus.confirmed;
+  }
 
-    // only fetch if user didn't pass viewings
-    if (widget.viewings.isEmpty && widget.fetchFromBackendWhenEmpty) {
-      _load();
+  bool _canCancel(ViewingModel v) {
+    return v.status == ViewingStatus.requested ||
+        v.status == ViewingStatus.confirmed;
+  }
+
+  Future<bool> _confirmDialog({
+    required String title,
+    required String message,
+    required String confirmText,
+  }) async {
+    final res = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("No"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(confirmText),
+          ),
+        ],
+      ),
+    );
+
+    return res == true;
+  }
+
+  Future<void> _handleCancel(ViewingModel v) async {
+    if (!_canCancel(v)) return;
+
+    final ok = await _confirmDialog(
+      title: "Cancel visit?",
+      message: "Are you sure you want to cancel this visit request?",
+      confirmText: "Cancel visit",
+    );
+    if (!ok) return;
+
+    if (_busyIds.contains(v.id)) return;
+    setState(() => _busyIds.add(v.id));
+
+    try {
+      final updatedFromApi = await _api.cancel(v.id);
+
+      setState(() => _overrides[v.id] = updatedFromApi);
+
+      await _refreshFromBackendIfUsingFetched();
+      _toast("Visit cancelled");
+    } catch (e) {
+      _toast("Couldn’t cancel. Please try again.");
+    } finally {
+      if (mounted) setState(() => _busyIds.remove(v.id));
     }
   }
 
-  Future<void> _load() async {
-    if (_loading) return;
+  Future<void> _handleReschedule(ViewingModel v) async {
+    if (!_canReschedule(v)) return;
 
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: v.dateTime.isAfter(start) ? v.dateTime : start,
+      firstDate: start,
+      lastDate: start.add(const Duration(days: 365)),
+    );
+    if (pickedDate == null) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(v.dateTime),
+    );
+    if (pickedTime == null) return;
+
+    final newLocal = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+
+    final ok = await _confirmDialog(
+      title: "Reschedule visit?",
+      message: "Move this visit to:\n\n${_fmtLine1(context, newLocal)}",
+      confirmText: "Reschedule",
+    );
+    if (!ok) return;
+
+    if (_busyIds.contains(v.id)) return;
+    setState(() => _busyIds.add(v.id));
 
     try {
-      final api = ViewingsApi();
-      final rows = await api.listMy(limit: 50, offset: 0);
+      final updatedFromApi = await _api.reschedule(
+        viewingId: v.id,
+        scheduledAtLocal: newLocal,
+      );
 
-      final mapped = rows.map((j) {
-        final statusRaw = (j["status"] ?? "pending").toString();
+      // Ensure date updates instantly even if API doesn’t echo local date
+      final merged = updatedFromApi.copyWith(dateTime: newLocal);
+      setState(() => _overrides[v.id] = merged);
 
-        // NOTE: backend list may not include listing title/location/agent unless you join them.
-        // We keep safe placeholders so UI still works.
-        return ViewingModel(
-          id: (j["id"] ?? "").toString(),
-          listingTitle: (j["listing_title"] ?? "Viewing").toString(),
-          location: (j["location"] ?? "").toString(),
-          agentName: (j["agent_name"] ?? "Agent").toString(),
-          dateTime: DateTime.parse((j["scheduled_at"] ?? DateTime.now().toIso8601String()).toString()).toLocal(),
-          status: ViewingStatusX.fromApi(statusRaw),
-          priceText: (j["price_text"] as String?),
-          listingId: (j["listing_id"] as String?),
-          propertyId: (j["property_id"] as String?),
-        );
-      }).toList();
-
-      if (!mounted) return;
-      setState(() => _fetched = mapped);
+      await _refreshFromBackendIfUsingFetched();
+      _toast("Visit rescheduled");
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = e.toString());
+      _toast("Couldn’t reschedule. Please try again.");
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _busyIds.remove(v.id));
     }
   }
 
@@ -209,19 +290,42 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
             ),
           ),
         ),
-
         AppScaffold(
           backgroundColor: Colors.transparent,
           safeAreaTop: true,
           safeAreaBottom: false,
-
           topBar: AppTopBar(
-            title: widget.title ?? "Viewings",
+            title: widget.title ?? "My Visits",
             leadingIcon: Icons.arrow_back_rounded,
             onLeadingTap: () => Navigator.of(context).maybePop(),
-            actions: const [],
+            actions: [
+              IconButton(
+                onPressed: _loading
+                    ? null
+                    : () async {
+                        setState(() {
+                          _error = null;
+                          _loading = true;
+                        });
+                        try {
+                          final list = await _api.listMy(limit: 50, offset: 0);
+                          if (!mounted) return;
+                          setState(() {
+                            _fetched = list;
+                            _loading = false;
+                          });
+                        } catch (e) {
+                          if (!mounted) return;
+                          setState(() {
+                            _error = e.toString();
+                            _loading = false;
+                          });
+                        }
+                      },
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ],
           ),
-
           child: Column(
             children: [
               Padding(
@@ -236,130 +340,144 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
                   onChanged: (t) => setState(() => _tab = t),
                 ),
               ),
-
               Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _load,
-                  child: Builder(
-                    builder: (_) {
-                      if (_loading && widget.viewings.isEmpty && _fetched.isEmpty && !widget.useDemoWhenEmpty) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      if (_error != null && widget.viewings.isEmpty && _fetched.isEmpty && !widget.useDemoWhenEmpty) {
-                        return ListView(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.screenV,
-                            AppSpacing.lg,
-                            AppSpacing.screenV,
-                            AppSizes.screenBottomPad,
-                          ),
-                          children: [
-                            Text(
-                              "Couldn’t load viewings",
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.navy,
+                child: _loading
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const CircularProgressIndicator(
+                                color: AppColors.brandGreenDeep,
                               ),
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              _error!,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textMuted(context),
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            _RetryButton(onTap: _load),
-                          ],
-                        );
-                      }
-
-                      if (items.isEmpty) {
-                        return ListView(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.screenV,
-                            AppSpacing.lg,
-                            AppSpacing.screenV,
-                            AppSizes.screenBottomPad,
-                          ),
-                          children: [
-                            Center(
-                              child: Text(
-                                "No viewings yet",
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.textMuted(context),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }
-
-                      return ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.screenV,
-                          AppSpacing.sm,
-                          AppSpacing.screenV,
-                          AppSizes.screenBottomPad,
-                        ),
-                        itemCount: items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-                        itemBuilder: (context, i) {
-                          final v = items[i];
-                          final badge = _ViewingBadge.from(context, v.status);
-
-                          final showApplyNow = v.status == ViewingStatus.completed;
-
-                          return _ViewingCard(
-                            title: v.listingTitle,
-                            line1: _fmtLine1(context, v.dateTime),
-                            line2: _fmtLine2(context, v.dateTime),
-                            location: v.location,
-                            badge: badge,
-                            status: v.status,
-                            showApplyNow: showApplyNow,
-                            onApplyNow: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ApplyPreCheckScreen(
-                                    listing: ApplyListingVM(
-                                      id: v.id,
-                                      title: v.listingTitle,
-                                      location: v.location,
-                                      rentPerMonthNgn: _parseMonthlyRent(v.priceText),
-                                      priceText: v.priceText ?? "",
-                                      photoAssetPath: "assets/images/listing_011.png",
+                              const SizedBox(height: AppSpacing.md),
+                              Text(
+                                "Loading visits…",
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.textMuted(context),
                                     ),
-                                    guarantorRequiredThresholdNgn: 500000,
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : _error != null
+                        ? _ErrorState(message: _error!, onRetry: _maybeFetch)
+                        : items.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(AppSpacing.lg),
+                                  child: Text(
+                                    "No visits yet",
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w900,
+                                          color: AppColors.textMuted(context),
+                                        ),
                                   ),
                                 ),
-                              );
-                            },
-                            onTap: () async {
-                              final changed = await Navigator.of(context).push<bool>(
-                                MaterialPageRoute(
-                                  builder: (_) => ViewingDetailScreen(viewing: v),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.fromLTRB(
+                                  AppSpacing.screenV,
+                                  AppSpacing.sm,
+                                  AppSpacing.screenV,
+                                  AppSizes.screenBottomPad,
                                 ),
-                              );
+                                itemCount: items.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: AppSpacing.md),
+                                itemBuilder: (context, i) {
+                                  final v = items[i];
+                                  final badge =
+                                      _ViewingBadge.from(context, v.status);
 
-                              if (changed == true) {
-                                _load();
-                              }
-                            },
-                            onDirections: () {},
-                            onReschedule: () {},
-                            onCancel: () async {
-                              // optional: you can wire quick-cancel from card later
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
+                                  final busy = _busyIds.contains(v.id);
+                                  final showApplyNow =
+                                      v.status == ViewingStatus.completed;
+
+                                  final canReschedule = _canReschedule(v) && !busy;
+                                  final canCancel = _canCancel(v) && !busy;
+
+                                  final who = (v.landlordName == null ||
+                                          v.landlordName!.trim().isEmpty)
+                                      ? v.agentName
+                                      : "${v.agentName} • ${v.landlordName!.trim()}";
+
+                                  return _ViewingCard(
+                                    title: v.listingTitle,
+                                    line1: _fmtLine1(context, v.dateTime),
+                                    location: v.location,
+                                    subtitle: who,
+                                    amountText: v.priceText,
+                                    badge: badge,
+                                    status: v.status,
+                                    thumbnailUrl: v.thumbnailUrl,
+                                    busy: busy,
+                                    showApplyNow: showApplyNow,
+                                    onApplyNow: () {
+                                      // ✅ Build ApplyListingVM from v (ViewingModel)
+                                      final listingId =
+                                          (v.listingId ?? "").trim().isNotEmpty
+                                              ? v.listingId!.trim()
+                                              : v.id;
+
+                                      // Backend requires propertyId.
+                                      // If API didn't return it, fallback so screen compiles.
+                                      final propertyId =
+                                          (v.propertyId ?? "").trim().isNotEmpty
+                                              ? v.propertyId!.trim()
+                                              : listingId;
+
+                                      final priceText = (v.priceText ?? "").trim();
+                                      final rentNgn = _parseMonthlyRent(priceText);
+
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => ApplyPreCheckScreen(
+                                            listing: ApplyListingVM(
+                                              listingId: listingId,
+                                              propertyId: propertyId,
+                                              title: v.listingTitle.trim(),
+                                              location: v.location.trim(),
+                                              rentPerMonthNgn: rentNgn,
+                                              priceText:
+                                                  priceText.isEmpty ? "₦0" : priceText,
+                                              photoAssetPath: null,
+                                            ),
+                                            guarantorRequiredThresholdNgn: 500000,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    onTap: () async {
+                                      final changed =
+                                          await Navigator.of(context).push<bool>(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              ViewingDetailScreen(viewing: v),
+                                        ),
+                                      );
+
+                                      if (changed == true) {
+                                        await _refreshFromBackendIfUsingFetched();
+                                      }
+                                    },
+                                    onDirections: () {},
+                                    onReschedule:
+                                        canReschedule ? () => _handleReschedule(v) : null,
+                                    onCancel:
+                                        canCancel ? () => _handleCancel(v) : null,
+                                  );
+                                },
+                              ),
               ),
             ],
           ),
@@ -369,26 +487,55 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
   }
 }
 
-class _RetryButton extends StatelessWidget {
-  const _RetryButton({required this.onTap});
-  final VoidCallback onTap;
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.brandBlueSoft.withValues(alpha: 0.22),
-      borderRadius: BorderRadius.circular(AppRadii.button),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.button),
-        child: SizedBox(
-          height: AppSizes.pillButtonHeight,
-          child: Center(
-            child: Text(
-              "Retry",
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.navy,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.screenV),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: _FrostCard(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    size: AppSpacing.xxxl + AppSpacing.lg,
+                    color: AppColors.tenantDangerDeep,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    "Couldn’t load visits",
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary(context),
+                        ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textMuted(context)
+                              .withValues(alpha: 0.92),
+                        ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  _PillButton(
+                    text: "Retry",
+                    color: AppColors.brandBlueSoft,
+                    onTap: onRetry,
+                  ),
+                ],
               ),
             ),
           ),
@@ -403,14 +550,31 @@ class _Tabs extends StatelessWidget {
   final _Tab value;
   final ValueChanged<_Tab> onChanged;
 
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
   @override
   Widget build(BuildContext context) {
     Widget tab(_Tab t, String label) {
       final selected = value == t;
 
       final bg = selected
-          ? AppColors.brandBlueSoft.withValues(alpha: 0.24)
-          : AppColors.surface(context).withValues(alpha: 0.55);
+          ? AppColors.brandBlueSoft.withValues(
+              alpha: AppSpacing.sm / (AppSpacing.xxxl + AppSpacing.sm),
+            )
+          : AppColors.surface(context).withValues(alpha: _alphaSurfaceSoft);
+
+      final border = selected
+          ? AppColors.brandBlueSoft.withValues(
+              alpha: AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs),
+            )
+          : AppColors.overlay(context, _alphaBorderSoft);
+
+      final fg = AppColors.textPrimary(context);
 
       return Expanded(
         child: Material(
@@ -419,16 +583,19 @@ class _Tabs extends StatelessWidget {
           child: InkWell(
             onTap: () => onChanged(t),
             borderRadius: BorderRadius.circular(AppRadii.md),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.s10),
-              child: Center(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
-                ),
+            child: Container(
+              height: AppSizes.pillButtonHeight,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                border: Border.all(color: border),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: fg,
+                    ),
               ),
             ),
           ),
@@ -439,11 +606,9 @@ class _Tabs extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.s6),
       decoration: BoxDecoration(
-        color: AppColors.surface(context).withValues(alpha: 0.35),
+        color: AppColors.surface(context).withValues(alpha: _alphaSurfaceStrong),
         borderRadius: BorderRadius.circular(AppRadii.card),
-        border: Border.all(
-          color: AppColors.surface(context).withValues(alpha: 0.45),
-        ),
+        border: Border.all(color: AppColors.overlay(context, _alphaBorderSoft)),
       ),
       child: Row(
         children: [
@@ -460,10 +625,13 @@ class _ViewingCard extends StatelessWidget {
   const _ViewingCard({
     required this.title,
     required this.line1,
-    required this.line2,
     required this.location,
+    required this.subtitle,
+    required this.amountText,
     required this.badge,
     required this.status,
+    required this.thumbnailUrl,
+    required this.busy,
     required this.showApplyNow,
     required this.onApplyNow,
     required this.onTap,
@@ -474,24 +642,46 @@ class _ViewingCard extends StatelessWidget {
 
   final String title;
   final String line1;
-  final String line2;
   final String location;
+
+  final String subtitle; // agent / landlord line
+  final String? amountText;
 
   final _ViewingBadge badge;
   final ViewingStatus status;
+
+  final String? thumbnailUrl;
+
+  final bool busy;
 
   final bool showApplyNow;
   final VoidCallback onApplyNow;
 
   final VoidCallback onTap;
   final VoidCallback onDirections;
-  final VoidCallback onReschedule;
-  final VoidCallback onCancel;
+  final VoidCallback? onReschedule;
+  final VoidCallback? onCancel;
+
+  bool _isUrl(String s) => s.startsWith("http://") || s.startsWith("https://");
 
   @override
   Widget build(BuildContext context) {
     final isCompleted = status == ViewingStatus.completed;
-    final canCancel = status == ViewingStatus.requested || status == ViewingStatus.confirmed;
+
+    Widget thumb;
+    final url = (thumbnailUrl ?? "").trim();
+    if (url.isNotEmpty && _isUrl(url)) {
+      thumb = Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const Icon(
+          Icons.home_rounded,
+          color: AppColors.brandBlueSoft,
+        ),
+      );
+    } else {
+      thumb = const Icon(Icons.home_rounded, color: AppColors.brandBlueSoft);
+    }
 
     return _FrostCard(
       child: InkWell(
@@ -508,12 +698,18 @@ class _ViewingCard extends StatelessWidget {
                     child: Container(
                       height: AppSizes.listThumbSize,
                       width: AppSizes.listThumbSize + AppSpacing.sm,
-                      color: AppColors.tenantPanel.withValues(alpha: 0.85),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.home_rounded,
-                        color: AppColors.brandBlueSoft,
+                      color: AppColors.overlay(
+                        context,
+                        AppSpacing.sm / (AppSpacing.xxxl + AppSpacing.sm),
                       ),
+                      alignment: Alignment.center,
+                      child: busy
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : thumb,
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
@@ -526,9 +722,9 @@ class _ViewingCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.navy,
-                          ),
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textPrimary(context),
+                              ),
                         ),
                         const SizedBox(height: AppSpacing.s6),
                         Row(
@@ -536,7 +732,7 @@ class _ViewingCard extends StatelessWidget {
                             Icon(
                               Icons.event_rounded,
                               size: AppSizes.minTap / 3,
-                              color: AppColors.tenantDangerDeep,
+                              color: AppColors.textMuted(context),
                             ),
                             const SizedBox(width: AppSpacing.s6),
                             Expanded(
@@ -544,10 +740,13 @@ class _ViewingCard extends StatelessWidget {
                                 line1,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.textMuted(context),
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textMuted(context),
+                                    ),
                               ),
                             ),
                           ],
@@ -557,11 +756,54 @@ class _ViewingCard extends StatelessWidget {
                           location,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.brandBlueSoft,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textSecondary(context),
+                              ),
                         ),
+                        const SizedBox(height: AppSpacing.s6),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.person_rounded,
+                              size: AppSizes.minTap / 3,
+                              color: AppColors.textMuted(context),
+                            ),
+                            const SizedBox(width: AppSpacing.s6),
+                            Expanded(
+                              child: Text(
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textMuted(context),
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if ((amountText ?? "").trim().isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.s6),
+                          Text(
+                            amountText!.trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.brandGreenDeep,
+                                ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -572,24 +814,27 @@ class _ViewingCard extends StatelessWidget {
                       vertical: AppSpacing.s7,
                     ),
                     decoration: BoxDecoration(
-                      color: badge.color.withValues(alpha: 0.18),
+                      color: badge.color.withValues(
+                        alpha: AppSpacing.sm / (AppSpacing.xxxl + AppSpacing.sm),
+                      ),
                       borderRadius: BorderRadius.circular(AppRadii.pill),
                       border: Border.all(
-                        color: badge.color.withValues(alpha: 0.22),
+                        color: badge.color.withValues(
+                          alpha: AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs),
+                        ),
                       ),
                     ),
                     child: Text(
                       badge.label,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: badge.color,
-                      ),
+                            fontWeight: FontWeight.w900,
+                            color: badge.color,
+                          ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-
               Wrap(
                 spacing: AppSpacing.s10,
                 runSpacing: AppSpacing.s10,
@@ -597,27 +842,28 @@ class _ViewingCard extends StatelessWidget {
                   _MiniAction(
                     icon: Icons.directions_rounded,
                     text: "Directions",
-                    onTap: onDirections,
+                    onTap: busy ? null : onDirections,
                   ),
                   if (!isCompleted)
                     _MiniAction(
                       icon: Icons.schedule_rounded,
                       text: "Reschedule",
                       onTap: onReschedule,
+                      disabled: busy || onReschedule == null,
                     ),
-                  if (!isCompleted)
-                    _MiniAction(
-                      icon: Icons.close_rounded,
-                      text: "Cancel",
-                      onTap: canCancel ? onCancel : () {},
-                      textColor: canCancel ? AppColors.tenantDangerSoft : AppColors.textMutedLight,
-                      iconColor: canCancel ? AppColors.tenantDangerSoft : AppColors.textMutedLight,
-                    ),
+                  _MiniAction(
+                    icon: Icons.close_rounded,
+                    text: "Cancel",
+                    onTap: onCancel,
+                    disabled: busy || onCancel == null,
+                    textColor: AppColors.tenantDangerSoft,
+                    iconColor: AppColors.tenantDangerSoft,
+                  ),
                   if (isCompleted && showApplyNow)
                     _MiniAction(
                       icon: Icons.assignment_rounded,
                       text: "Apply Now",
-                      onTap: onApplyNow,
+                      onTap: busy ? null : onApplyNow,
                       textColor: AppColors.brandGreenDeep,
                       iconColor: AppColors.brandGreenDeep,
                     ),
@@ -636,28 +882,42 @@ class _MiniAction extends StatelessWidget {
     required this.icon,
     required this.text,
     required this.onTap,
+    this.disabled = false,
     this.textColor,
     this.iconColor,
   });
 
   final IconData icon;
   final String text;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool disabled;
   final Color? textColor;
   final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
-    final tc = textColor ?? AppColors.navy;
+    final tc = textColor ?? AppColors.textPrimary(context);
     final ic = iconColor ?? AppColors.textMuted(context);
 
+    final alphaBg = AppSpacing.sm / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+    final effectiveTextColor =
+        disabled ? AppColors.textMuted(context).withValues(alpha: 0.55) : tc;
+    final effectiveIconColor =
+        disabled ? AppColors.textMuted(context).withValues(alpha: 0.55) : ic;
+
     return Material(
-      color: AppColors.overlay(context, 0.04),
+      color: AppColors.overlay(context, alphaBg),
       borderRadius: BorderRadius.circular(AppRadii.md),
       child: InkWell(
-        onTap: onTap,
+        onTap: disabled ? null : onTap,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          ),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.s10,
@@ -665,16 +925,65 @@ class _MiniAction extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: ic),
+              Icon(icon, size: 18, color: effectiveIconColor),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 text,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: tc,
-                ),
+                      fontWeight: FontWeight.w900,
+                      color: effectiveTextColor,
+                    ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PillButton extends StatelessWidget {
+  const _PillButton({
+    required this.text,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String text;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onTap == null;
+
+    // ✅ Avoid theme tokens that may not exist in AppColors
+    final alphaBg = AppSpacing.sm / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaStrong = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+    return Material(
+      color: disabled
+          ? AppColors.overlay(context, alphaBg)
+          : color.withValues(alpha: alphaStrong),
+      borderRadius: BorderRadius.circular(AppRadii.button),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        child: SizedBox(
+          height: AppSizes.pillButtonHeight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s10),
+            child: Center(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: disabled ? AppColors.textMuted(context) : AppColors.white,
+                    ),
+              ),
+            ),
           ),
         ),
       ),
@@ -688,16 +997,22 @@ class _FrostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
     return Material(
-      color: AppColors.surface(context).withValues(alpha: 0.70),
+      color: AppColors.surface(context).withValues(alpha: alphaSurface),
       borderRadius: BorderRadius.circular(AppRadii.card),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(
-            color: AppColors.surface(context).withValues(alpha: 0.55),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: AppSpacing.xs / AppSpacing.xxxl,
           ),
-          boxShadow: AppShadows.lift(context, blur: 18, y: 10, alpha: 0.08),
         ),
         child: child,
       ),
@@ -723,20 +1038,20 @@ class _ViewingBadge {
           label: "Confirmed",
           color: AppColors.brandGreenDeep,
         );
-      case ViewingStatus.rejected:
-        return const _ViewingBadge(
-          label: "Rejected",
-          color: AppColors.tenantDangerDeep,
-        );
       case ViewingStatus.completed:
         return const _ViewingBadge(
           label: "Completed",
           color: AppColors.brandGreenDeep,
         );
-      case ViewingStatus.cancelled:
+      case ViewingStatus.rejected:
         return const _ViewingBadge(
+          label: "Rejected",
+          color: AppColors.tenantDangerDeep,
+        );
+      case ViewingStatus.cancelled:
+        return _ViewingBadge(
           label: "Cancelled",
-          color: AppColors.textMutedLight,
+          color: AppColors.textMuted(context),
         );
     }
   }

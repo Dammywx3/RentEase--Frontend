@@ -1,3 +1,4 @@
+// lib/features/auth/ui/register/register_screen.dart
 import 'package:flutter/material.dart';
 
 import 'package:rentease_frontend/core/config/env.dart';
@@ -6,8 +7,9 @@ import 'package:rentease_frontend/core/theme/app_colors.dart';
 import 'package:rentease_frontend/core/theme/app_radii.dart';
 import 'package:rentease_frontend/core/theme/app_shadows.dart';
 import 'package:rentease_frontend/core/theme/app_spacing.dart';
-import 'package:rentease_frontend/core/theme/app_typography.dart';
+import 'package:rentease_frontend/core/theme/app_sizes.dart'; // Ensure sizes are available
 
+import 'package:rentease_frontend/core/ui/scaffold/app_scaffold.dart';
 import 'package:rentease_frontend/app/router/app_router.dart';
 import 'package:rentease_frontend/features/auth/data/auth_di.dart';
 import 'package:rentease_frontend/features/auth/ui/verify_email/verify_purpose.dart';
@@ -42,6 +44,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _errorText;
 
   static final RegExp _emailRx = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  // ---------- Explore-style alpha helpers ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
 
   @override
   void dispose() {
@@ -146,13 +160,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final textMuted = AppColors.textMuted(context);
     final roleLabel = widget.role.label;
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: null,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
+              horizontal: AppSpacing.screenH, // Standard Horizontal Padding
               vertical: AppSpacing.lg,
             ),
             child: Column(
@@ -160,7 +178,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 const SizedBox(height: AppSpacing.sm),
 
-                // ✅ back + centered screen name
                 _TopBarCentered(
                   title: 'Create account',
                   onBack: _loading ? null : () => Navigator.of(context).pop(),
@@ -168,15 +185,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: AppSpacing.lg),
 
-                // ✅ removed duplicate "Create account" headline
                 Text(
                   'Register as $roleLabel',
-                  style: AppTypography.h1(context).copyWith(color: textPrimary),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: textPrimary,
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Enter your details to continue.',
-                  style: AppTypography.body(context).copyWith(color: textMuted),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: textMuted,
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
 
                 const SizedBox(height: AppSpacing.lg),
@@ -185,97 +207,105 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: AppSpacing.md),
                 ],
 
-                _GlassCard(
+                // --- Main Frost Card ---
+                _FrostCard(
                   child: Form(
                     key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _Label('Full name'),
-                        const SizedBox(height: AppSpacing.xs),
-                        _AuthField(
-                          controller: _fullNameCtrl,
-                          focusNode: _fullNameFocus,
-                          hintText: 'John Doe',
-                          textInputAction: TextInputAction.next,
-                          prefixIcon: Icons.person_outline_rounded,
-                          enabled: !_loading,
-                          validator: _validateName,
-                          onSubmitted: (_) => _emailFocus.requestFocus(),
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _Label('Full name'),
+                          const SizedBox(height: AppSpacing.xs),
+                          _AuthField(
+                            controller: _fullNameCtrl,
+                            focusNode: _fullNameFocus,
+                            hintText: 'Damilare Vic',
+                            textInputAction: TextInputAction.next,
+                            prefixIcon: Icons.person_outline_rounded,
+                            enabled: !_loading,
+                            validator: _validateName,
+                            onSubmitted: (_) => _emailFocus.requestFocus(),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
 
-                        _Label('Email'),
-                        const SizedBox(height: AppSpacing.xs),
-                        _AuthField(
-                          controller: _emailCtrl,
-                          focusNode: _emailFocus,
-                          hintText: 'john@email.com',
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          prefixIcon: Icons.mail_outline_rounded,
-                          enabled: !_loading,
-                          validator: _validateEmail,
-                          onSubmitted: (_) => _phoneFocus.requestFocus(),
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
+                          _Label('Email'),
+                          const SizedBox(height: AppSpacing.xs),
+                          _AuthField(
+                            controller: _emailCtrl,
+                            focusNode: _emailFocus,
+                            hintText: 'damilare.vic@email.com',
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            prefixIcon: Icons.mail_outline_rounded,
+                            enabled: !_loading,
+                            validator: _validateEmail,
+                            onSubmitted: (_) => _phoneFocus.requestFocus(),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
 
-                        _Label('Phone (optional)'),
-                        const SizedBox(height: AppSpacing.xs),
-                        _AuthField(
-                          controller: _phoneCtrl,
-                          focusNode: _phoneFocus,
-                          hintText: '+234 801 234 5678',
-                          keyboardType: TextInputType.phone,
-                          textInputAction: TextInputAction.next,
-                          prefixIcon: Icons.phone_outlined,
-                          enabled: !_loading,
-                          validator: (_) => null,
-                          onSubmitted: (_) => _passFocus.requestFocus(),
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
+                          _Label('Phone (optional)'),
+                          const SizedBox(height: AppSpacing.xs),
+                          _AuthField(
+                            controller: _phoneCtrl,
+                            focusNode: _phoneFocus,
+                            hintText: '+234 801 234 5678',
+                            keyboardType: TextInputType.phone,
+                            textInputAction: TextInputAction.next,
+                            prefixIcon: Icons.phone_outlined,
+                            enabled: !_loading,
+                            validator: (_) => null,
+                            onSubmitted: (_) => _passFocus.requestFocus(),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
 
-                        _Label('Password'),
-                        const SizedBox(height: AppSpacing.xs),
-                        _AuthField(
-                          controller: _passCtrl,
-                          focusNode: _passFocus,
-                          hintText: '••••••••',
-                          obscureText: _obscure,
-                          prefixIcon: Icons.lock_outline_rounded,
-                          suffixIcon: _obscure
-                              ? Icons.visibility_off_rounded
-                              : Icons.visibility_rounded,
-                          onSuffixTap: () =>
-                              setState(() => _obscure = !_obscure),
-                          textInputAction: TextInputAction.done,
-                          enabled: !_loading,
-                          validator: _validatePass,
-                          onSubmitted: (_) => _submit(),
-                        ),
+                          _Label('Password'),
+                          const SizedBox(height: AppSpacing.xs),
+                          _AuthField(
+                            controller: _passCtrl,
+                            focusNode: _passFocus,
+                            hintText: '••••••••',
+                            obscureText: _obscure,
+                            prefixIcon: Icons.lock_outline_rounded,
+                            suffixIcon: _obscure
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded,
+                            onSuffixTap: () =>
+                                setState(() => _obscure = !_obscure),
+                            textInputAction: TextInputAction.done,
+                            enabled: !_loading,
+                            validator: _validatePass,
+                            onSubmitted: (_) => _submit(),
+                          ),
 
-                        const SizedBox(height: AppSpacing.lg),
-                        _PrimaryButton(
-                          text: 'Create account',
-                          loading: _loading,
-                          onPressed: _loading ? null : _submit,
-                        ),
+                          const SizedBox(height: AppSpacing.lg),
+                          _PrimaryButton(
+                            text: 'Create account',
+                            loading: _loading,
+                            onPressed: _loading ? null : _submit,
+                          ),
 
-                        const SizedBox(height: AppSpacing.md),
-                        Center(
-                          child: TextButton(
-                            onPressed:
-                                _loading ? null : () => Navigator.of(context).pop(),
-                            child: Text(
-                              'Already have an account? Sign in',
-                              style: AppTypography.body(context).copyWith(
-                                color: AppColors.brandBlueSoft,
-                                fontWeight: FontWeight.w800,
+                          const SizedBox(height: AppSpacing.md),
+                          Center(
+                            child: TextButton(
+                              onPressed: _loading
+                                  ? null
+                                  : () => Navigator.of(context).pop(),
+                              child: Text(
+                                'Already have an account? Sign in',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: AppColors.brandBlueSoft,
+                                      fontWeight: FontWeight.w900,
+                                    ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -289,6 +319,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
+
+/* --------------------------------------------------------------------------
+   UI COMPONENTS (Matched to Design System)
+   -------------------------------------------------------------------------- */
 
 class _TopBarCentered extends StatelessWidget {
   const _TopBarCentered({
@@ -306,22 +340,23 @@ class _TopBarCentered extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: IconButton(
-              onPressed: onBack,
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: AppColors.textSecondary(context),
+          if (onBack != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                onPressed: onBack,
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: AppColors.textSecondary(context),
+                ),
               ),
             ),
-          ),
           Text(
             title,
-            style: AppTypography.h3(context).copyWith(
-              color: AppColors.textPrimary(context),
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: AppColors.textPrimary(context),
+                  fontWeight: FontWeight.w900,
+                ),
           ),
         ],
       ),
@@ -337,10 +372,10 @@ class _Label extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: AppTypography.label(context).copyWith(
-        color: AppColors.textPrimary(context),
-        fontWeight: FontWeight.w800,
-      ),
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppColors.textPrimary(context),
+            fontWeight: FontWeight.w900,
+          ),
     );
   }
 }
@@ -364,15 +399,16 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline_rounded, color: AppColors.textSecondary(context)),
+          Icon(Icons.error_outline_rounded,
+              color: AppColors.textSecondary(context)),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               text,
-              style: AppTypography.body(context).copyWith(
-                color: AppColors.textPrimary(context),
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary(context),
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
           ),
         ],
@@ -381,24 +417,33 @@ class _ErrorBanner extends StatelessWidget {
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  const _GlassCard({required this.child});
+class _FrostCard extends StatelessWidget {
+  const _FrostCard({required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.surface2(context).withValues(alpha: 0.70);
-    final border = AppColors.border(context).withValues(alpha: 0.60);
+    // Matches Explore/Login logic
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+    final alphaShadow = AppSpacing.xs / AppSpacing.xxxl;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: border),
-        boxShadow: AppShadows.card(context),
+    return Material(
+      color: AppColors.surface(context).withValues(alpha: alphaSurface),
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: alphaShadow,
+          ),
+        ),
+        child: child,
       ),
-      child: child,
     );
   }
 }
@@ -438,50 +483,47 @@ class _AuthField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fill = AppColors.surface(context).withValues(alpha: 0.85);
-    final border = AppColors.border(context);
-
-    return TextFormField(
-      controller: controller,
-      focusNode: focusNode,
-      enabled: enabled,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      obscureText: obscureText,
-      onFieldSubmitted: onSubmitted,
-      validator: validator,
-      style: AppTypography.body(context).copyWith(
-        color: AppColors.textPrimary(context),
-        fontWeight: FontWeight.w700,
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.s2,
       ),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: fill,
-        hintText: hintText,
-        prefixIcon: prefixIcon == null
-            ? null
-            : Icon(prefixIcon, color: AppColors.textMuted(context)),
-        suffixIcon: suffixIcon == null
-            ? null
-            : IconButton(
-                onPressed: onSuffixTap,
-                icon: Icon(suffixIcon, color: AppColors.textMuted(context)),
+      decoration: BoxDecoration(
+        color: AppColors.overlay(context, 0.04), // Subtle input background
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        border: Border.all(color: AppColors.overlay(context, 0.08)),
+      ),
+      child: TextFormField(
+        controller: controller,
+        focusNode: focusNode,
+        enabled: enabled,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        obscureText: obscureText,
+        onFieldSubmitted: onSubmitted,
+        validator: validator,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary(context),
+            ),
+        cursorColor: AppColors.brandGreenDeep,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          hintText: hintText,
+          hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textMuted(context).withValues(alpha: 0.6),
+                fontWeight: FontWeight.w600,
               ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.md,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: BorderSide(color: border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: BorderSide(color: border.withValues(alpha: 0.70)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: const BorderSide(color: AppColors.brandBlueSoft, width: 1.4),
+          prefixIcon: prefixIcon == null
+              ? null
+              : Icon(prefixIcon, color: AppColors.textMuted(context)),
+          suffixIcon: suffixIcon == null
+              ? null
+              : IconButton(
+                  onPressed: onSuffixTap,
+                  icon: Icon(suffixIcon, color: AppColors.textMuted(context)),
+                ),
+          contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
         ),
       ),
     );
@@ -501,35 +543,41 @@ class _PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.brandGreenDeep.withValues(alpha: 0.95);
-    final fg = AppColors.textLight;
+    final disabled = loading || onPressed == null;
 
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bg,
-          foregroundColor: fg,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.lg),
+    return Material(
+      color: disabled
+          ? AppColors.overlay(context, 0.1)
+          : AppColors.brandGreenDeep.withValues(alpha: 0.95),
+      borderRadius: BorderRadius.circular(AppRadii.button),
+      child: InkWell(
+        onTap: disabled ? null : onPressed,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        child: SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: Center(
+            child: loading
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.textLight,
+                    ),
+                  )
+                : Text(
+                    text,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: disabled
+                              ? AppColors.textMuted(context)
+                              : AppColors.textLight,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15.5,
+                        ),
+                  ),
           ),
         ),
-        child: loading
-            ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Text(
-                text,
-                style: AppTypography.button(context).copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
       ),
     );
   }

@@ -16,9 +16,11 @@ class ApiEndpoints {
   // Verification (email/sms)
   static const String verificationRequest = '/v1/auth/verification/request';
   static const String verificationConfirm = '/v1/auth/verification/confirm';
-    // Viewings
+
+  // Viewings
   static const String viewings = '/v1/viewings';
   static const String myViewings = '/v1/viewings/my';
-  
-  
+
+  // ✅ Applications
+  static const String applications = '/v1/applications';
 }

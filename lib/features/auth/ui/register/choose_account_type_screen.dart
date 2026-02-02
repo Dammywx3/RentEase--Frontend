@@ -1,3 +1,4 @@
+// lib/features/auth/ui/register/choose_account_type_screen.dart
 import 'package:flutter/material.dart';
 
 import 'package:rentease_frontend/core/constants/user_role.dart';
@@ -5,8 +6,9 @@ import 'package:rentease_frontend/core/theme/app_colors.dart';
 import 'package:rentease_frontend/core/theme/app_radii.dart';
 import 'package:rentease_frontend/core/theme/app_shadows.dart';
 import 'package:rentease_frontend/core/theme/app_spacing.dart';
-import 'package:rentease_frontend/core/theme/app_typography.dart';
+import 'package:rentease_frontend/core/theme/app_sizes.dart';
 
+import 'package:rentease_frontend/core/ui/scaffold/app_scaffold.dart';
 import 'register_screen.dart';
 
 class ChooseAccountTypeScreen extends StatefulWidget {
@@ -19,6 +21,18 @@ class ChooseAccountTypeScreen extends StatefulWidget {
 
 class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
   UserRole? _selected = UserRole.tenant;
+
+  // ---------- Explore-style alpha helpers ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
 
   void _continue() {
     final role = _selected;
@@ -33,20 +47,23 @@ class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: null,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
+              horizontal: AppSpacing.screenH, // Standard Horizontal Padding
               vertical: AppSpacing.lg,
             ),
             child: Column(
               children: [
                 const SizedBox(height: AppSpacing.sm),
 
-                // ✅ back + centered screen name (no brand)
                 _TopBarCentered(
                   title: 'Choose account type',
                   onBack: () => Navigator.of(context).pop(),
@@ -58,18 +75,24 @@ class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
                   role: UserRole.tenant,
                   selected: _selected == UserRole.tenant,
                   onTap: () => setState(() => _selected = UserRole.tenant),
+                  alphaSurface: _alphaSurfaceStrong,
+                  alphaBorder: _alphaBorderSoft,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _RoleCard(
                   role: UserRole.agent,
                   selected: _selected == UserRole.agent,
                   onTap: () => setState(() => _selected = UserRole.agent),
+                  alphaSurface: _alphaSurfaceStrong,
+                  alphaBorder: _alphaBorderSoft,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _RoleCard(
                   role: UserRole.landlord,
                   selected: _selected == UserRole.landlord,
                   onTap: () => setState(() => _selected = UserRole.landlord),
+                  alphaSurface: _alphaSurfaceStrong,
+                  alphaBorder: _alphaBorderSoft,
                 ),
 
                 const SizedBox(height: AppSpacing.lg),
@@ -81,10 +104,10 @@ class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
 
                 Text(
                   'You can change this later (admin may review).',
-                  style: AppTypography.caption(context).copyWith(
-                    color: AppColors.textMuted(context),
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted(context),
+                        fontWeight: FontWeight.w700,
+                      ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.lg),
@@ -96,6 +119,10 @@ class _ChooseAccountTypeScreenState extends State<ChooseAccountTypeScreen> {
     );
   }
 }
+
+/* --------------------------------------------------------------------------
+   UI COMPONENTS
+   -------------------------------------------------------------------------- */
 
 class _TopBarCentered extends StatelessWidget {
   const _TopBarCentered({
@@ -115,20 +142,24 @@ class _TopBarCentered extends StatelessWidget {
         children: [
           Align(
             alignment: Alignment.centerLeft,
-            child: IconButton(
-              onPressed: onBack,
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: AppColors.textSecondary(context),
+            child: InkWell(
+              onTap: onBack,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: AppColors.textSecondary(context),
+                ),
               ),
             ),
           ),
           Text(
             title,
-            style: AppTypography.h3(context).copyWith(
-              color: AppColors.textPrimary(context),
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: AppColors.textPrimary(context),
+                  fontWeight: FontWeight.w900,
+                ),
           ),
         ],
       ),
@@ -141,29 +172,47 @@ class _RoleCard extends StatelessWidget {
     required this.role,
     required this.selected,
     required this.onTap,
+    required this.alphaSurface,
+    required this.alphaBorder,
   });
 
   final UserRole role;
   final bool selected;
   final VoidCallback onTap;
+  final double alphaSurface;
+  final double alphaBorder;
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.surface2(context).withValues(alpha: 0.70);
-    final baseBorder = AppColors.border(context).withValues(alpha: 0.60);
+    // Selection styling
+    final selectedBorderColor = AppColors.brandBlueSoft;
+    final selectedBgTint = AppColors.brandBlueSoft.withValues(alpha: 0.08);
 
-    final selectedBorder = AppColors.brandBlueSoft.withValues(alpha: 0.75);
-    final selectedTint = AppColors.overlay(context, 0.06);
+    final bg = selected
+        ? AppColors.surface(context).withValues(alpha: alphaSurface + 0.1)
+        : AppColors.surface(context).withValues(alpha: alphaSurface);
+
+    final borderColor = selected
+        ? selectedBorderColor
+        : AppColors.overlay(context, alphaBorder);
 
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadii.xl),
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: selected ? bg.withValues(alpha: 0.78) : bg,
+          color: bg,
           borderRadius: BorderRadius.circular(AppRadii.xl),
-          border: Border.all(color: selected ? selectedBorder : baseBorder),
-          boxShadow: AppShadows.card(context),
+          border: Border.all(
+            color: borderColor,
+            width: selected ? 1.5 : 1.0,
+          ),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: AppSpacing.xs / AppSpacing.xxxl,
+          ),
         ),
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Row(
@@ -172,9 +221,11 @@ class _RoleCard extends StatelessWidget {
               height: 64,
               width: 78,
               decoration: BoxDecoration(
-                color: AppColors.surface(context).withValues(alpha: 0.80),
+                color: AppColors.surface(context).withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(AppRadii.lg),
-                border: Border.all(color: baseBorder),
+                border: Border.all(
+                  color: AppColors.overlay(context, alphaBorder),
+                ),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadii.lg - 2),
@@ -188,18 +239,18 @@ class _RoleCard extends StatelessWidget {
                 children: [
                   Text(
                     role.label,
-                    style: AppTypography.h3(context).copyWith(
-                      color: AppColors.textPrimary(context),
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AppColors.textPrimary(context),
+                          fontWeight: FontWeight.w900,
+                        ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     role.description,
-                    style: AppTypography.body(context).copyWith(
-                      color: AppColors.textSecondary(context),
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary(context),
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
                 ],
               ),
@@ -209,17 +260,20 @@ class _RoleCard extends StatelessWidget {
               height: 26,
               width: 26,
               decoration: BoxDecoration(
-                color: selected ? selectedTint : AppColors.transparent,
+                color: selected ? selectedBgTint : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: selected ? selectedBorder : baseBorder,
+                  color: selected
+                      ? selectedBorderColor
+                      : AppColors.overlay(context, alphaBorder),
+                  width: 1.5,
                 ),
               ),
               child: selected
                   ? Icon(
                       Icons.check_rounded,
                       size: 18,
-                      color: AppColors.textPrimary(context),
+                      color: selectedBorderColor,
                     )
                   : null,
             ),
@@ -294,8 +348,7 @@ class _PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.brandGreenDeep.withValues(alpha: 0.95);
-    final fg = AppColors.textLight;
+    final disabled = onPressed == null;
 
     return SizedBox(
       width: double.infinity,
@@ -303,8 +356,10 @@ class _PrimaryButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: bg,
-          foregroundColor: fg,
+          backgroundColor: disabled
+              ? AppColors.overlay(context, 0.1)
+              : AppColors.brandGreenDeep.withValues(alpha: 0.95),
+          foregroundColor: AppColors.textLight,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadii.lg),
@@ -312,10 +367,13 @@ class _PrimaryButton extends StatelessWidget {
         ),
         child: Text(
           text,
-          style: AppTypography.button(context).copyWith(
-            color: fg,
-            fontWeight: FontWeight.w900,
-          ),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: disabled
+                    ? AppColors.textMuted(context)
+                    : AppColors.textLight,
+                fontWeight: FontWeight.w900,
+                fontSize: 15.5,
+              ),
         ),
       ),
     );

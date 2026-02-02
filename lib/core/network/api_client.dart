@@ -15,7 +15,6 @@ class ApiClient {
                 receiveTimeout: const Duration(seconds: 20),
                 headers: {
                   'Content-Type': 'application/json',
-                  // ✅ Default org header (global)
                   if (Env.organizationId.trim().isNotEmpty)
                     'x-organization-id': Env.organizationId.trim(),
                 },
@@ -28,7 +27,6 @@ class ApiClient {
 
     _dio.interceptors.add(SimpleLogInterceptor());
 
-    // ✅ Attach both token + orgId on every request
     _dio.interceptors.add(
       AuthInterceptor(
         tokenProvider: _tokenProvider,
@@ -84,17 +82,34 @@ class ApiClient {
     }
   }
 
-  // ✅ Merge headers so passing headers doesn't wipe out org header
+  /// ✅ NEW: PATCH support
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? headers,
+  }) async {
+    try {
+      final res = await _dio.patch(
+        path,
+        data: data,
+        options: Options(headers: _mergeHeaders(headers)),
+      );
+
+      _throwIfHttpError(res);
+      return _ensureMap(res);
+    } on DioException catch (e) {
+      throw _toApiError(e);
+    }
+  }
+
   Map<String, dynamic> _mergeHeaders(Map<String, dynamic>? headers) {
     final merged = <String, dynamic>{};
 
-    // Keep defaults
     merged['Content-Type'] = 'application/json';
 
     final orgId = Env.organizationId.trim();
     if (orgId.isNotEmpty) merged['x-organization-id'] = orgId;
 
-    // Add per-request headers last (can override if you intentionally want)
     if (headers != null && headers.isNotEmpty) {
       merged.addAll(headers);
     }

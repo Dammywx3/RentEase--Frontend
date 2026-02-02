@@ -1,5 +1,3 @@
-// ignore_for_file: non_constant_identifier_names
-
 import "package:flutter/material.dart";
 
 import "../../../core/ui/scaffold/app_scaffold.dart";
@@ -11,181 +9,15 @@ import "../../../core/theme/app_radii.dart";
 import "../../../core/theme/app_spacing.dart";
 import "../../../core/theme/app_sizes.dart";
 
-/// ---------------- Models ----------------
+import "../../../shared/models/application_form_models.dart";
+import "../../../shared/models/application_model.dart";
 
-@immutable
-class ApplyListingVM {
-  const ApplyListingVM({
-    required this.id,
-    required this.title,
-    required this.location,
-    required this.rentPerMonthNgn,
-    required this.priceText,
-    this.photoAssetPath,
-  });
 
-  final String id;
-  final String title;
-  final String location;
-  final int rentPerMonthNgn; // used for rule
-  final String priceText; // display
-  final String? photoAssetPath;
-}
-
-enum RelationshipKind { parent, sibling, friend, employer, other }
-
-extension RelationshipKindX on RelationshipKind {
-  String get label {
-    switch (this) {
-      case RelationshipKind.parent:
-        return "Parent";
-      case RelationshipKind.sibling:
-        return "Sibling";
-      case RelationshipKind.friend:
-        return "Friend";
-      case RelationshipKind.employer:
-        return "Employer";
-      case RelationshipKind.other:
-        return "Other";
-    }
-  }
-}
-
-enum EmploymentStatus { employed, selfEmployed, unemployed, student, other }
-
-extension EmploymentStatusX on EmploymentStatus {
-  String get label {
-    switch (this) {
-      case EmploymentStatus.employed:
-        return "Employed";
-      case EmploymentStatus.selfEmployed:
-        return "Self-employed";
-      case EmploymentStatus.unemployed:
-        return "Unemployed";
-      case EmploymentStatus.student:
-        return "Student";
-      case EmploymentStatus.other:
-        return "Other";
-    }
-  }
-}
-
-@immutable
-class ApplicantVM {
-  const ApplicantVM({
-    required this.fullName,
-    required this.email,
-    required this.phone,
-    required this.address,
-  });
-
-  final String fullName;
-  final String email;
-  final String phone;
-  final String address;
-}
-
-@immutable
-class GuarantorVM {
-  const GuarantorVM({
-    required this.fullName,
-    required this.relationship,
-    required this.email,
-    required this.phone,
-    required this.address,
-    required this.sameAddressAsApplicant,
-    this.employmentStatus,
-    this.monthlyIncomeNgn,
-  });
-
-  final String fullName;
-  final RelationshipKind relationship;
-  final String email;
-  final String phone;
-  final String address;
-  final bool sameAddressAsApplicant;
-
-  final EmploymentStatus? employmentStatus;
-  final int? monthlyIncomeNgn;
-}
-
-@immutable
-class EmploymentIncomeVM {
-  const EmploymentIncomeVM({
-    required this.status,
-    required this.monthlyIncomeNgn,
-    required this.employerName,
-    required this.jobTitle,
-  });
-
-  final EmploymentStatus status;
-  final int monthlyIncomeNgn;
-  final String employerName;
-  final String jobTitle;
-}
-
-@immutable
-class DocumentsVM {
-  const DocumentsVM({
-    required this.applicantIdUploaded,
-    required this.selfieUploaded,
-    required this.guarantorIdUploaded,
-    required this.guarantorPassportUploaded,
-    required this.proofOfAddressUploaded,
-  });
-
-  final bool applicantIdUploaded;
-  final bool selfieUploaded;
-  final bool guarantorIdUploaded;
-  final bool guarantorPassportUploaded;
-  final bool proofOfAddressUploaded;
-}
-
-@immutable
-class ApplicationDraftVM {
-  const ApplicationDraftVM({
-    required this.listing,
-    required this.guarantorRequired,
-    required this.applicant,
-    required this.guarantors,
-    required this.employment,
-    required this.docs,
-    required this.acceptTerms,
-  });
-
-  final ApplyListingVM listing;
-  final bool guarantorRequired;
-
-  final ApplicantVM applicant;
-  final List<GuarantorVM> guarantors;
-
-  final EmploymentIncomeVM employment;
-  final DocumentsVM docs;
-
-  final bool acceptTerms;
-
-  ApplicationDraftVM copyWith({
-    ApplyListingVM? listing,
-    bool? guarantorRequired,
-    ApplicantVM? applicant,
-    List<GuarantorVM>? guarantors,
-    EmploymentIncomeVM? employment,
-    DocumentsVM? docs,
-    bool? acceptTerms,
-  }) {
-    return ApplicationDraftVM(
-      listing: listing ?? this.listing,
-      guarantorRequired: guarantorRequired ?? this.guarantorRequired,
-      applicant: applicant ?? this.applicant,
-      guarantors: guarantors ?? this.guarantors,
-      employment: employment ?? this.employment,
-      docs: docs ?? this.docs,
-      acceptTerms: acceptTerms ?? this.acceptTerms,
-    );
-  }
-}
-
-/// ---------------- Screen 1: Apply Pre-Check ----------------
+/// ------------------------------------------------------------
+/// Application Apply Flow (Precheck -> Step1 -> Step2 -> Step3 -> Review -> Success)
+/// ✅ Uses ONLY shared models from lib/shared/models/...
+/// ✅ Uses ExploreScreen pattern: page gradient outside + transparent AppScaffold
+/// ------------------------------------------------------------
 
 class ApplyPreCheckScreen extends StatelessWidget {
   const ApplyPreCheckScreen({
@@ -212,96 +44,84 @@ class ApplyPreCheckScreen extends StatelessWidget {
           : "Guarantor details (optional)",
     ];
 
-    return Stack(
-      children: [
-        // ✅ Fix: gradient behind the entire page (safe-area + topbar)
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: AppColors.pageBgGradient(context),
-            ),
+    return _PageGradient(
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: const AppTopBar(title: "Application"),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenV,
+            AppSpacing.sm,
+            AppSpacing.screenV,
+            AppSizes.screenBottomPad,
           ),
-        ),
-        AppScaffold(
-          backgroundColor: Colors.transparent,
-          safeAreaTop: true,
-          safeAreaBottom: false,
-          topBar: AppTopBar(title: "Application"),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenV,
-              AppSpacing.sm,
-              AppSpacing.screenV,
-              AppSizes.screenBottomPad,
-            ),
-            children: [
-              _StepDots(active: 1),
-              const SizedBox(height: AppSpacing.md),
-              _ListingRowCard(listing: listing),
-              const SizedBox(height: AppSpacing.lg),
+          children: [
+            const _StepDots(active: 1),
+            const SizedBox(height: AppSpacing.md),
+            _ListingRowCard(listing: listing),
+            const SizedBox(height: AppSpacing.lg),
 
-              const _SectionTitle("Requirements"),
-              const SizedBox(height: AppSpacing.sm),
-              _FrostCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Column(
-                    children: reqs
-                        .map(
-                          (t) => Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: AppSpacing.sm,
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.check_circle_rounded,
-                                  color: AppColors.brandGreenDeep,
+            const _SectionTitle("Requirements"),
+            const SizedBox(height: AppSpacing.sm),
+            _FrostCard(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  children: reqs
+                      .map(
+                        (t) => Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.check_circle_rounded,
+                                color: AppColors.brandGreenDeep,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  t,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.textPrimary(context),
+                                      ),
                                 ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: Text(
-                                    t,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w800,
-                                          color: AppColors.textPrimary(context),
-                                        ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        )
-                        .toList(),
-                  ),
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
+            ),
 
-              const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.lg),
 
-              _PrimaryPillButton(
-                text: "Continue Application",
-                onTap: () {
-                  final draft = _initialDraft(listing, _guarantorRequired);
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ApplicationStep1Screen(draft: draft),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _SecondaryPillButton(
-                text: "Schedule Viewing instead",
-                onTap: () => Navigator.of(context).maybePop(),
-              ),
-            ],
-          ),
+            _PrimaryPillButton(
+              text: "Continue Application",
+              onTap: () {
+                final draft = _initialDraft(listing, _guarantorRequired);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ApplicationStep1Screen(draft: draft),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _SecondaryPillButton(
+              text: "Schedule Viewing instead",
+              onTap: () => Navigator.of(context).maybePop(),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -342,6 +162,10 @@ class ApplyPreCheckScreen extends StatelessWidget {
         proofOfAddressUploaded: false,
       ),
       acceptTerms: false,
+
+      // ✅ shared model supports these (optional)
+      message: null,
+      moveInDate: null,
     );
   }
 }
@@ -438,258 +262,247 @@ class _ApplicationStep1ScreenState extends State<ApplicationStep1Screen> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: AppColors.pageBgGradient(context),
-            ),
+    return _PageGradient(
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: const AppTopBar(title: "Application"),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenV,
+            AppSpacing.sm,
+            AppSpacing.screenV,
+            AppSizes.screenBottomPad,
           ),
-        ),
-        AppScaffold(
-          backgroundColor: Colors.transparent,
-          safeAreaTop: true,
-          safeAreaBottom: false,
-          topBar: AppTopBar(title: "Application"),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenV,
-              AppSpacing.sm,
-              AppSpacing.screenV,
-              AppSizes.screenBottomPad,
+          children: [
+            const _StepDots(active: 2),
+            const SizedBox(height: AppSpacing.md),
+            _ListingRowCard(listing: _draft.listing),
+            const SizedBox(height: AppSpacing.lg),
+
+            const _SectionTitle("Step 1 of 3 | Personal + Guarantor"),
+            const SizedBox(height: AppSpacing.md),
+
+            const _SubTitle("Applicant (You)"),
+            const SizedBox(height: AppSpacing.sm),
+            _FrostCard(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  children: [
+                    _LabeledField(
+                      label: "Full name *",
+                      child: _TextField(
+                        ctrl: _aName,
+                        hint: "Your full name",
+                        keyboardType: TextInputType.name,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _LabeledField(
+                      label: "Email *",
+                      child: _TextField(
+                        ctrl: _aEmail,
+                        hint: "you@email.com",
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _LabeledField(
+                      label: "Phone *",
+                      child: _TextField(
+                        ctrl: _aPhone,
+                        hint: "+234 80X XXXX",
+                        keyboardType: TextInputType.phone,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _LabeledField(
+                      label: "Current address *",
+                      child: _TextField(
+                        ctrl: _aAddress,
+                        hint: "Current address",
+                        keyboardType: TextInputType.streetAddress,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            children: [
-              _StepDots(active: 2),
-              const SizedBox(height: AppSpacing.md),
-              _ListingRowCard(listing: _draft.listing),
-              const SizedBox(height: AppSpacing.lg),
 
-              const _SectionTitle("Step 1 of 3 | Personal + Guarantor"),
-              const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.lg),
 
-              const _SubTitle("Applicant (You)"),
-              const SizedBox(height: AppSpacing.sm),
-              _FrostCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Column(
-                    children: [
-                      _LabeledField(
-                        label: "Full name *",
-                        child: _TextField(
-                          ctrl: _aName,
-                          hint: "Your full name",
-                          keyboardType: TextInputType.name,
+            _SubTitle(
+              _guarantorRequired
+                  ? "Guarantor Details (Required)"
+                  : "Guarantor Details (Optional)",
+            ),
+            const SizedBox(height: AppSpacing.sm),
+
+            ...List.generate(_guarantorCtrls.length, (i) {
+              final c = _guarantorCtrls[i];
+              final isSecond = i == 1;
+
+              return Padding(
+                padding: EdgeInsets.only(bottom: isSecond ? 0 : AppSpacing.md),
+                child: _FrostCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_guarantorCtrls.length > 1)
+                          Text(
+                            "Guarantor ${i + 1}",
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textPrimary(context),
+                                ),
+                          ),
+                        if (_guarantorCtrls.length > 1)
+                          const SizedBox(height: AppSpacing.sm),
+
+                        _LabeledField(
+                          label: "Guarantor full name",
+                          child: _TextField(
+                            ctrl: c.name,
+                            hint: "Full name",
+                            keyboardType: TextInputType.name,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      _LabeledField(
-                        label: "Email *",
-                        child: _TextField(
-                          ctrl: _aEmail,
-                          hint: "you@email.com",
-                          keyboardType: TextInputType.emailAddress,
+                        const SizedBox(height: AppSpacing.sm),
+
+                        _LabeledField(
+                          label: "Relationship",
+                          child: _Dropdown<RelationshipKind>(
+                            value: c.relationship,
+                            items: RelationshipKind.values,
+                            label: (v) => v.label,
+                            onChanged: (v) =>
+                                setState(() => c.relationship = v),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      _LabeledField(
-                        label: "Phone *",
-                        child: _TextField(
-                          ctrl: _aPhone,
-                          hint: "+234 80X XXXX",
-                          keyboardType: TextInputType.phone,
+                        const SizedBox(height: AppSpacing.sm),
+
+                        _LabeledField(
+                          label: "Guarantor email",
+                          child: _TextField(
+                            ctrl: c.email,
+                            hint: "guarantor@email.com",
+                            keyboardType: TextInputType.emailAddress,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      _LabeledField(
-                        label: "Current address *",
-                        child: _TextField(
-                          ctrl: _aAddress,
-                          hint: "Current address",
-                          keyboardType: TextInputType.streetAddress,
+                        const SizedBox(height: AppSpacing.sm),
+                        _LabeledField(
+                          label: "Guarantor phone",
+                          child: _TextField(
+                            ctrl: c.phone,
+                            hint: "+234 80X XXXX",
+                            keyboardType: TextInputType.phone,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: AppSpacing.sm),
+
+                        _LabeledField(
+                          label: "Guarantor address",
+                          child: _TextField(
+                            ctrl: c.address,
+                            hint: "Address",
+                            keyboardType: TextInputType.streetAddress,
+                          ),
+                        ),
+
+                        const SizedBox(height: AppSpacing.sm),
+                        _CheckRow(
+                          value: c.sameAddress,
+                          label: "Same address as applicant",
+                          onChanged: (v) {
+                            setState(() {
+                              c.sameAddress = v;
+                              if (v) c.address.text = _aAddress.text;
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: AppSpacing.sm),
+                        _LabeledField(
+                          label: "Employment status (optional)",
+                          child: _Dropdown<EmploymentStatus>(
+                            value: c.empStatus,
+                            items: EmploymentStatus.values,
+                            label: (v) => v.label,
+                            onChanged: (v) => setState(() => c.empStatus = v),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _LabeledField(
+                          label: "Monthly income (optional)",
+                          child: _TextField(
+                            ctrl: c.income,
+                            hint: "e.g ₦250000",
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+
+                        if (_guarantorCtrls.length > 1) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _guarantorCtrls.removeAt(i).dispose();
+                                });
+                              },
+                              child: const Text("Remove guarantor"),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
+                ),
+              );
+            }),
+
+            const SizedBox(height: AppSpacing.sm),
+
+            if (_guarantorCtrls.length < 2)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _guarantorCtrls.add(_GuarantorControllers.empty());
+                    });
+                  },
+                  child: const Text("+ Add another guarantor"),
                 ),
               ),
 
-              const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.lg),
 
-              _SubTitle(
-                _guarantorRequired
-                    ? "Guarantor Details (Required)"
-                    : "Guarantor Details (Optional)",
-              ),
-              const SizedBox(height: AppSpacing.sm),
-
-              ...List.generate(_guarantorCtrls.length, (i) {
-                final c = _guarantorCtrls[i];
-                final isSecond = i == 1;
-
-                return Padding(
-                  padding: EdgeInsets.only(
-                    bottom: isSecond ? 0 : AppSpacing.md,
-                  ),
-                  child: _FrostCard(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (_guarantorCtrls.length > 1)
-                            Text(
-                              "Guarantor ${i + 1}",
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textPrimary(context),
-                                  ),
-                            ),
-                          if (_guarantorCtrls.length > 1)
-                            const SizedBox(height: AppSpacing.sm),
-
-                          _LabeledField(
-                            label: "Guarantor full name",
-                            child: _TextField(
-                              ctrl: c.name,
-                              hint: "Full name",
-                              keyboardType: TextInputType.name,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-
-                          _LabeledField(
-                            label: "Relationship",
-                            child: _Dropdown<RelationshipKind>(
-                              value: c.relationship,
-                              items: RelationshipKind.values,
-                              label: (v) => v.label,
-                              onChanged: (v) =>
-                                  setState(() => c.relationship = v),
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-
-                          _LabeledField(
-                            label: "Guarantor email",
-                            child: _TextField(
-                              ctrl: c.email,
-                              hint: "guarantor@email.com",
-                              keyboardType: TextInputType.emailAddress,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          _LabeledField(
-                            label: "Guarantor phone",
-                            child: _TextField(
-                              ctrl: c.phone,
-                              hint: "+234 80X XXXX",
-                              keyboardType: TextInputType.phone,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-
-                          _LabeledField(
-                            label: "Guarantor address",
-                            child: _TextField(
-                              ctrl: c.address,
-                              hint: "Address",
-                              keyboardType: TextInputType.streetAddress,
-                            ),
-                          ),
-
-                          const SizedBox(height: AppSpacing.sm),
-                          _CheckRow(
-                            value: c.sameAddress,
-                            label: "Same address as applicant",
-                            onChanged: (v) {
-                              setState(() {
-                                c.sameAddress = v;
-                                if (v) c.address.text = _aAddress.text;
-                              });
-                            },
-                          ),
-
-                          const SizedBox(height: AppSpacing.sm),
-                          _LabeledField(
-                            label: "Employment status (optional)",
-                            child: _Dropdown<EmploymentStatus>(
-                              value: c.empStatus,
-                              items: EmploymentStatus.values,
-                              label: (v) => v.label,
-                              onChanged: (v) => setState(() => c.empStatus = v),
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          _LabeledField(
-                            label: "Monthly income (optional)",
-                            child: _TextField(
-                              ctrl: c.income,
-                              hint: "e.g ₦250000",
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-
-                          if (_guarantorCtrls.length > 1) ...[
-                            const SizedBox(height: AppSpacing.md),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _guarantorCtrls.removeAt(i).dispose();
-                                  });
-                                },
-                                child: const Text("Remove guarantor"),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+            _PrimaryPillButton(
+              text: "Next",
+              onTap: () {
+                final err = _validate();
+                if (err != null) {
+                  _toast(context, err);
+                  return;
+                }
+                _syncDraftFromFields();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ApplicationStep2Screen(draft: _draft),
                   ),
                 );
-              }),
-
-              const SizedBox(height: AppSpacing.sm),
-
-              if (_guarantorCtrls.length < 2)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _guarantorCtrls.add(_GuarantorControllers.empty());
-                      });
-                    },
-                    child: const Text("+ Add another guarantor"),
-                  ),
-                ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              _PrimaryPillButton(
-                text: "Next",
-                onTap: () {
-                  final err = _validate();
-                  if (err != null) {
-                    _toast(context, err);
-                    return;
-                  }
-                  _syncDraftFromFields();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ApplicationStep2Screen(draft: _draft),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+              },
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -737,106 +550,97 @@ class _ApplicationStep2ScreenState extends State<ApplicationStep2Screen> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: AppColors.pageBgGradient(context),
-            ),
+    return _PageGradient(
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: const AppTopBar(title: "Application"),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenV,
+            AppSpacing.sm,
+            AppSpacing.screenV,
+            AppSizes.screenBottomPad,
           ),
-        ),
-        AppScaffold(
-          backgroundColor: Colors.transparent,
-          safeAreaTop: true,
-          safeAreaBottom: false,
-          topBar: AppTopBar(title: "Application"),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenV,
-              AppSpacing.sm,
-              AppSpacing.screenV,
-              AppSizes.screenBottomPad,
-            ),
-            children: [
-              _StepDots(active: 3),
-              const SizedBox(height: AppSpacing.md),
-              _ListingRowCard(listing: _draft.listing),
-              const SizedBox(height: AppSpacing.lg),
+          children: [
+            const _StepDots(active: 3),
+            const SizedBox(height: AppSpacing.md),
+            _ListingRowCard(listing: _draft.listing),
+            const SizedBox(height: AppSpacing.lg),
 
-              const _SectionTitle("Step 2 of 3 | Employment & Income"),
-              const SizedBox(height: AppSpacing.md),
+            const _SectionTitle("Step 2 of 3 | Employment & Income"),
+            const SizedBox(height: AppSpacing.md),
 
-              _FrostCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Column(
-                    children: [
-                      _LabeledField(
-                        label: "Employment status",
-                        child: _Dropdown<EmploymentStatus>(
-                          value: _status,
-                          items: EmploymentStatus.values,
-                          label: (v) => v.label,
-                          onChanged: (v) => setState(() => _status = v),
-                        ),
+            _FrostCard(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  children: [
+                    _LabeledField(
+                      label: "Employment status",
+                      child: _Dropdown<EmploymentStatus>(
+                        value: _status,
+                        items: EmploymentStatus.values,
+                        label: (v) => v.label,
+                        onChanged: (v) => setState(() => _status = v),
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      _LabeledField(
-                        label: "Monthly income",
-                        child: _TextField(
-                          ctrl: _income,
-                          hint: "e.g ₦300000",
-                          keyboardType: TextInputType.number,
-                        ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _LabeledField(
+                      label: "Monthly income",
+                      child: _TextField(
+                        ctrl: _income,
+                        hint: "e.g ₦300000",
+                        keyboardType: TextInputType.number,
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      _LabeledField(
-                        label: "Employer name (optional)",
-                        child: _TextField(ctrl: _employer, hint: "Employer"),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      _LabeledField(
-                        label: "Job title (optional)",
-                        child: _TextField(ctrl: _jobTitle, hint: "Job title"),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _LabeledField(
+                      label: "Employer name (optional)",
+                      child: _TextField(ctrl: _employer, hint: "Employer"),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _LabeledField(
+                      label: "Job title (optional)",
+                      child: _TextField(ctrl: _jobTitle, hint: "Job title"),
+                    ),
+                  ],
                 ),
               ),
+            ),
 
-              const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.lg),
 
-              _PrimaryPillButton(
-                text: "Next (Documents)",
-                onTap: () {
-                  final income = _parseInt(_income.text);
-                  if (income <= 0) {
-                    _toast(context, "Please enter your monthly income.");
-                    return;
-                  }
+            _PrimaryPillButton(
+              text: "Next (Documents)",
+              onTap: () {
+                final income = _parseInt(_income.text);
+                if (income <= 0) {
+                  _toast(context, "Please enter your monthly income.");
+                  return;
+                }
 
-                  final emp = EmploymentIncomeVM(
-                    status: _status,
-                    monthlyIncomeNgn: income,
-                    employerName: _employer.text.trim(),
-                    jobTitle: _jobTitle.text.trim(),
-                  );
+                final emp = EmploymentIncomeVM(
+                  status: _status,
+                  monthlyIncomeNgn: income,
+                  employerName: _employer.text.trim(),
+                  jobTitle: _jobTitle.text.trim(),
+                );
 
-                  final next = _draft.copyWith(employment: emp);
+                final next = _draft.copyWith(employment: emp);
 
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          ApplicationStep3DocumentsScreen(draft: next),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        ApplicationStep3DocumentsScreen(draft: next),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -892,104 +696,90 @@ class _ApplicationStep3DocumentsScreenState
   bool get _guarantorRequired => _draft.guarantorRequired;
 
   bool get _canProceed {
-    // Required: applicant ID + selfie
     if (!_draft.docs.applicantIdUploaded) return false;
     if (!_draft.docs.selfieUploaded) return false;
-
-    // If guarantor is required, require guarantor ID (you can change this rule)
     if (_guarantorRequired && !_draft.docs.guarantorIdUploaded) return false;
-
     return true;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: AppColors.pageBgGradient(context),
-            ),
+    return _PageGradient(
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: const AppTopBar(title: "Application"),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenV,
+            AppSpacing.sm,
+            AppSpacing.screenV,
+            AppSizes.screenBottomPad,
           ),
-        ),
-        AppScaffold(
-          backgroundColor: Colors.transparent,
-          safeAreaTop: true,
-          safeAreaBottom: false,
-          topBar: AppTopBar(title: "Application"),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenV,
-              AppSpacing.sm,
-              AppSpacing.screenV,
-              AppSizes.screenBottomPad,
+          children: [
+            const _StepDots(active: 3),
+            const SizedBox(height: AppSpacing.md),
+            _ListingRowCard(listing: _draft.listing),
+            const SizedBox(height: AppSpacing.lg),
+
+            const _SectionTitle("Step 3 of 3 | Documents"),
+            const SizedBox(height: AppSpacing.md),
+
+            _DocTile(
+              title: "Applicant ID (required)",
+              subtitle: "Upload government ID",
+              uploaded: _draft.docs.applicantIdUploaded,
+              onTap: () => _toggle("applicantId"),
             ),
-            children: [
-              _StepDots(active: 3),
-              const SizedBox(height: AppSpacing.md),
-              _ListingRowCard(listing: _draft.listing),
-              const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.sm),
+            _DocTile(
+              title: "Selfie (required)",
+              subtitle: "Face verification selfie",
+              uploaded: _draft.docs.selfieUploaded,
+              onTap: () => _toggle("selfie"),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _DocTile(
+              title:
+                  "Guarantor ID (${_guarantorRequired ? "required" : "optional"})",
+              subtitle: "Upload guarantor ID",
+              uploaded: _draft.docs.guarantorIdUploaded,
+              onTap: () => _toggle("guarantorId"),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _DocTile(
+              title: "Guarantor passport (optional)",
+              subtitle: "Optional passport upload",
+              uploaded: _draft.docs.guarantorPassportUploaded,
+              onTap: () => _toggle("guarantorPassport"),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _DocTile(
+              title: "Proof of address (optional)",
+              subtitle: "Utility bill / statement",
+              uploaded: _draft.docs.proofOfAddressUploaded,
+              onTap: () => _toggle("proof"),
+            ),
 
-              const _SectionTitle("Step 3 of 3 | Documents"),
-              const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.lg),
 
-              _DocTile(
-                title: "Applicant ID (required)",
-                subtitle: "Upload government ID",
-                uploaded: _draft.docs.applicantIdUploaded,
-                onTap: () => _toggle("applicantId"),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _DocTile(
-                title: "Selfie (required)",
-                subtitle: "Face verification selfie",
-                uploaded: _draft.docs.selfieUploaded,
-                onTap: () => _toggle("selfie"),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _DocTile(
-                title:
-                    "Guarantor ID (${_guarantorRequired ? "required" : "optional"})",
-                subtitle: "Upload guarantor ID",
-                uploaded: _draft.docs.guarantorIdUploaded,
-                onTap: () => _toggle("guarantorId"),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _DocTile(
-                title: "Guarantor passport (optional)",
-                subtitle: "Optional passport upload",
-                uploaded: _draft.docs.guarantorPassportUploaded,
-                onTap: () => _toggle("guarantorPassport"),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _DocTile(
-                title: "Proof of address (optional)",
-                subtitle: "Utility bill / statement",
-                uploaded: _draft.docs.proofOfAddressUploaded,
-                onTap: () => _toggle("proof"),
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-
-              _PrimaryPillButton(
-                text: "Next (Review)",
-                enabled: _canProceed,
-                onTap: _canProceed
-                    ? () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ApplicationReviewScreen(draft: _draft),
-                          ),
-                        );
-                      }
-                    : null,
-              ),
-            ],
-          ),
+            _PrimaryPillButton(
+              text: "Next (Review)",
+              enabled: _canProceed,
+              onTap: _canProceed
+                  ? () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ApplicationReviewScreen(draft: _draft),
+                        ),
+                      );
+                    }
+                  : null,
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -1009,150 +799,208 @@ class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
   late ApplicationDraftVM _draft;
   bool _submitting = false;
 
+  final _message = TextEditingController();
+  final _moveInDate = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _draft = widget.draft;
+    _message.text = _draft.message ?? "";
+    _moveInDate.text = _draft.moveInDate ?? "";
+  }
+
+  @override
+  void dispose() {
+    _message.dispose();
+    _moveInDate.dispose();
+    super.dispose();
   }
 
   Future<void> _submit() async {
     if (_submitting) return;
 
-    if (!_draft.acceptTerms) {
+    final next = _draft.copyWith(
+      message: _message.text.trim().isEmpty ? null : _message.text.trim(),
+      moveInDate:
+          _moveInDate.text.trim().isEmpty ? null : _moveInDate.text.trim(),
+    );
+
+    if (!next.acceptTerms) {
       _toast(context, "Please accept the terms to continue.");
       return;
     }
 
-    setState(() => _submitting = true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
+    // ✅ Build backend payload using your shared model -> CreateApplicationInput
+    // (status should be omitted for tenant)
+    final createInput = next.toCreateInput(status: null);
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const ApplicationSuccessScreen()),
-    );
+    setState(() => _submitting = true);
+
+    try {
+      // ✅ Plug your API client here:
+      // await _client.post(ApiEndpoints.applications, data: createInput.toJson());
+      await Future.delayed(const Duration(milliseconds: 650));
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const ApplicationSuccessScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _toast(context, "Failed to submit. Please try again.");
+      setState(() => _submitting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final g = _draft.guarantors;
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: AppColors.pageBgGradient(context),
-            ),
+    return _PageGradient(
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: const AppTopBar(title: "Review & Submit"),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenV,
+            AppSpacing.sm,
+            AppSpacing.screenV,
+            AppSizes.screenBottomPad,
           ),
-        ),
-        AppScaffold(
-          backgroundColor: Colors.transparent,
-          safeAreaTop: true,
-          safeAreaBottom: false,
-          topBar: AppTopBar(title: "Review & Submit"),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenV,
-              AppSpacing.sm,
-              AppSpacing.screenV,
-              AppSizes.screenBottomPad,
-            ),
-            children: [
-              _ListingRowCard(listing: _draft.listing),
-              const SizedBox(height: AppSpacing.lg),
+          children: [
+            _ListingRowCard(listing: _draft.listing),
+            const SizedBox(height: AppSpacing.lg),
 
-              _FrostCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _SectionTitle("Applicant"),
-                      const SizedBox(height: AppSpacing.sm),
-                      _kv("Full name", _draft.applicant.fullName),
-                      _kv("Email", _draft.applicant.email),
-                      _kv("Phone", _draft.applicant.phone),
-                      _kv("Address", _draft.applicant.address),
+            _FrostCard(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _SectionTitle("Applicant"),
+                    const SizedBox(height: AppSpacing.sm),
+                    _kv(context, "Full name", _draft.applicant.fullName),
+                    _kv(context, "Email", _draft.applicant.email),
+                    _kv(context, "Phone", _draft.applicant.phone),
+                    _kv(context, "Address", _draft.applicant.address),
 
-                      const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.lg),
 
-                      _SectionTitle("Guarantor${g.length > 1 ? "s" : ""}"),
-                      const SizedBox(height: AppSpacing.sm),
-                      ...g.map(
-                        (x) => Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: _FrostInner(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _kv(
-                                  "Name",
-                                  x.fullName.isEmpty ? "—" : x.fullName,
-                                ),
-                                _kv("Relationship", x.relationship.label),
-                                _kv("Email", x.email.isEmpty ? "—" : x.email),
-                                _kv("Phone", x.phone.isEmpty ? "—" : x.phone),
-                                _kv(
-                                  "Address",
-                                  x.address.isEmpty ? "—" : x.address,
-                                ),
-                              ],
-                            ),
+                    _SectionTitle("Guarantor${g.length > 1 ? "s" : ""}"),
+                    const SizedBox(height: AppSpacing.sm),
+                    ...g.map(
+                      (x) => Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: _FrostInner(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _kv(
+                                context,
+                                "Name",
+                                x.fullName.isEmpty ? "—" : x.fullName,
+                              ),
+                              _kv(context, "Relationship", x.relationship.label),
+                              _kv(
+                                context,
+                                "Email",
+                                x.email.isEmpty ? "—" : x.email,
+                              ),
+                              _kv(
+                                context,
+                                "Phone",
+                                x.phone.isEmpty ? "—" : x.phone,
+                              ),
+                              _kv(
+                                context,
+                                "Address",
+                                x.address.isEmpty ? "—" : x.address,
+                              ),
+                            ],
                           ),
                         ),
                       ),
+                    ),
 
-                      const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.lg),
 
-                      const _SectionTitle("Employment"),
-                      const SizedBox(height: AppSpacing.sm),
-                      _kv("Status", _draft.employment.status.label),
-                      _kv(
-                        "Monthly income",
-                        "₦${_draft.employment.monthlyIncomeNgn}",
-                      ),
-                      _kv(
-                        "Employer",
-                        _draft.employment.employerName.isEmpty
-                            ? "—"
-                            : _draft.employment.employerName,
-                      ),
-                      _kv(
-                        "Job title",
-                        _draft.employment.jobTitle.isEmpty
-                            ? "—"
-                            : _draft.employment.jobTitle,
-                      ),
+                    const _SectionTitle("Employment"),
+                    const SizedBox(height: AppSpacing.sm),
+                    _kv(context, "Status", _draft.employment.status.label),
+                    _kv(
+                      context,
+                      "Monthly income",
+                      "₦${_draft.employment.monthlyIncomeNgn}",
+                    ),
+                    _kv(
+                      context,
+                      "Employer",
+                      _draft.employment.employerName.isEmpty
+                          ? "—"
+                          : _draft.employment.employerName,
+                    ),
+                    _kv(
+                      context,
+                      "Job title",
+                      _draft.employment.jobTitle.isEmpty
+                          ? "—"
+                          : _draft.employment.jobTitle,
+                    ),
 
-                      const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.lg),
 
-                      _CheckRow(
-                        value: _draft.acceptTerms,
-                        label: "I agree to the terms and conditions",
-                        onChanged: (v) => setState(
-                          () => _draft = _draft.copyWith(acceptTerms: v),
-                        ),
+                    const _SectionTitle("Optional"),
+                    const SizedBox(height: AppSpacing.sm),
+                    _LabeledField(
+                      label: "Message to landlord (optional)",
+                      child: _TextField(
+                        ctrl: _message,
+                        hint: "Write a short note...",
+                        keyboardType: TextInputType.text,
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _LabeledField(
+                      label: "Preferred move-in date (YYYY-MM-DD)",
+                      child: _TextField(
+                        ctrl: _moveInDate,
+                        hint: "2026-03-01",
+                        keyboardType: TextInputType.datetime,
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    _CheckRow(
+                      value: _draft.acceptTerms,
+                      label: "I agree to the terms and conditions",
+                      onChanged: (v) => setState(
+                        () => _draft = _draft.copyWith(acceptTerms: v),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
 
-              const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.lg),
 
-              _PrimaryPillButton(
-                text: _submitting ? "Submitting..." : "Submit Application",
-                enabled: !_submitting,
-                onTap: _submitting ? null : _submit,
-              ),
-            ],
-          ),
+            _PrimaryPillButton(
+              text: _submitting ? "Submitting..." : "Submit Application",
+              enabled: !_submitting,
+              onTap: _submitting ? null : _submit,
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _kv(String k, String v) {
+  Widget _kv(BuildContext context, String k, String v) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.s6),
       child: Row(
@@ -1190,6 +1038,88 @@ class ApplicationSuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _PageGradient(
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: AppTopBar(
+          title: "Application Submitted",
+          leadingIcon: Icons.close_rounded,
+          onLeadingTap: () => Navigator.of(context).pop(),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenV,
+              AppSpacing.lg,
+              AppSpacing.screenV,
+              AppSizes.screenBottomPad,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: _FrostCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        height: 86,
+                        width: 86,
+                        decoration: BoxDecoration(
+                          color: AppColors.brandGreenDeep.withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          size: 44,
+                          color: AppColors.brandGreenDeep,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        "Success",
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary(context),
+                            ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        "Your application has been submitted. We'll notify you when it's reviewed.",
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted(context)
+                                  .withValues(alpha: 0.92),
+                            ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      _PrimaryPillButton(
+                        text: "Back",
+                        onTap: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ---------------- Gradient wrapper (ExploreScreen pattern) ----------------
+
+class _PageGradient extends StatelessWidget {
+  const _PageGradient({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
     return Stack(
       children: [
         Positioned.fill(
@@ -1199,80 +1129,7 @@ class ApplicationSuccessScreen extends StatelessWidget {
             ),
           ),
         ),
-        AppScaffold(
-          backgroundColor: Colors.transparent,
-          safeAreaTop: true,
-          safeAreaBottom: false,
-          topBar: AppTopBar(
-            title: "Application Submitted",
-            leadingIcon: Icons.close_rounded,
-            onLeadingTap: () => Navigator.of(context).pop(),
-          ),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenV,
-                AppSpacing.lg,
-                AppSpacing.screenV,
-                AppSizes.screenBottomPad,
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: _FrostCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          height: 86,
-                          width: 86,
-                          decoration: BoxDecoration(
-                            color: AppColors.brandGreenDeep.withValues(
-                              alpha: 0.18,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.check_rounded,
-                            size: 44,
-                            color: AppColors.brandGreenDeep,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          "Success",
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.textPrimary(context),
-                              ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          "Your application has been submitted. We'll notify you when it's reviewed.",
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textMuted(
-                                  context,
-                                ).withValues(alpha: 0.92),
-                              ),
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-                        _PrimaryPillButton(
-                          text: "Back to Listing",
-                          onTap: () => Navigator.of(context).pop(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+        child,
       ],
     );
   }
@@ -1297,8 +1154,7 @@ class _ListingRowCard extends StatelessWidget {
                 height: AppSizes.listThumbSize,
                 width: AppSizes.listThumbSize + AppSpacing.sm,
                 color: AppColors.overlay(context, 0.06),
-                child:
-                    listing.photoAssetPath != null &&
+                child: listing.photoAssetPath != null &&
                         listing.photoAssetPath!.startsWith("assets/")
                     ? Image.asset(listing.photoAssetPath!, fit: BoxFit.cover)
                     : const Icon(
@@ -1317,9 +1173,9 @@ class _ListingRowCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary(context),
-                    ),
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary(context),
+                        ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
@@ -1327,17 +1183,17 @@ class _ListingRowCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textMuted(context),
-                    ),
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textMuted(context),
+                        ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     listing.priceText,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.brandGreenDeep,
-                    ),
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.brandGreenDeep,
+                        ),
                   ),
                 ],
               ),
@@ -1440,17 +1296,17 @@ class _DocTile extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary(context),
-                      ),
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary(context),
+                          ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textMuted(context),
-                      ),
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textMuted(context),
+                          ),
                     ),
                   ],
                 ),
@@ -1524,8 +1380,6 @@ class _PrimaryPillButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final disabled = !enabled || onTap == null;
 
-    // ✅ avoid relying on theme tokens that may not exist (tenantBorderMuted, mutedMid).
-    // Use overlay() + textMuted() so it always compiles with your current theme.
     final disabledBg = AppColors.overlay(context, 0.06);
     final disabledText = AppColors.textMuted(context);
 
@@ -1543,9 +1397,9 @@ class _PrimaryPillButton extends StatelessWidget {
             child: Text(
               text,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: disabled ? disabledText : AppColors.white,
-              ),
+                    fontWeight: FontWeight.w900,
+                    color: disabled ? disabledText : AppColors.white,
+                  ),
             ),
           ),
         ),
@@ -1573,9 +1427,9 @@ class _SecondaryPillButton extends StatelessWidget {
             child: Text(
               text,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary(context),
-              ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary(context),
+                  ),
             ),
           ),
         ),
@@ -1593,9 +1447,9 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w900,
-        color: AppColors.textPrimary(context),
-      ),
+            fontWeight: FontWeight.w900,
+            color: AppColors.textPrimary(context),
+          ),
     );
   }
 }
@@ -1609,9 +1463,9 @@ class _SubTitle extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-        fontWeight: FontWeight.w900,
-        color: AppColors.textPrimary(context),
-      ),
+            fontWeight: FontWeight.w900,
+            color: AppColors.textPrimary(context),
+          ),
     );
   }
 }
@@ -1629,9 +1483,9 @@ class _LabeledField extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: AppColors.textMuted(context),
-          ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.textMuted(context),
+              ),
         ),
         const SizedBox(height: AppSpacing.xs),
         child,
@@ -1662,11 +1516,10 @@ class _TextField extends StatelessWidget {
       child: TextField(
         controller: ctrl,
         keyboardType: keyboardType,
-        decoration: InputDecoration(
+        decoration: const InputDecoration(
           border: InputBorder.none,
-          hintText: hint,
           isDense: true,
-        ),
+        ).copyWith(hintText: hint),
       ),
     );
   }
@@ -1705,9 +1558,9 @@ class _Dropdown<T> extends StatelessWidget {
                   child: Text(
                     label(x),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary(context),
-                    ),
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary(context),
+                        ),
                   ),
                 ),
               )
@@ -1764,9 +1617,9 @@ class _CheckRow extends StatelessWidget {
               child: Text(
                 label,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary(context),
-                ),
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary(context),
+                    ),
               ),
             ),
           ],
@@ -1839,9 +1692,8 @@ class _GuarantorControllers {
       address: addr,
       sameAddressAsApplicant: sameAddress,
       employmentStatus: empStatus,
-      monthlyIncomeNgn: income.text.trim().isEmpty
-          ? null
-          : _parseIncome(income.text),
+      monthlyIncomeNgn:
+          income.text.trim().isEmpty ? null : _parseIncome(income.text),
     );
   }
 
@@ -1851,26 +1703,6 @@ class _GuarantorControllers {
     phone.dispose();
     address.dispose();
     income.dispose();
-  }
-}
-
-extension on DocumentsVM {
-  DocumentsVM copyWith({
-    bool? applicantIdUploaded,
-    bool? selfieUploaded,
-    bool? guarantorIdUploaded,
-    bool? guarantorPassportUploaded,
-    bool? proofOfAddressUploaded,
-  }) {
-    return DocumentsVM(
-      applicantIdUploaded: applicantIdUploaded ?? this.applicantIdUploaded,
-      selfieUploaded: selfieUploaded ?? this.selfieUploaded,
-      guarantorIdUploaded: guarantorIdUploaded ?? this.guarantorIdUploaded,
-      guarantorPassportUploaded:
-          guarantorPassportUploaded ?? this.guarantorPassportUploaded,
-      proofOfAddressUploaded:
-          proofOfAddressUploaded ?? this.proofOfAddressUploaded,
-    );
   }
 }
 

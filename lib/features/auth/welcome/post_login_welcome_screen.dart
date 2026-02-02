@@ -6,8 +6,9 @@ import 'package:rentease_frontend/core/theme/app_colors.dart';
 import 'package:rentease_frontend/core/theme/app_radii.dart';
 import 'package:rentease_frontend/core/theme/app_shadows.dart';
 import 'package:rentease_frontend/core/theme/app_spacing.dart';
-import 'package:rentease_frontend/core/theme/app_typography.dart';
+import 'package:rentease_frontend/core/theme/app_sizes.dart';
 
+import 'package:rentease_frontend/core/ui/scaffold/app_scaffold.dart';
 import 'package:rentease_frontend/features/auth/ui/register/choose_account_type_screen.dart';
 
 class PostLoginWelcomeScreen extends StatelessWidget {
@@ -21,6 +22,18 @@ class PostLoginWelcomeScreen extends StatelessWidget {
   final String fullName;
   final UserRole role;
   final DateTime? lastLogin;
+
+  // ---------- Explore-style alpha helpers ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
 
   void _go(BuildContext context) {
     Navigator.of(context).pushReplacementNamed(role.toRoute());
@@ -52,28 +65,31 @@ class PostLoginWelcomeScreen extends StatelessWidget {
     final nameToShow = _firstName(fullName);
     final greet = _greeting(now);
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: null,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
+              horizontal: AppSpacing.screenH, // Standard Horizontal Padding
               vertical: AppSpacing.lg,
             ),
             child: Column(
               children: [
                 const SizedBox(height: AppSpacing.md),
 
-                // ✅ Smaller text than before (reduced from h1)
                 Text(
                   '$greet, $nameToShow 👋',
-                  style: AppTypography.h2(context).copyWith(
-                    color: textPrimary,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 24, // ✅ reduce size
-                    height: 1.1,
-                  ),
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: textPrimary,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
+                        fontSize: 24, // Explicit size override
+                      ),
                   textAlign: TextAlign.center,
                 ),
 
@@ -81,95 +97,105 @@ class PostLoginWelcomeScreen extends StatelessWidget {
 
                 Text(
                   role.welcomeLine,
-                  style: AppTypography.body(context).copyWith(
-                    color: textMuted,
-                    fontSize: 14.5, // ✅ slightly smaller
-                    height: 1.3,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: textMuted,
+                        height: 1.3,
+                        fontWeight: FontWeight.w700,
+                      ),
                   textAlign: TextAlign.center,
                 ),
 
                 const SizedBox(height: AppSpacing.xl),
 
-                _GlassCard(
-                  child: Column(
-                    children: [
-                      _RolePill(role: role),
-                      const SizedBox(height: AppSpacing.md),
+                _FrostCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      children: [
+                        _RolePill(role: role),
+                        const SizedBox(height: AppSpacing.md),
 
-                      // ✅ Smaller headline inside card too
-                      Text(
-                        role.welcomeLine,
-                        style: AppTypography.h3(context).copyWith(
-                          color: AppColors.textPrimary(context),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 18, // ✅ reduce size
+                        Text(
+                          role.welcomeLine,
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    color: textPrimary,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 18,
+                                  ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
 
-                      const SizedBox(height: AppSpacing.lg),
+                        const SizedBox(height: AppSpacing.lg),
 
-                      Container(
-                        height: 150,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface(context).withValues(alpha: 0.70),
-                          borderRadius: BorderRadius.circular(AppRadii.xl),
-                          border: Border.all(
-                            color: AppColors.border(context).withValues(alpha: 0.70),
-                          ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(AppRadii.xl),
-                          child: _RoleImage(role: role),
-                        ),
-                      ),
-
-                      const SizedBox(height: AppSpacing.lg),
-
-                      _PrimaryButton(
-                        text: (role == UserRole.tenant) ? 'Explore' : role.primaryCta,
-                        onPressed: () => _go(context),
-                      ),
-
-                      const SizedBox(height: AppSpacing.md),
-
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const ChooseAccountTypeScreen(),
+                        Container(
+                          height: 150,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface(context)
+                                .withValues(alpha: _alphaSurfaceStrong),
+                            borderRadius: BorderRadius.circular(AppRadii.xl),
+                            border: Border.all(
+                              color: AppColors.overlay(
+                                  context, _alphaBorderSoft),
                             ),
-                          );
-                        },
-                        child: Text(
-                          'Switch account type',
-                          style: AppTypography.body(context).copyWith(
-                            color: AppColors.textSecondary(context),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14.5, // ✅ slightly smaller
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(AppRadii.xl),
+                            child: _RoleImage(role: role),
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: AppSpacing.sm),
-                      Container(
-                        height: 1,
-                        width: double.infinity,
-                        color: AppColors.divider(context).withValues(alpha: 0.70),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
+                        const SizedBox(height: AppSpacing.lg),
 
-                      Text(
-                        'Last login: Today $timeText',
-                        style: AppTypography.caption(context).copyWith(
-                          color: AppColors.textMuted(context),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12.5, // ✅ slightly smaller
+                        _PrimaryButton(
+                          text: (role == UserRole.tenant)
+                              ? 'Explore'
+                              : role.primaryCta,
+                          onPressed: () => _go(context),
                         ),
-                      ),
-                    ],
+
+                        const SizedBox(height: AppSpacing.md),
+
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ChooseAccountTypeScreen(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            'Switch account type',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: AppColors.textSecondary(context),
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                        ),
+
+                        const SizedBox(height: AppSpacing.sm),
+                        Container(
+                          height: 1,
+                          width: double.infinity,
+                          color: AppColors.divider(context)
+                              .withValues(alpha: 0.70),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+
+                        Text(
+                          'Last login: Today $timeText',
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: textMuted,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -238,8 +264,8 @@ class _RolePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final border = AppColors.border(context).withValues(alpha: 0.70);
-    final bg = AppColors.surface(context).withValues(alpha: 0.75);
+    // Matches Verified pill style in Explore
+    final alphaSurface = AppSpacing.sm / (AppSpacing.xxxl + AppSpacing.sm);
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -247,41 +273,51 @@ class _RolePill extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: border),
+        color: AppColors.overlay(context, alphaSurface),
+        borderRadius: BorderRadius.circular(AppRadii.pill), // Pill shape
+        border: Border.all(
+          color: AppColors.overlay(context, AppSpacing.xs / AppSpacing.xxxl),
+        ),
       ),
       child: Text(
-        role.pillLabel,
-        style: AppTypography.caption(context).copyWith(
-          color: AppColors.textSecondary(context),
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1.1,
-          fontSize: 12.5, // ✅ slightly smaller
-        ),
+        role.pillLabel.toUpperCase(),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.textSecondary(context),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.1,
+            ),
       ),
     );
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  const _GlassCard({required this.child});
+class _FrostCard extends StatelessWidget {
+  const _FrostCard({required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.surface2(context).withValues(alpha: 0.70);
-    final border = AppColors.border(context).withValues(alpha: 0.60);
+    // Matches Explore logic
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+    final alphaShadow = AppSpacing.xs / AppSpacing.xxxl;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: border),
-        boxShadow: AppShadows.card(context),
+    return Material(
+      color: AppColors.surface(context).withValues(alpha: alphaSurface),
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: alphaShadow,
+          ),
+        ),
+        child: child,
       ),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: child,
     );
   }
 }
@@ -312,11 +348,11 @@ class _PrimaryButton extends StatelessWidget {
         ),
         child: Text(
           text,
-          style: AppTypography.button(context).copyWith(
-            color: fg,
-            fontWeight: FontWeight.w900,
-            fontSize: 15.5, // ✅ slightly smaller
-          ),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: fg,
+                fontWeight: FontWeight.w900,
+                fontSize: 15.5,
+              ),
         ),
       ),
     );

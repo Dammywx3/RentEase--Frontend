@@ -1,3 +1,4 @@
+// lib/features/tenant/maintenance/create_request_screen.dart
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
@@ -57,21 +58,27 @@ class _CreateMaintenanceRequestScreenState
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
 
-  double get _surfaceA => AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
-  double get _borderA => AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+  // ---------- Explore-style alpha helpers ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
 
   @override
   void initState() {
     super.initState();
 
-    _category =
-        widget.defaultCategory ??
+    _category = widget.defaultCategory ??
         (widget.categories.isNotEmpty ? widget.categories.first : '');
-    _priority =
-        widget.defaultPriority ??
+    _priority = widget.defaultPriority ??
         (widget.priorities.isNotEmpty ? widget.priorities.first : '');
-    _visit =
-        widget.defaultVisitWindow ??
+    _visit = widget.defaultVisitWindow ??
         (widget.visitWindows.isNotEmpty ? widget.visitWindows.first : '');
   }
 
@@ -92,331 +99,275 @@ class _CreateMaintenanceRequestScreenState
     final topTitle = (widget.topTitle ?? '').trim();
     final topSubtitle = (widget.topSubtitle ?? '').trim();
 
-    return Stack(
-      children: [
-        // ✅ Fix: gradient behind the entire page (safe-area + top bar)
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: AppColors.pageBgGradient(context),
-            ),
-          ),
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: AppTopBar(
+          title: topTitle.isEmpty ? 'New Maintenance Request' : topTitle,
+          subtitle: topSubtitle.isEmpty
+              ? 'Create and submit a request'
+              : topSubtitle,
+          leadingIcon: Icons.arrow_back_rounded,
+          onLeadingTap: () => Navigator.of(context).maybePop(),
         ),
-        AppScaffold(
-          backgroundColor: Colors.transparent,
-          safeAreaTop: true,
-          safeAreaBottom: false,
-          topBar: AppTopBar(
-            title: topTitle.isEmpty ? 'New Maintenance Request' : topTitle,
-            subtitle: topSubtitle.isEmpty
-                ? 'Create and submit a request'
-                : topSubtitle,
-            leadingIcon: Icons.arrow_back_rounded,
-            onLeadingTap: () => Navigator.of(context).maybePop(),
-            actions: const [],
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH, // Standard horizontal spacing
+            AppSpacing.sm,
+            AppSpacing.screenH,
+            AppSizes.screenBottomPad,
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenH,
-                  AppSpacing.sm,
-                  AppSpacing.screenH,
-                  AppSizes.screenBottomPad,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _Card(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const _H('Category'),
-                              const SizedBox(height: AppSpacing.sm),
-                              _Dropdown(
-                                enabled: widget.categories.isNotEmpty,
-                                value: _category.isEmpty ? null : _category,
-                                items: widget.categories,
-                                onChanged: (v) =>
-                                    setState(() => _category = v ?? ''),
-                                hintText: widget.categories.isEmpty
-                                    ? 'No categories'
-                                    : null,
-                              ),
-                              const SizedBox(height: AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _FrostCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const _Label('Category'),
+                      const SizedBox(height: AppSpacing.xs),
+                      _StyledDropdown(
+                        value: _category.isEmpty ? null : _category,
+                        items: widget.categories,
+                        onChanged: (v) => setState(() => _category = v ?? ''),
+                        hintText:
+                            widget.categories.isEmpty ? 'No categories' : null,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
 
-                              const _H('Title'),
-                              const SizedBox(height: AppSpacing.sm),
-                              TextField(
-                                controller: _titleCtrl,
-                                textInputAction: TextInputAction.next,
-                                decoration: InputDecoration(
-                                  border: const OutlineInputBorder(),
-                                  isDense: true,
-                                  hintText: 'Title',
-                                  hintStyle: TextStyle(
-                                    color: AppColors.textMuted(
-                                      context,
-                                    ).withValues(alpha: 0.80),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
+                      const _Label('Title'),
+                      const SizedBox(height: AppSpacing.xs),
+                      _StyledTextField(
+                        controller: _titleCtrl,
+                        hintText: 'e.g. Leaking faucet',
+                        textInputAction: TextInputAction.next,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
 
-                              const _H('Description'),
-                              const SizedBox(height: AppSpacing.sm),
-                              TextField(
-                                controller: _descCtrl,
-                                minLines: AppSpacing.lg ~/ AppSpacing.sm, // 2
-                                maxLines: AppSpacing.xxxl ~/ AppSpacing.sm, // 4
-                                decoration: InputDecoration(
-                                  border: const OutlineInputBorder(),
-                                  hintText: 'Describe the issue...',
-                                  hintStyle: TextStyle(
-                                    color: AppColors.textMuted(
-                                      context,
-                                    ).withValues(alpha: 0.80),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
+                      const _Label('Description'),
+                      const SizedBox(height: AppSpacing.xs),
+                      _StyledTextField(
+                        controller: _descCtrl,
+                        hintText: 'Describe the issue...',
+                        minLines: 3,
+                        maxLines: 5,
+                        textInputAction: TextInputAction.newline,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
 
-                              const _H('Priority'),
-                              const SizedBox(height: AppSpacing.sm),
-                              _Dropdown(
-                                enabled: widget.priorities.isNotEmpty,
-                                value: _priority.isEmpty ? null : _priority,
-                                items: widget.priorities,
-                                onChanged: (v) =>
-                                    setState(() => _priority = v ?? ''),
-                                hintText: widget.priorities.isEmpty
-                                    ? 'No priorities'
-                                    : null,
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        _Card(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const _H('Photos'),
-                              const SizedBox(height: AppSpacing.sm),
-                              InkWell(
-                                borderRadius: BorderRadius.circular(
-                                  AppRadii.button,
-                                ),
-                                onTap: () => ToastService.show(
-                                  context,
-                                  'Photo upload (wire later)',
-                                  success: true,
-                                ),
-                                child: Container(
-                                  height:
-                                      AppSizes.listThumbSize + AppSpacing.xxxl,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadii.button,
-                                    ),
-                                    color: AppColors.surface(
-                                      context,
-                                    ).withValues(alpha: _surfaceA),
-                                    border: Border.all(
-                                      color: AppColors.overlay(
-                                        context,
-                                        _borderA,
-                                      ),
-                                    ),
-                                    boxShadow: AppShadows.soft(
-                                      context,
-                                      blur: AppSpacing.xxxl,
-                                      y: AppSpacing.lg,
-                                      alpha: AppSpacing.xs / AppSpacing.xxxl,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.add_a_photo_rounded,
-                                          color: AppColors.textMuted(context),
-                                        ),
-                                        const SizedBox(height: AppSpacing.s6),
-                                        Text(
-                                          'Add photos',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w900,
-                                                color: AppColors.textPrimary(
-                                                  context,
-                                                ),
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-
-                              const _H('Preferred visit time'),
-                              const SizedBox(height: AppSpacing.sm),
-                              if (widget.visitWindows.isEmpty)
-                                Text(
-                                  'No visit windows',
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w900,
-                                        color: AppColors.textMuted(context),
-                                      ),
-                                )
-                              else
-                                Wrap(
-                                  spacing: AppSpacing.sm,
-                                  runSpacing: AppSpacing.sm,
-                                  children: widget.visitWindows.map((w) {
-                                    return _ChoicePill(
-                                      text: w,
-                                      selected: _visit == w,
-                                      onTap: () => setState(() => _visit = w),
-                                    );
-                                  }).toList(),
-                                ),
-
-                              const SizedBox(height: AppSpacing.md),
-
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      'Permission to enter if not home',
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w900,
-                                            color: AppColors.textPrimary(
-                                              context,
-                                            ),
-                                          ),
-                                    ),
-                                  ),
-                                  Switch(
-                                    value: _permissionToEnter,
-                                    onChanged: (v) =>
-                                        setState(() => _permissionToEnter = v),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: AppSpacing.lg),
-
-                        SizedBox(
-                          width: double.infinity,
-                          height: AppSizes.pillButtonHeight + AppSpacing.sm,
-                          child: FilledButton(
-                            onPressed: () {
-                              final title = _titleCtrl.text.trim();
-                              final desc = _descCtrl.text.trim();
-
-                              if (title.isEmpty || desc.isEmpty) {
-                                ToastService.show(
-                                  context,
-                                  'Please enter title + description',
-                                  success: false,
-                                );
-                                return;
-                              }
-
-                              final now = DateTime.now();
-
-                              ToastService.show(
-                                context,
-                                'Submitted',
-                                success: true,
-                              );
-
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => MaintenanceDetailScreen(
-                                    requestId:
-                                        'new_${now.millisecondsSinceEpoch}',
-                                    status: 'open',
-                                    title: title,
-                                    category: _category.isEmpty
-                                        ? null
-                                        : _category,
-                                    dateLabel: _formatShortDate(context, now),
-                                    address: widget.addressLabel,
-                                    priority: _priority.isEmpty
-                                        ? null
-                                        : _priority,
-                                    description: desc,
-                                    permissionToEnter: _permissionToEnter,
-                                  ),
-                                ),
-                              );
-                            },
-                            child: const Text('Submit Request'),
-                          ),
-                        ),
-
-                        const Spacer(),
-                      ],
-                    ),
+                      const _Label('Priority'),
+                      const SizedBox(height: AppSpacing.xs),
+                      _StyledDropdown(
+                        value: _priority.isEmpty ? null : _priority,
+                        items: widget.priorities,
+                        onChanged: (v) => setState(() => _priority = v ?? ''),
+                        hintText:
+                            widget.priorities.isEmpty ? 'No priorities' : null,
+                      ),
+                    ],
                   ),
                 ),
-              );
-            },
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              _FrostCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const _Label('Photos'),
+                      const SizedBox(height: AppSpacing.xs),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(AppRadii.button),
+                        onTap: () => ToastService.show(
+                          context,
+                          'Photo upload (wire later)',
+                          success: true,
+                        ),
+                        child: Container(
+                          height: 120,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(AppRadii.md),
+                            color: AppColors.overlay(context, 0.04),
+                            border: Border.all(
+                              color: AppColors.overlay(context, 0.08),
+                              style: BorderStyle.solid,
+                            ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.add_a_photo_rounded,
+                                  color: AppColors.textMuted(context),
+                                  size: 28,
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+                                Text(
+                                  'Tap to add photos',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textMuted(context),
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+
+                      const _Label('Preferred visit time'),
+                      const SizedBox(height: AppSpacing.sm),
+                      if (widget.visitWindows.isEmpty)
+                        Text(
+                          'No visit windows available',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textMuted(context),
+                                  ),
+                        )
+                      else
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children: widget.visitWindows.map((w) {
+                            return _SelectablePill(
+                              text: w,
+                              selected: _visit == w,
+                              onTap: () => setState(() => _visit = w),
+                            );
+                          }).toList(),
+                        ),
+
+                      const SizedBox(height: AppSpacing.lg),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Permission to enter if not home',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary(context),
+                                  ),
+                            ),
+                          ),
+                          Switch(
+                            value: _permissionToEnter,
+                            activeColor: AppColors.brandGreenDeep,
+                            onChanged: (v) =>
+                                setState(() => _permissionToEnter = v),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.xl),
+
+              _PrimaryButton(
+                text: 'Submit Request',
+                onPressed: () {
+                  final title = _titleCtrl.text.trim();
+                  final desc = _descCtrl.text.trim();
+
+                  if (title.isEmpty || desc.isEmpty) {
+                    ToastService.show(
+                      context,
+                      'Please enter title + description',
+                      success: false,
+                    );
+                    return;
+                  }
+
+                  final now = DateTime.now();
+
+                  ToastService.show(
+                    context,
+                    'Request Submitted',
+                    success: true,
+                  );
+
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => MaintenanceDetailScreen(
+                        requestId: 'new_${now.millisecondsSinceEpoch}',
+                        status: 'open',
+                        title: title,
+                        category: _category.isEmpty ? null : _category,
+                        dateLabel: _formatShortDate(context, now),
+                        address: widget.addressLabel,
+                        priority: _priority.isEmpty ? null : _priority,
+                        description: desc,
+                        permissionToEnter: _permissionToEnter,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
 
 /* ---------------- UI helpers ---------------- */
 
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
+class _FrostCard extends StatelessWidget {
+  const _FrostCard({required this.child});
   final Widget child;
-
-  double get _surfaceA => AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
-  double get _borderA => AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        color: AppColors.surface(context).withValues(alpha: _surfaceA),
-        border: Border.all(color: AppColors.overlay(context, _borderA)),
+    // Standard Explore/Auth logic
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+    final alphaShadow = AppSpacing.xs / AppSpacing.xxxl;
+
+    return Material(
+      color: AppColors.surface(context).withValues(alpha: alphaSurface),
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: alphaShadow,
+          ),
+        ),
+        child: child,
       ),
-      child: child,
     );
   }
 }
 
-class _H extends StatelessWidget {
-  const _H(this.text);
+class _Label extends StatelessWidget {
+  const _Label(this.text);
   final String text;
 
   @override
@@ -424,23 +375,72 @@ class _H extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        fontWeight: FontWeight.w900,
-        color: AppColors.textPrimary(context),
+            fontWeight: FontWeight.w900,
+            color: AppColors.textMuted(context),
+          ),
+    );
+  }
+}
+
+class _StyledTextField extends StatelessWidget {
+  const _StyledTextField({
+    required this.controller,
+    required this.hintText,
+    this.textInputAction,
+    this.minLines = 1,
+    this.maxLines = 1,
+  });
+
+  final TextEditingController controller;
+  final String hintText;
+  final TextInputAction? textInputAction;
+  final int minLines;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.s2,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.overlay(context, 0.04),
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        border: Border.all(color: AppColors.overlay(context, 0.08)),
+      ),
+      child: TextField(
+        controller: controller,
+        textInputAction: textInputAction,
+        minLines: minLines,
+        maxLines: maxLines,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary(context),
+            ),
+        cursorColor: AppColors.brandGreenDeep,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          hintText: hintText,
+          hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textMuted(context).withValues(alpha: 0.6),
+                fontWeight: FontWeight.w600,
+              ),
+          contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        ),
       ),
     );
   }
 }
 
-class _Dropdown extends StatelessWidget {
-  const _Dropdown({
-    required this.enabled,
+class _StyledDropdown extends StatelessWidget {
+  const _StyledDropdown({
     required this.value,
     required this.items,
     required this.onChanged,
     this.hintText,
   });
 
-  final bool enabled;
   final String? value;
   final List<String> items;
   final ValueChanged<String?> onChanged;
@@ -448,28 +448,54 @@ class _Dropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      items: items
-          .map(
-            (x) => DropdownMenuItem(
-              value: x,
-              child: Text(x, maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
-          )
-          .toList(),
-      onChanged: enabled ? onChanged : null,
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(),
-        isDense: true,
-        hintText: hintText,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.overlay(context, 0.04),
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        border: Border.all(color: AppColors.overlay(context, 0.08)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          hint: hintText != null
+              ? Text(
+                  hintText!,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color:
+                            AppColors.textMuted(context).withValues(alpha: 0.6),
+                        fontWeight: FontWeight.w600,
+                      ),
+                )
+              : null,
+          items: items
+              .map(
+                (x) => DropdownMenuItem(
+                  value: x,
+                  child: Text(
+                    x,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary(context),
+                        ),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: onChanged,
+          icon: Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: AppColors.textMuted(context),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _ChoicePill extends StatelessWidget {
-  const _ChoicePill({
+class _SelectablePill extends StatelessWidget {
+  const _SelectablePill({
     required this.text,
     required this.selected,
     required this.onTap,
@@ -479,43 +505,71 @@ class _ChoicePill extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  double get _surfaceA => AppSpacing.md / (AppSpacing.xxxl + AppSpacing.md);
-  double get _borderA => AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
-
   @override
   Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme;
+    final activeColor = AppColors.brandGreenDeep;
+    final bg = selected
+        ? activeColor.withValues(alpha: 0.15)
+        : AppColors.overlay(context, 0.04);
+    final border = selected
+        ? activeColor.withValues(alpha: 0.2)
+        : AppColors.overlay(context, 0.08);
+    final textC = selected
+        ? activeColor
+        : AppColors.textPrimary(context).withValues(alpha: 0.8);
 
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadii.pill),
       onTap: onTap,
       child: Container(
-        constraints: const BoxConstraints(
-          maxWidth: 260,
-        ), // ✅ prevents tiny overflow
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.screenV,
+          horizontal: AppSpacing.md,
           vertical: AppSpacing.s10,
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.pill),
-          color: selected
-              ? base.primary.withValues(alpha: _surfaceA)
-              : AppColors.surface(context).withValues(alpha: _surfaceA),
-          border: Border.all(
-            color: selected
-                ? base.primary.withValues(alpha: _borderA)
-                : AppColors.overlay(context, _borderA),
+          color: bg,
+          border: Border.all(color: border),
+        ),
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: textC,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({required this.text, required this.onPressed});
+  final String text;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 54,
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.brandGreenDeep.withValues(alpha: 0.95),
+          foregroundColor: AppColors.textLight,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.lg),
           ),
         ),
         child: Text(
           text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: selected ? base.primary : AppColors.textPrimary(context),
-          ),
+                color: AppColors.textLight,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+              ),
         ),
       ),
     );

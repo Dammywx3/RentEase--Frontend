@@ -1,10 +1,9 @@
+// lib/features/tenant/listing_detail/schedule_visit_screen.dart
 // ignore_for_file: prefer_final_fields, use_build_context_synchronously, unnecessary_underscores
 
-// schedule_visit_screen.dart
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-import "../../../core/utils/localization_ext.dart";
 import "../../../core/theme/app_colors.dart";
 import "../../../core/theme/app_radii.dart";
 import "../../../core/theme/app_shadows.dart";
@@ -14,14 +13,23 @@ import "../../../core/theme/app_sizes.dart";
 import "../../../core/ui/scaffold/app_scaffold.dart";
 import "../../../core/ui/scaffold/app_top_bar.dart";
 
+import "../../../core/network/api_client.dart";
 import "../../../shared/models/viewing_model.dart";
 import "../viewings/viewings_screen.dart";
 
 enum VisitType { rent, buy, land, commercial }
 enum VisitMode { inPerson, virtual }
 
-/// ✅ Simple in-memory store so "My Visits" is not always 1 item.
-/// Later replace this with backend fetch + Provider/Riverpod.
+/// ✅ Fix: Flutter MaterialLocalizations has no shortWeekday().
+/// We provide our own short weekday labels.
+String _shortWeekday(DateTime d) {
+  const names = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  final idx = (d.weekday - 1).clamp(0, 6);
+  return names[idx];
+}
+
+/// ✅ Simple in-memory store (optional).
+/// If your real My Viewings screen fetches from backend, you can remove this later.
 class ViewingStore {
   ViewingStore._();
   static final List<ViewingModel> items = <ViewingModel>[];
@@ -32,26 +40,36 @@ class ViewingStore {
   }
 }
 
-/// ✅ Backend-ready API contract (plug your real API here later)
+/// ✅ Backend-ready API contract
 abstract class VisitRequestApi {
-  Future<RequestResultVM> send(VisitRequestDraft draft, {required bool instantBooking});
+  Future<RequestResultVM> send(
+    VisitRequestDraft draft, {
+    required bool instantBooking,
+  });
 }
 
-/// ✅ Default fake API so UI works now
-class FakeVisitRequestApi implements VisitRequestApi {
+/// ✅ Real backend implementation
+///
+/// IMPORTANT:
+/// Backend now derives property_id from listing_id.
+/// So we MUST NOT send propertyId from Flutter.
+class BackendVisitRequestApi implements VisitRequestApi {
+  BackendVisitRequestApi(this._client);
+
+  final ApiClient _client;
+
   @override
   Future<RequestResultVM> send(
     VisitRequestDraft draft, {
     required bool instantBooking,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 900));
+    final listingId = draft.listing.listingId.trim();
 
-    final seed = DateTime.now().millisecondsSinceEpoch;
-    final shouldFail = (seed % 13) == 0;
-    if (shouldFail) throw Exception("failed");
+    if (listingId.isEmpty) {
+      throw Exception("LISTING_ID_MISSING");
+    }
 
-    final ref = _makeRef();
-    final dt = DateTime(
+    final dtLocal = DateTime(
       draft.selectedDate.year,
       draft.selectedDate.month,
       draft.selectedDate.day,
@@ -59,19 +77,78 @@ class FakeVisitRequestApi implements VisitRequestApi {
       draft.selectedTime.minute,
     );
 
+    // Backend expects ISO datetime string (UTC)
+    final scheduledAtIso = dtLocal.toUtc().toIso8601String();
+
+    final viewMode = draft.mode == VisitMode.virtual ? "virtual" : "in_person";
+
+    final notesCombined = <String>[
+      draft.notes.trim(),
+      if (draft.extraFieldValue.trim().isNotEmpty)
+        "Extra: ${draft.extraFieldValue.trim()}",
+    ].where((s) => s.isNotEmpty).join("\n");
+
+    // ✅ Matches backend createViewingBodySchema:
+    // { listingId, scheduledAt, viewMode?, notes? }
+    final json = await _client.post(
+      "/v1/viewings",
+      data: {
+        "listingId": listingId,
+        "scheduledAt": scheduledAtIso,
+        "viewMode": viewMode,
+        if (notesCombined.isNotEmpty) "notes": notesCombined,
+      },
+    );
+
+    final Map<String, dynamic> item = _extractViewingMap(json);
+
+    final id = (item["id"] ?? "").toString().trim();
+    final status = (item["status"] ?? "pending").toString().trim();
+
+    final scheduledAtRaw = (item["scheduled_at"] ??
+            item["scheduledAt"] ??
+            item["scheduled_at_iso"] ??
+            scheduledAtIso)
+        .toString();
+
+    DateTime parsed;
+    try {
+      parsed = DateTime.parse(scheduledAtRaw).toLocal();
+    } catch (_) {
+      parsed = dtLocal;
+    }
+
+    final agentName =
+        (item["agentName"] ?? item["agent_name"] ?? "Agent").toString();
+
+    final agentSubtitle =
+        status.toLowerCase() == "approved" ? "Confirmed" : "Pending";
+
     return RequestResultVM(
-      referenceId: ref,
-      agentName: "Chinedu Okafor",
-      agentSubtitle: "Verified Agent",
-      dateTime: dt,
-      isConfirmed: instantBooking,
+      referenceId: id.isEmpty ? _fallbackRef() : id,
+      agentName: agentName,
+      agentSubtitle: agentSubtitle,
+      dateTime: parsed,
+      backendStatus: status,
       listingTitle: draft.listing.title,
       location: draft.listing.location,
       priceText: draft.listing.priceLine,
     );
   }
 
-  static String _makeRef() {
+  static Map<String, dynamic> _extractViewingMap(dynamic json) {
+    if (json is Map<String, dynamic>) {
+      final dynamic pick = json["viewing"] ?? json["item"] ?? json["data"];
+      if (pick is Map) return Map<String, dynamic>.from(pick as Map);
+
+      if (json.containsKey("id") || json.containsKey("status")) {
+        return json;
+      }
+    }
+    return <String, dynamic>{};
+  }
+
+  static String _fallbackRef() {
     final n = 20000 + math.Random().nextInt(79999);
     return "HS-VIS-$n";
   }
@@ -83,15 +160,15 @@ class VisitListingCardVM {
     required this.location,
     required this.priceLine,
     this.photoAssetPath,
-
-    /// ✅ NEW: support backend image URLs (coverUrl etc.)
     this.photoUrl,
-
     required this.locationTitle,
     required this.addressLine,
 
-    /// ✅ Optional but recommended: pass listingId for real API calls later
-    this.listingId,
+    /// ✅ REQUIRED FOR BACKEND CREATE
+    required this.listingId,
+
+    /// Optional now (backend derives propertyId)
+    this.propertyId = "",
   });
 
   final String title;
@@ -104,7 +181,11 @@ class VisitListingCardVM {
   final String locationTitle;
   final String addressLine;
 
-  final String? listingId;
+  /// ✅ Must be the property_listings.id
+  final String listingId;
+
+  /// Optional (not used in request anymore)
+  final String propertyId;
 }
 
 class VisitRequestDraft {
@@ -135,8 +216,7 @@ class RequestResultVM {
     required this.agentName,
     required this.agentSubtitle,
     required this.dateTime,
-    required this.isConfirmed,
-
+    required this.backendStatus,
     required this.listingTitle,
     required this.location,
     required this.priceText,
@@ -146,7 +226,9 @@ class RequestResultVM {
   final String agentName;
   final String agentSubtitle;
   final DateTime dateTime;
-  final bool isConfirmed;
+
+  /// ✅ backend: pending/approved/rejected/completed/cancelled
+  final String backendStatus;
 
   final String listingTitle;
   final String location;
@@ -160,7 +242,7 @@ class ScheduleVisitScreen extends StatefulWidget {
     required this.listing,
     this.instantBooking = false,
 
-    /// ✅ inject real API later; defaults to fake
+    /// ✅ inject real API later; defaults to backend
     this.api,
   });
 
@@ -174,26 +256,24 @@ class ScheduleVisitScreen extends StatefulWidget {
 }
 
 class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
-  late final List<DateTime> _dates;
+  late List<DateTime> _dates;
   late DateTime _selectedDate;
+
   TimeOfDay? _selectedTime;
 
   VisitMode _mode = VisitMode.inPerson;
   final TextEditingController _notesCtrl = TextEditingController();
   final TextEditingController _extraCtrl = TextEditingController();
 
-  bool _sending = false;
-
-  VisitRequestApi get _api => widget.api ?? FakeVisitRequestApi();
+  VisitRequestApi get _api => widget.api ?? BackendVisitRequestApi(ApiClient());
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _dates = List.generate(7, (i) {
-      final d = DateTime(now.year, now.month, now.day).add(Duration(days: i));
-      return d;
-    });
+    final start = DateTime(now.year, now.month, now.day);
+
+    _dates = List.generate(7, (i) => start.add(Duration(days: i)));
     _selectedDate = _dates.first;
   }
 
@@ -202,6 +282,42 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
     _notesCtrl.dispose();
     _extraCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAnyDate() async {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: start,
+      lastDate: start.add(const Duration(days: 365)),
+    );
+
+    if (picked == null) return;
+
+    final d = DateTime(picked.year, picked.month, picked.day);
+
+    setState(() {
+      _selectedDate = d;
+
+      final exists = _dates.any(
+        (x) => x.year == d.year && x.month == d.month && x.day == d.day,
+      );
+
+      if (!exists) _dates.insert(0, d);
+    });
+  }
+
+  Future<void> _pickAnyTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? const TimeOfDay(hour: 10, minute: 0),
+    );
+
+    if (picked == null) return;
+    setState(() => _selectedTime = picked);
   }
 
   String get _title {
@@ -258,7 +374,7 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
 
   String _fmtDateChip(BuildContext context, DateTime d) {
     final loc = MaterialLocalizations.of(context);
-    final weekday = loc.shortWeekday(d);
+    final weekday = _shortWeekday(d);
     final monthShort = loc.formatMonthYear(d).split(" ").first;
     return "$weekday, $monthShort ${d.day}";
   }
@@ -269,8 +385,7 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
   }
 
   List<_TimeSlot> _buildTimeSlots() {
-    // ✅ This is still demo availability.
-    // Later: fetch agent availability from backend.
+    // Demo availability (later fetch availability)
     final base = <TimeOfDay>[
       const TimeOfDay(hour: 9, minute: 0),
       const TimeOfDay(hour: 10, minute: 0),
@@ -280,8 +395,9 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
       const TimeOfDay(hour: 15, minute: 0),
     ];
 
-    int hash =
+    final hash =
         _selectedDate.day + _selectedDate.month * 31 + _selectedDate.year;
+
     bool isUnavailable(TimeOfDay t) {
       final v = (hash + t.hour * 7 + t.minute) % 9;
       return v == 0;
@@ -294,7 +410,7 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
 
   bool get _canProceed => _selectedTime != null;
 
-  void _goConfirm() async {
+  Future<void> _goConfirm() async {
     if (!_canProceed) return;
 
     final draft = VisitRequestDraft(
@@ -331,6 +447,9 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Guard: make sure listingId exists, so backend call won't fail silently.
+    final listingIdOk = widget.listing.listingId.trim().isNotEmpty;
+
     final slots = _buildTimeSlots();
 
     return Stack(
@@ -356,8 +475,39 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
             ),
             children: [
               _ListingMiniCard(listing: widget.listing),
+              if (!listingIdOk) ...[
+                const SizedBox(height: AppSpacing.md),
+                _FrostCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          color: AppColors.tenantDangerDeep,
+                          size: AppSizes.minTap / 3,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            "Listing ID is missing. Pass property_listings.id into ScheduleVisitScreen.",
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary(context),
+                                    ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
-              const _SectionHeader(title: "Select date"),
+              _SectionHeader(
+                title: "Select date",
+                trailing: _LinkText(text: "Pick any date", onTap: _pickAnyDate),
+              ),
               const SizedBox(height: AppSpacing.sm),
               _DateChipsRow(
                 dates: _dates,
@@ -366,7 +516,10 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
                 onSelected: (d) => setState(() => _selectedDate = d),
               ),
               const SizedBox(height: AppSpacing.lg),
-              const _SectionHeader(title: "Select time"),
+              _SectionHeader(
+                title: "Select time",
+                trailing: _LinkText(text: "Pick any time", onTap: _pickAnyTime),
+              ),
               const SizedBox(height: AppSpacing.sm),
               _TimeGrid(
                 slots: slots,
@@ -382,7 +535,8 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
                 "Unavailable",
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textMuted(context).withValues(alpha: 0.85),
+                      color:
+                          AppColors.textMuted(context).withValues(alpha: 0.85),
                     ),
               ),
               if (widget.visitType == VisitType.rent) ...[
@@ -422,8 +576,8 @@ class _ScheduleVisitScreenState extends State<ScheduleVisitScreen> {
               const SizedBox(height: AppSpacing.lg),
               _PrimaryPillButton(
                 text: _primaryCta,
-                enabled: _canProceed && !_sending,
-                onTap: _sending ? null : _goConfirm,
+                enabled: _canProceed && listingIdOk,
+                onTap: (_canProceed && listingIdOk) ? _goConfirm : null,
               ),
             ],
           ),
@@ -477,7 +631,8 @@ class _ConfirmVisitRequestScreenState extends State<ConfirmVisitRequestScreen> {
       TimeOfDay.fromDateTime(dt),
       alwaysUse24HourFormat: false,
     );
-    return "${loc.shortWeekday(dt)}, ${loc.formatShortMonthDay(dt)} • $time";
+
+    return "${_shortWeekday(dt)}, ${loc.formatShortMonthDay(dt)} • $time";
   }
 
   String _modeText(VisitMode m) =>
@@ -499,14 +654,23 @@ class _ConfirmVisitRequestScreenState extends State<ConfirmVisitRequestScreen> {
 
       if (!mounted) return;
       Navigator.of(context).pop(result);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+
+      String msg = "Please check your connection and try again.";
+      final raw = e.toString();
+
+      if (raw.contains("LISTING_ID_MISSING")) {
+        msg =
+            "Listing ID is missing. Make sure you pass property_listings.id into ScheduleVisitScreen.";
+      }
+
       final retry = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(builder: (_) => const RequestFailedScreen()),
+        MaterialPageRoute(builder: (_) => RequestFailedScreen(message: msg)),
       );
 
       if (retry == true) {
-        setState(() => _sending = false);
+        if (mounted) setState(() => _sending = false);
         _sendRequest();
         return;
       }
@@ -637,28 +801,28 @@ class RequestSentScreen extends StatelessWidget {
       TimeOfDay.fromDateTime(dt),
       alwaysUse24HourFormat: false,
     );
-    return "${loc.shortWeekday(dt)}, ${loc.formatShortMonthDay(dt)} • $time";
+
+    return "${_shortWeekday(dt)}, ${loc.formatShortMonthDay(dt)} • $time";
   }
 
   @override
   Widget build(BuildContext context) {
-    final statusText = result.isConfirmed ? "Confirmed" : "Pending confirmation";
-    final statusColor =
-        result.isConfirmed ? AppColors.brandGreenDeep : AppColors.tenantIconBgSand;
+    final statusText = _statusText(result.backendStatus);
+    final statusColor = _statusColor(result.backendStatus);
 
-    final viewing = ViewingModel(
-      id: result.referenceId,
-      listingTitle: result.listingTitle,
-      location: result.location,
-      agentName: result.agentName,
-      dateTime: result.dateTime,
-      status:
-          result.isConfirmed ? ViewingStatus.confirmed : ViewingStatus.requested,
-      priceText: result.priceText,
-    );
-
-    // ✅ save so it accumulates in "My Visits"
-    ViewingStore.add(viewing);
+    // Optional: add to local list UI
+    try {
+      final viewing = ViewingModel(
+        id: result.referenceId,
+        listingTitle: result.listingTitle,
+        location: result.location,
+        agentName: result.agentName,
+        dateTime: result.dateTime,
+        status: ViewingStatus.requested,
+        priceText: result.priceText,
+      );
+      ViewingStore.add(viewing);
+    } catch (_) {}
 
     return Stack(
       children: [
@@ -691,7 +855,7 @@ class RequestSentScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _SuccessIcon(),
+                    const _SuccessIcon(),
                     const SizedBox(height: AppSpacing.md),
                     Text(
                       "Request Sent",
@@ -702,7 +866,7 @@ class RequestSentScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
-                      "We’ve notified the agent. You’ll get an update when it’s confirmed.",
+                      "Your request has been saved. You’ll get an update when it’s approved.",
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w700,
@@ -724,22 +888,24 @@ class RequestSentScreen extends StatelessWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: statusColor.withValues(alpha: 0.55),
-                                borderRadius: BorderRadius.circular(AppRadii.pill),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadii.pill),
                                 border: Border.all(
-                                  color: AppColors.overlay(
-                                    context,
-                                    AppSpacing.xs / AppSpacing.xxxl,
-                                  ),
+                                  color: AppColors.overlay(context, 0.06),
                                 ),
                               ),
                               child: Center(
                                 child: Text(
                                   statusText,
-                                  style: Theme.of(context).textTheme.bodyMedium
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
                                       ?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.textPrimary(context),
-                                  ),
+                                        fontWeight: FontWeight.w900,
+                                        color: AppColors.textPrimary(context),
+                                      ),
                                 ),
                               ),
                             ),
@@ -775,7 +941,7 @@ class RequestSentScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     _SecondaryPillButton(
-                      text: "Back to Listing",
+                      text: "Back",
                       onTap: () => Navigator.of(context).pop(),
                     ),
                   ],
@@ -787,10 +953,44 @@ class RequestSentScreen extends StatelessWidget {
       ],
     );
   }
+
+  String _statusText(String backendStatus) {
+    switch (backendStatus.toLowerCase()) {
+      case "approved":
+        return "Approved";
+      case "rejected":
+        return "Rejected";
+      case "completed":
+        return "Completed";
+      case "cancelled":
+        return "Cancelled";
+      case "pending":
+      default:
+        return "Pending confirmation";
+    }
+  }
+
+  Color _statusColor(String backendStatus) {
+    switch (backendStatus.toLowerCase()) {
+      case "approved":
+        return AppColors.brandGreenDeep;
+      case "rejected":
+        return AppColors.tenantDangerDeep;
+      case "completed":
+        return AppColors.brandBlueSoft;
+      case "cancelled":
+        return AppColors.tenantBorderMuted;
+      case "pending":
+      default:
+        return AppColors.tenantIconBgSand;
+    }
+  }
 }
 
 class RequestFailedScreen extends StatelessWidget {
-  const RequestFailedScreen({super.key});
+  const RequestFailedScreen({super.key, this.message});
+
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -844,7 +1044,8 @@ class RequestFailedScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          "Please check your connection and try again.",
+                          message ??
+                              "Please check your connection and try again.",
                           textAlign: TextAlign.center,
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -861,7 +1062,7 @@ class RequestFailedScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         _SecondaryPillButton(
-                          text: "Save as Draft",
+                          text: "Close",
                           onTap: () => Navigator.of(context).pop(false),
                         ),
                       ],
@@ -963,10 +1164,13 @@ class _ListingMiniCard extends StatelessWidget {
                         ),
                         child: Text(
                           listing.priceLine,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.white,
-                                fontWeight: FontWeight.w900,
-                              ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.white,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                         ),
                       ),
                     ),
@@ -1048,8 +1252,9 @@ class _DateChipsRow extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (context, i) {
           final d = dates[i];
-          final isSel =
-              d.year == selected.year && d.month == selected.month && d.day == selected.day;
+          final isSel = d.year == selected.year &&
+              d.month == selected.month &&
+              d.day == selected.day;
           return _ChipButton(
             text: labelFor(d),
             selected: isSel,
@@ -1331,13 +1536,26 @@ class _PrimaryPillButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.button),
         child: SizedBox(
           height: AppSizes.pillButtonHeight,
-          child: Center(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: disabled ? AppColors.mutedMid : AppColors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color:
+                                disabled ? AppColors.mutedMid : AppColors.white,
+                          ),
+                    ),
                   ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1361,12 +1579,24 @@ class _SecondaryPillButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.button),
         child: SizedBox(
           height: AppSizes.pillButtonHeight,
-          child: Center(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
                   ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1391,6 +1621,8 @@ class _LinkText extends StatelessWidget {
         ),
         child: Text(
           text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w900,
                 color: AppColors.brandBlueSoft,
@@ -1419,6 +1651,8 @@ class _SummaryRow extends StatelessWidget {
         Expanded(
           child: Text(
             title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
@@ -1493,6 +1727,8 @@ class _AgentMiniCard extends StatelessWidget {
               children: [
                 Text(
                   name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w900,
                       ),
@@ -1500,6 +1736,8 @@ class _AgentMiniCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -1507,6 +1745,8 @@ class _AgentMiniCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   "Reference ID: $referenceId",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -1521,6 +1761,8 @@ class _AgentMiniCard extends StatelessWidget {
 }
 
 class _SuccessIcon extends StatelessWidget {
+  const _SuccessIcon();
+
   @override
   Widget build(BuildContext context) {
     return Container(

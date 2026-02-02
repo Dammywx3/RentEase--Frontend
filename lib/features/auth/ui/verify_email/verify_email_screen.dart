@@ -1,17 +1,19 @@
 // lib/features/auth/ui/verify_email/verify_email_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:rentease_frontend/core/constants/user_role.dart';
-import 'package:rentease_frontend/core/network/api_client.dart'; // ✅ NEW import
+import 'package:rentease_frontend/core/network/api_client.dart';
+import 'package:rentease_frontend/core/network/org_store.dart';
 import 'package:rentease_frontend/core/theme/app_colors.dart';
 import 'package:rentease_frontend/core/theme/app_radii.dart';
 import 'package:rentease_frontend/core/theme/app_shadows.dart';
 import 'package:rentease_frontend/core/theme/app_spacing.dart';
-import 'package:rentease_frontend/core/theme/app_typography.dart';
+import 'package:rentease_frontend/core/theme/app_sizes.dart';
 
-// ✅ success screen
+import 'package:rentease_frontend/core/ui/scaffold/app_scaffold.dart';
+
 import 'account_created_screen.dart';
-
 import '../../welcome/post_login_welcome_screen.dart';
 
 import 'verify_email_controller.dart';
@@ -31,7 +33,6 @@ class VerifyEmailScreen extends StatefulWidget {
   final String email;
   final UserRole role;
   final String fullName;
-
   final VerifyPurpose purpose;
   final String channel;
 
@@ -44,6 +45,25 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   final _codeCtrl = TextEditingController();
   final _codeFocus = FocusNode();
+
+  bool _confirming = false;
+  String? _localError;
+
+  // ✅ must match your TokenStore key
+  static const String _kTokenKey = 'auth_token';
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+
+  // ---------- Explore-style alpha helpers ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
 
   @override
   void initState() {
@@ -92,44 +112,66 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     }
   }
 
+  Future<void> _saveToken(String token) async {
+    await _storage.write(key: _kTokenKey, value: token.trim());
+  }
+
   Future<void> _verifyNow() async {
     FocusScope.of(context).unfocus();
+    setState(() => _localError = null);
 
     final code = _codeCtrl.text.trim();
     _c.setCode(code);
 
-    // ✅ If login OTP: call backend confirm to get REAL full_name + role
-    if (widget.purpose == VerifyPurpose.login) {
-      try {
-        // NOTE: we don't touch controller loading/info/error because your controller
-        // doesn't have setLoading/setError/setInfo methods.
-        // UI already shows loader from controller during verify(), so we keep it simple.
+    if (code.length < 4) {
+      setState(() => _localError = 'Enter the code sent to your email.');
+      return;
+    }
 
+    if (widget.purpose == VerifyPurpose.login) {
+      setState(() => _confirming = true);
+
+      try {
         final api = ApiClient();
         final json = await api.post(
           '/v1/auth/login/confirm',
           data: {
-            'email': widget.email.trim(),
+            'email': widget.email.trim().toLowerCase(),
             'code': code,
           },
         );
+
+        final token = (json['token'] ?? '').toString().trim();
+        if (token.isEmpty) {
+          throw Exception('Token missing from login confirm response.');
+        }
+        await _saveToken(token);
 
         final userAny = json['user'];
         final user = (userAny is Map)
             ? Map<String, dynamic>.from(userAny as Map)
             : <String, dynamic>{};
 
-        final fullName = (user['full_name'] ??
-                user['fullName'] ??
-                user['name'] ??
+        final orgId = (user['organization_id'] ??
+                user['organizationId'] ??
                 '')
             .toString()
             .trim();
+        if (orgId.isNotEmpty) {
+          await OrgStore.writeOrgId(orgId);
+        }
+
+        final fullName =
+            (user['full_name'] ?? user['fullName'] ?? user['name'] ?? '')
+                .toString()
+                .trim();
+        final safeName = fullName.isEmpty ? 'User' : fullName;
 
         final roleStr = (user['role'] ?? '').toString();
-        final realRole = _parseUserRoleFromBackend(roleStr, fallback: widget.role);
+        final realRole =
+            _parseUserRoleFromBackend(roleStr, fallback: widget.role);
 
-        final safeName = fullName.isEmpty ? 'User' : fullName;
+        if (!mounted) return;
 
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
@@ -141,28 +183,28 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
           (r) => false,
         );
         return;
-      } catch (_) {
-        // If confirm fails, fall back to your existing controller flow (it will show s.error)
-        // so you still get proper error handling UI.
+      } catch (e) {
+        setState(
+            () => _localError = e.toString().replaceFirst('Exception: ', ''));
+        return;
+      } finally {
+        if (mounted) setState(() => _confirming = false);
       }
     }
 
-    // ✅ Default: keep your old working controller verify flow
+    // Non-login verify
     final ok = await _c.verify();
     if (!mounted || !ok) return;
 
-    // ✅ REGISTER EMAIL VERIFY -> show "Account created ✅" then Go to Login
     if (widget.purpose == VerifyPurpose.emailVerify) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => AccountCreatedScreen(email: widget.email),
-        ),
+            builder: (_) => AccountCreatedScreen(email: widget.email)),
         (r) => false,
       );
       return;
     }
 
-    // ✅ Otherwise keep your current flow
     final safeName =
         widget.fullName.trim().isEmpty ? 'User' : widget.fullName.trim();
 
@@ -182,14 +224,22 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     final VerifyEmailState s = _c.state;
 
     final textMuted = AppColors.textMuted(context);
+    final busy = s.loading || _confirming;
+    final disabled = s.disabled || _confirming;
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+    final shownError = _localError ?? s.error;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: null,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
+              horizontal: AppSpacing.screenH, // Standard Horizontal Padding
               vertical: AppSpacing.lg,
             ),
             child: Column(
@@ -197,97 +247,106 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
               children: [
                 _TopBarCentered(
                   title: 'Verify code',
-                  disabled: s.disabled,
+                  disabled: disabled,
                   onBack: () => Navigator.of(context).pop(),
                 ),
-
                 const SizedBox(height: AppSpacing.xl),
-
-                // ✅ Removed: "Verify your email"
-                Text(
-                  _subtitle,
-                  style: AppTypography.body(context).copyWith(color: textMuted),
+                Center(
+                  child: Text(
+                    _subtitle,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: textMuted,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
                 ),
-
                 const SizedBox(height: AppSpacing.lg),
 
-                if (s.error != null) ...[
-                  _Banner(text: s.error!, icon: Icons.error_outline_rounded),
+                if (shownError != null) ...[
+                  _Banner(text: shownError!, icon: Icons.error_outline_rounded),
                   const SizedBox(height: AppSpacing.md),
                 ],
                 if (s.info != null) ...[
                   _Banner(
-                    text: s.info!,
-                    icon: Icons.check_circle_outline_rounded,
-                  ),
+                      text: s.info!, icon: Icons.check_circle_outline_rounded),
                   const SizedBox(height: AppSpacing.md),
                 ],
 
-                _GlassCard(
-                  child: Column(
-                    children: [
-                      Container(
-                        height: 110,
-                        width: 110,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface(context).withValues(alpha: 0.75),
-                          borderRadius: BorderRadius.circular(AppRadii.xl),
-                          border: Border.all(
-                            color: AppColors.border(context).withValues(alpha: 0.70),
+                // --- Main Frost Card ---
+                _FrostCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      children: [
+                        Container(
+                          height: 100,
+                          width: 100,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface(context)
+                                .withValues(alpha: _alphaSurfaceSoft),
+                            borderRadius: BorderRadius.circular(AppRadii.xl),
+                            border: Border.all(
+                              color: AppColors.overlay(
+                                  context, _alphaBorderSoft),
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.mark_email_read_rounded,
+                            size: 40,
+                            color: AppColors.textMuted(context),
                           ),
                         ),
-                        child: Icon(
-                          Icons.mail_outline_rounded,
-                          size: 44,
-                          color: AppColors.textSecondary(context),
+                        const SizedBox(height: AppSpacing.lg),
+
+                        _CodeField(
+                          controller: _codeCtrl,
+                          enabled: !disabled,
+                          onChanged: (v) => _c.setCode(v),
+                          onSubmitted: (_) => _verifyNow(),
                         ),
-                      ),
+                        const SizedBox(height: AppSpacing.lg),
 
-                      const SizedBox(height: AppSpacing.lg),
+                        _PrimaryButton(
+                          text: (widget.purpose == VerifyPurpose.login)
+                              ? 'Confirm'
+                              : 'Verify',
+                          loading: busy,
+                          onPressed: busy ? null : _verifyNow,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
 
-                      _CodeField(
-                        controller: _codeCtrl,
-                        enabled: !s.disabled,
-                        errorText: null,
-                        onChanged: (v) => _c.setCode(v),
-                        onSubmitted: (_) => _verifyNow(),
-                      ),
-
-                      const SizedBox(height: AppSpacing.lg),
-
-                      _PrimaryButton(
-                        text: (widget.purpose == VerifyPurpose.login)
-                            ? 'Confirm'
-                            : 'Verify',
-                        loading: s.loading,
-                        onPressed: s.loading ? null : _verifyNow,
-                      ),
-
-                      const SizedBox(height: AppSpacing.md),
-
-                      TextButton(
-                        onPressed: s.disabled ? null : _c.resend,
-                        child: Text(
-                          s.sending ? 'Sending...' : 'Resend code',
-                          style: AppTypography.body(context).copyWith(
-                            color: AppColors.brandBlueSoft,
-                            fontWeight: FontWeight.w800,
+                        TextButton(
+                          onPressed: disabled ? null : _c.resend,
+                          child: Text(
+                            s.sending ? 'Sending...' : 'Resend code',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: AppColors.brandBlueSoft,
+                                  fontWeight: FontWeight.w900,
+                                ),
                           ),
                         ),
-                      ),
 
-                      TextButton(
-                        onPressed:
-                            s.disabled ? null : () => Navigator.of(context).pop(),
-                        child: Text(
-                          'Change email',
-                          style: AppTypography.body(context).copyWith(
-                            color: AppColors.textSecondary(context),
-                            fontWeight: FontWeight.w800,
+                        TextButton(
+                          onPressed: disabled
+                              ? null
+                              : () => Navigator.of(context).pop(),
+                          child: Text(
+                            'Change email',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: AppColors.textMuted(context),
+                                  fontWeight: FontWeight.w800,
+                                ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -298,6 +357,10 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     );
   }
 }
+
+/* --------------------------------------------------------------------------
+   UI COMPONENTS (Matched to Design System)
+   -------------------------------------------------------------------------- */
 
 class _TopBarCentered extends StatelessWidget {
   const _TopBarCentered({
@@ -319,20 +382,24 @@ class _TopBarCentered extends StatelessWidget {
         children: [
           Align(
             alignment: Alignment.centerLeft,
-            child: IconButton(
-              onPressed: disabled ? null : onBack,
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: AppColors.textSecondary(context),
+            child: InkWell(
+              onTap: disabled ? null : onBack,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Icon(
+                  Icons.arrow_back_rounded,
+                  color: AppColors.textPrimary(context),
+                ),
               ),
             ),
           ),
           Text(
             title,
-            style: AppTypography.h3(context).copyWith(
-              color: AppColors.textPrimary(context),
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: AppColors.textPrimary(context),
+                  fontWeight: FontWeight.w900,
+                ),
           ),
         ],
       ),
@@ -347,28 +414,27 @@ class _Banner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.surface(context).withValues(alpha: 0.85);
-    final border = AppColors.border(context).withValues(alpha: 0.70);
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: bg,
+        color: AppColors.surface(context).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: Border.all(color: border),
+        border: Border.all(
+          color: AppColors.overlay(context, 0.1),
+        ),
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.textSecondary(context)),
+          Icon(icon, color: AppColors.textMuted(context)),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               text,
-              style: AppTypography.body(context).copyWith(
-                color: AppColors.textPrimary(context),
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary(context),
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
           ),
         ],
@@ -377,24 +443,32 @@ class _Banner extends StatelessWidget {
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  const _GlassCard({required this.child});
+class _FrostCard extends StatelessWidget {
+  const _FrostCard({required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.surface2(context).withValues(alpha: 0.70);
-    final border = AppColors.border(context).withValues(alpha: 0.60);
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+    final alphaShadow = AppSpacing.xs / AppSpacing.xxxl;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: border),
-        boxShadow: AppShadows.card(context),
+    return Material(
+      color: AppColors.surface(context).withValues(alpha: alphaSurface),
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: alphaShadow,
+          ),
+        ),
+        child: child,
       ),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: child,
     );
   }
 }
@@ -405,62 +479,50 @@ class _CodeField extends StatelessWidget {
     required this.onChanged,
     required this.onSubmitted,
     required this.enabled,
-    this.errorText,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
   final bool enabled;
-  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
-    final fill = AppColors.surface(context).withValues(alpha: 0.85);
-    final border = AppColors.border(context);
-
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      keyboardType: TextInputType.number,
-      maxLength: 6,
-      onChanged: onChanged,
-      onSubmitted: onSubmitted,
-      textAlign: TextAlign.center,
-      style: AppTypography.h3(context).copyWith(
-        color: AppColors.textPrimary(context),
-        fontWeight: FontWeight.w900,
-        letterSpacing: 2.0,
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.s2,
       ),
-      decoration: InputDecoration(
-        counterText: '',
-        filled: true,
-        fillColor: fill,
-        hintText: '••••••',
-        hintStyle: AppTypography.h3(context).copyWith(
-          color: AppColors.textMuted(context),
-          fontWeight: FontWeight.w800,
+      decoration: BoxDecoration(
+        color: AppColors.overlay(context, 0.04),
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        border: Border.all(color: AppColors.overlay(context, 0.08)),
+      ),
+      child: TextField(
+        controller: controller,
+        enabled: enabled,
+        keyboardType: TextInputType.number,
+        maxLength: 6,
+        onChanged: onChanged,
+        onSubmitted: onSubmitted,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: AppColors.textPrimary(context),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 8.0, // Space out the code digits
+            ),
+        cursorColor: AppColors.brandGreenDeep,
+        decoration: InputDecoration(
+          counterText: '',
+          border: InputBorder.none,
+          hintText: '••••••',
+          hintStyle: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: AppColors.textMuted(context).withValues(alpha: 0.3),
+                fontWeight: FontWeight.w900,
+                letterSpacing: 8.0,
+              ),
+          contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.md,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: BorderSide(color: border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: BorderSide(color: border.withValues(alpha: 0.70)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          borderSide: const BorderSide(
-            color: AppColors.brandBlueSoft,
-            width: 1.4,
-          ),
-        ),
-        errorText: errorText,
       ),
     );
   }
@@ -479,35 +541,40 @@ class _PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.brandGreenDeep.withValues(alpha: 0.95);
-    final fg = AppColors.textLight;
+    final disabled = loading || onPressed == null;
 
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bg,
-          foregroundColor: fg,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.lg),
+    return Material(
+      color: disabled
+          ? AppColors.overlay(context, 0.1)
+          : AppColors.brandGreenDeep.withValues(alpha: 0.95),
+      borderRadius: BorderRadius.circular(AppRadii.button),
+      child: InkWell(
+        onTap: disabled ? null : onPressed,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: Center(
+            child: loading
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.textLight,
+                    ),
+                  )
+                : Text(
+                    text,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: disabled
+                              ? AppColors.textMuted(context)
+                              : AppColors.textLight,
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
           ),
         ),
-        child: loading
-            ? const SizedBox(
-                height: 22,
-                width: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Text(
-                text,
-                style: AppTypography.button(context).copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
       ),
     );
   }

@@ -5,10 +5,11 @@ import 'package:rentease_frontend/core/theme/app_colors.dart';
 import 'package:rentease_frontend/core/theme/app_radii.dart';
 import 'package:rentease_frontend/core/theme/app_shadows.dart';
 import 'package:rentease_frontend/core/theme/app_spacing.dart';
-import 'package:rentease_frontend/core/theme/app_typography.dart';
+import 'package:rentease_frontend/core/theme/app_sizes.dart';
 
 import 'package:rentease_frontend/app/router/app_router.dart';
 import 'package:rentease_frontend/features/auth/data/auth_di.dart';
+import 'package:rentease_frontend/core/ui/scaffold/app_scaffold.dart';
 
 import 'reset_verify_code_controller.dart';
 import 'reset_verify_code_state.dart';
@@ -24,14 +25,26 @@ class ResetVerifyCodeScreen extends StatefulWidget {
 class _ResetVerifyCodeScreenState extends State<ResetVerifyCodeScreen> {
   late final ResetVerifyCodeController _c;
 
-  // ✅ Local banners (so we don't need _c.setError)
   String? _localError;
   String? _localInfo;
+
+  // ---------- Explore-style alpha helpers ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
 
   @override
   void initState() {
     super.initState();
-    _c = ResetVerifyCodeController(email: widget.email)..addListener(_onChanged);
+    _c = ResetVerifyCodeController(email: widget.email)
+      ..addListener(_onChanged);
   }
 
   void _onChanged() {
@@ -63,12 +76,10 @@ class _ResetVerifyCodeScreenState extends State<ResetVerifyCodeScreen> {
 
     _clearLocalBanners();
 
-    // Validate code locally first (uses your controller)
     final code = _c.getValidCodeOrNull();
     if (code == null) return;
 
     try {
-      // ✅ verify reset code -> returns resetToken
       final result = await AuthDI.authRepo.verifyPasswordResetCode(
         email: _c.state.email,
         code: code,
@@ -99,19 +110,22 @@ class _ResetVerifyCodeScreenState extends State<ResetVerifyCodeScreen> {
     final textPrimary = AppColors.textPrimary(context);
     final textMuted = AppColors.textMuted(context);
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: null,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
+              horizontal: AppSpacing.screenH, // Standard Horizontal Padding
               vertical: AppSpacing.lg,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ No brand: back + centered screen name
                 _TopBarCentered(
                   title: 'Verify code',
                   disabled: s.disabled,
@@ -122,22 +136,30 @@ class _ResetVerifyCodeScreenState extends State<ResetVerifyCodeScreen> {
 
                 Text(
                   'Enter reset code',
-                  style: AppTypography.h1(context).copyWith(color: textPrimary),
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: textPrimary,
+                        fontWeight: FontWeight.w900,
+                      ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'We sent a 6-digit code to\n${s.email}',
-                  style: AppTypography.body(context).copyWith(color: textMuted),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: textMuted,
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
 
-                // ✅ Show local/controller banners
                 if (_localError != null) ...[
-                  _Banner(text: _localError!, icon: Icons.error_outline_rounded),
+                  _Banner(
+                      text: _localError!, icon: Icons.error_outline_rounded),
                   const SizedBox(height: AppSpacing.md),
                 ],
                 if (_localInfo != null) ...[
-                  _Banner(text: _localInfo!, icon: Icons.check_circle_outline_rounded),
+                  _Banner(
+                      text: _localInfo!,
+                      icon: Icons.check_circle_outline_rounded),
                   const SizedBox(height: AppSpacing.md),
                 ],
                 if (s.error != null) ...[
@@ -145,62 +167,25 @@ class _ResetVerifyCodeScreenState extends State<ResetVerifyCodeScreen> {
                   const SizedBox(height: AppSpacing.md),
                 ],
                 if (s.info != null) ...[
-                  _Banner(text: s.info!, icon: Icons.check_circle_outline_rounded),
+                  _Banner(
+                      text: s.info!, icon: Icons.check_circle_outline_rounded),
                   const SizedBox(height: AppSpacing.md),
                 ],
 
-                _GlassCard(
+                // --- Main Frost Card ---
+                _FrostCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      TextField(
+                      _CodeField(
                         controller: _c.codeCtrl,
                         focusNode: _c.codeFocus,
-                        keyboardType: TextInputType.number,
-                        maxLength: 6,
-                        textAlign: TextAlign.center,
                         enabled: !s.disabled,
                         onChanged: (v) {
                           _clearLocalBanners();
                           _c.setCode(v);
                         },
                         onSubmitted: (_) => _goNext(),
-                        style: AppTypography.h3(context).copyWith(
-                          color: AppColors.textPrimary(context),
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2.0,
-                        ),
-                        decoration: InputDecoration(
-                          counterText: '',
-                          filled: true,
-                          fillColor: AppColors.surface(context).withValues(alpha: 0.85),
-                          hintText: '••••••',
-                          hintStyle: AppTypography.h3(context).copyWith(
-                            color: AppColors.textMuted(context),
-                            fontWeight: FontWeight.w800,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.md,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppRadii.lg),
-                            borderSide: BorderSide(color: AppColors.border(context)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppRadii.lg),
-                            borderSide: BorderSide(
-                              color: AppColors.border(context).withValues(alpha: 0.70),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppRadii.lg),
-                            borderSide: const BorderSide(
-                              color: AppColors.brandBlueSoft,
-                              width: 1.4,
-                            ),
-                          ),
-                        ),
                       ),
 
                       const SizedBox(height: AppSpacing.sm),
@@ -220,21 +205,29 @@ class _ResetVerifyCodeScreenState extends State<ResetVerifyCodeScreen> {
                                   },
                             child: Text(
                               s.sending ? 'Sending...' : 'Resend code',
-                              style: AppTypography.body(context).copyWith(
-                                color: AppColors.brandBlueSoft,
-                                fontWeight: FontWeight.w800,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: AppColors.brandBlueSoft,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                             ),
                           ),
                           const Spacer(),
                           TextButton(
-                            onPressed: s.disabled ? null : () => Navigator.of(context).pop(),
+                            onPressed: s.disabled
+                                ? null
+                                : () => Navigator.of(context).pop(),
                             child: Text(
                               'Change email',
-                              style: AppTypography.body(context).copyWith(
-                                color: AppColors.textMuted(context),
-                                fontWeight: FontWeight.w800,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: AppColors.textMuted(context),
+                                    fontWeight: FontWeight.w900,
+                                  ),
                             ),
                           ),
                         ],
@@ -258,6 +251,10 @@ class _ResetVerifyCodeScreenState extends State<ResetVerifyCodeScreen> {
     );
   }
 }
+
+/* --------------------------------------------------------------------------
+   UI COMPONENTS (Matched to Design System)
+   -------------------------------------------------------------------------- */
 
 class _TopBarCentered extends StatelessWidget {
   const _TopBarCentered({
@@ -289,10 +286,10 @@ class _TopBarCentered extends StatelessWidget {
           ),
           Text(
             title,
-            style: AppTypography.h3(context).copyWith(
-              color: AppColors.textPrimary(context),
-              fontWeight: FontWeight.w900,
-            ),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: AppColors.textPrimary(context),
+                  fontWeight: FontWeight.w900,
+                ),
           ),
         ],
       ),
@@ -300,24 +297,34 @@ class _TopBarCentered extends StatelessWidget {
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  const _GlassCard({required this.child});
+class _FrostCard extends StatelessWidget {
+  const _FrostCard({required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.surface2(context).withValues(alpha: 0.70);
-    final border = AppColors.border(context).withValues(alpha: 0.60);
+    // Matches Explore logic
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+    final alphaShadow = AppSpacing.xs / AppSpacing.xxxl;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        border: Border.all(color: border),
-        boxShadow: AppShadows.card(context),
+    return Material(
+      color: AppColors.surface(context).withValues(alpha: alphaSurface),
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: alphaShadow,
+          ),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: child,
       ),
-      child: child,
     );
   }
 }
@@ -347,13 +354,71 @@ class _Banner extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: AppTypography.body(context).copyWith(
-                color: AppColors.textPrimary(context),
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary(context),
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CodeField extends StatelessWidget {
+  const _CodeField({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onSubmitted,
+    required this.enabled,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+  final ValueChanged<String> onSubmitted;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.s2,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.overlay(context, 0.04),
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        border: Border.all(color: AppColors.overlay(context, 0.08)),
+      ),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        enabled: enabled,
+        keyboardType: TextInputType.number,
+        maxLength: 6,
+        onChanged: onChanged,
+        onSubmitted: onSubmitted,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: AppColors.textPrimary(context),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 8.0, // Space out the code digits
+            ),
+        cursorColor: AppColors.brandGreenDeep,
+        decoration: InputDecoration(
+          counterText: '',
+          border: InputBorder.none,
+          hintText: '••••••',
+          hintStyle: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: AppColors.textMuted(context).withValues(alpha: 0.3),
+                fontWeight: FontWeight.w900,
+                letterSpacing: 8.0,
+              ),
+          contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        ),
       ),
     );
   }
@@ -372,35 +437,41 @@ class _PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = AppColors.brandGreenDeep.withValues(alpha: 0.95);
-    final fg = AppColors.textLight;
+    final disabled = loading || onPressed == null;
 
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bg,
-          foregroundColor: fg,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.lg),
+    return Material(
+      color: disabled
+          ? AppColors.overlay(context, 0.1)
+          : AppColors.brandGreenDeep.withValues(alpha: 0.95),
+      borderRadius: BorderRadius.circular(AppRadii.button),
+      child: InkWell(
+        onTap: disabled ? null : onPressed,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        child: SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: Center(
+            child: loading
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.textLight,
+                    ),
+                  )
+                : Text(
+                    text,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: disabled
+                              ? AppColors.textMuted(context)
+                              : AppColors.textLight,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15.5,
+                        ),
+                  ),
           ),
         ),
-        child: loading
-            ? const SizedBox(
-                height: 22,
-                width: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Text(
-                text,
-                style: AppTypography.button(context).copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
       ),
     );
   }

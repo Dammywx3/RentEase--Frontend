@@ -1,3 +1,4 @@
+// lib/features/tenant/maintenance/maintenance_detail_screen.dart
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/status_badge_map.dart';
@@ -28,7 +29,7 @@ class MaintenanceDetailScreen extends StatelessWidget {
   });
 
   final String requestId;
-  final String status; // open / in_progress / on_hold / resolved / cancelled
+  final String status;
 
   final String? title;
   final String? category;
@@ -40,8 +41,17 @@ class MaintenanceDetailScreen extends StatelessWidget {
 
   bool get _canCancel => status.trim().toLowerCase() == 'open';
 
-  double get _surfaceA => AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
-  double get _borderA => AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+  // ---------- Explore-style alpha helpers ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaSurfaceSoft =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
 
   @override
   Widget build(BuildContext context) {
@@ -55,173 +65,176 @@ class MaintenanceDetailScreen extends StatelessWidget {
     final safePriority = (priority ?? '').trim();
     final safeDesc = (description ?? '—').trim();
 
-    return Stack(
-      children: [
-        // ✅ Fix: gradient behind the entire screen (safe-area + top bar)
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: AppColors.pageBgGradient(context),
-            ),
-          ),
+    return DecoratedBox(
+      decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: AppTopBar(
+          title: safeTitle,
+          subtitle: safeAddr.isEmpty ? null : safeAddr,
+          leadingIcon: Icons.arrow_back_rounded,
+          onLeadingTap: () => Navigator.of(context).maybePop(),
         ),
-        AppScaffold(
-          backgroundColor: Colors.transparent,
-          safeAreaTop: true,
-          safeAreaBottom: false,
-          topBar: AppTopBar(
-            title: safeTitle,
-            subtitle: safeAddr.isEmpty ? null : safeAddr,
-            leadingIcon: Icons.arrow_back_rounded,
-            onLeadingTap: () => Navigator.of(context).maybePop(),
-            actions: const [],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH, // Standard horizontal spacing
+            AppSpacing.sm,
+            AppSpacing.screenH, // Standard horizontal spacing
+            AppSpacing.lg,
           ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenH,
-              AppSpacing.sm,
-              AppSpacing.screenH,
-              AppSpacing.lg,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header row (chips + badge)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
-                        children: [
-                          if (safeCategory.isNotEmpty)
-                            _MetaChip(
-                              icon: Icons.category_rounded,
-                              text: safeCategory,
-                            ),
-                          if (safeDate.isNotEmpty)
-                            _MetaChip(
-                              icon: Icons.event_rounded,
-                              text: safeDate,
-                            ),
-                          if (safePriority.isNotEmpty)
-                            _MetaChip(
-                              icon: Icons.flag_rounded,
-                              text: safePriority,
-                            ),
-                        ],
-                      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row (chips + badge)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        if (safeCategory.isNotEmpty)
+                          _MetaChip(
+                            icon: Icons.category_rounded,
+                            text: safeCategory,
+                          ),
+                        if (safeDate.isNotEmpty)
+                          _MetaChip(
+                            icon: Icons.event_rounded,
+                            text: safeDate,
+                          ),
+                        if (safePriority.isNotEmpty)
+                          _MetaChip(
+                            icon: Icons.flag_rounded,
+                            text: safePriority,
+                          ),
+                      ],
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    StatusBadge(
-                      domain: StatusDomain.maintenance,
-                      status: status,
-                      compact: false,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  StatusBadge(
+                    domain: StatusDomain.maintenance,
+                    status: status,
+                    compact: false,
+                  ),
+                ],
+              ),
 
-                const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
 
-                // Photos
-                Container(
-                  height:
-                      AppSizes.listThumbSize + AppSpacing.xxxl + AppSpacing.lg,
+              // Photos Placeholder
+              _FrostCard(
+                child: SizedBox(
+                  height: 120,
                   width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppRadii.card),
-                    color: AppColors.surface(
-                      context,
-                    ).withValues(alpha: _surfaceA),
-                    border: Border.all(
-                      color: AppColors.overlay(context, _borderA),
-                    ),
-                    boxShadow: AppShadows.soft(
-                      context,
-                      blur: AppSpacing.xxxl,
-                      y: AppSpacing.lg,
-                      alpha: AppSpacing.xs / AppSpacing.xxxl,
-                    ),
-                  ),
                   child: Center(
-                    child: Text(
-                      'Photos',
-                      style: t.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary(context),
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.photo_library_rounded,
+                          color: AppColors.textMuted(context),
+                          size: 32,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'No photos attached',
+                          style: t.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textMuted(context),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
+              ),
 
-                const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.lg),
 
-                const _SectionTitle('Description'),
-                _Card(child: Text(safeDesc, style: t.textTheme.bodyMedium)),
+              const _SectionTitle('Description'),
+              _FrostCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Text(
+                    safeDesc,
+                    style: t.textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary(context),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
 
-                const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.lg),
 
-                const _SectionTitle('Status timeline'),
-                _Card(child: _Timeline(status: status)),
+              const _SectionTitle('Status timeline'),
+              _FrostCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: _Timeline(status: status),
+                ),
+              ),
 
-                const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.lg),
 
-                const _SectionTitle('Visit / access'),
-                _Card(
+              const _SectionTitle('Visit / access'),
+              _FrostCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: _kv(
+                    context,
                     'Permission to enter if not home',
                     (permissionToEnter ?? false) ? 'Yes' : 'No',
                   ),
                 ),
+              ),
 
-                const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.lg),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => ToastService.show(
-                          context,
-                          'Chat/call landlord/agent (wire later)',
-                          success: true,
-                        ),
-                        icon: const Icon(Icons.chat_bubble_outline_rounded),
-                        label: const Text('Chat'),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SecondaryPillButton(
+                      text: 'Chat',
+                      icon: Icons.chat_bubble_outline_rounded,
+                      onTap: () => ToastService.show(
+                        context,
+                        'Chat/call landlord/agent (wire later)',
+                        success: true,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => ToastService.show(
-                          context,
-                          'Call (wire later)',
-                          success: true,
-                        ),
-                        icon: const Icon(Icons.call_rounded),
-                        label: const Text('Call'),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: AppSpacing.lg),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: AppSizes.pillButtonHeight + AppSpacing.sm,
-                  child: FilledButton(
-                    onPressed: _canCancel
-                        ? () => _confirmCancel(context)
-                        : null,
-                    child: Text(_canCancel ? 'Cancel Request' : 'Update'),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: _SecondaryPillButton(
+                      text: 'Call',
+                      icon: Icons.call_rounded,
+                      onTap: () => ToastService.show(
+                        context,
+                        'Call (wire later)',
+                        success: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              _PrimaryButton(
+                text: _canCancel ? 'Cancel Request' : 'Update Request',
+                onPressed:
+                    _canCancel ? () => _confirmCancel(context) : null, // or update logic
+                isDestructive: _canCancel,
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -249,7 +262,7 @@ class MaintenanceDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _kv(String k, String v) {
+  Widget _kv(BuildContext context, String k, String v) {
     return Row(
       children: [
         Expanded(
@@ -257,17 +270,26 @@ class MaintenanceDetailScreen extends StatelessWidget {
             k,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w900),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textMuted(context),
+                ),
           ),
         ),
         const SizedBox(width: AppSpacing.s10),
-        Text(v),
+        Text(
+          v,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: AppColors.textPrimary(context),
+              ),
+        ),
       ],
     );
   }
 }
 
-/* ---------------- UI ---------------- */
+/* ---------------- UI Components ---------------- */
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
@@ -275,38 +297,47 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.s10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Text(
         text,
-        style: t.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w900,
-          color: AppColors.textPrimary(context),
-        ),
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary(context),
+            ),
       ),
     );
   }
 }
 
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
+class _FrostCard extends StatelessWidget {
+  const _FrostCard({required this.child});
   final Widget child;
-
-  double get _surfaceA => AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
-  double get _borderA => AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        color: AppColors.surface(context).withValues(alpha: _surfaceA),
-        border: Border.all(color: AppColors.overlay(context, _borderA)),
+    // Standard Explore logic
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+    final alphaShadow = AppSpacing.xs / AppSpacing.xxxl;
+
+    return Material(
+      color: AppColors.surface(context).withValues(alpha: alphaSurface),
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
+          boxShadow: AppShadows.lift(
+            context,
+            blur: AppSpacing.xxxl,
+            y: AppSpacing.xl,
+            alpha: alphaShadow,
+          ),
+        ),
+        child: child,
       ),
-      child: child,
     );
   }
 }
@@ -316,41 +347,38 @@ class _MetaChip extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  double get _surfaceA => AppSpacing.md / (AppSpacing.xxxl + AppSpacing.md);
-  double get _borderA => AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
-
   @override
   Widget build(BuildContext context) {
+    final alphaSurface = AppSpacing.md / (AppSpacing.xxxl + AppSpacing.md);
+    final alphaBorder = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
     final muted = AppColors.textMuted(context);
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(
-        maxWidth: 240,
-      ), // ✅ hard stop prevents overflow
+      constraints: const BoxConstraints(maxWidth: 240),
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.s10,
-          vertical: AppSpacing.s7,
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadii.pill),
-          color: AppColors.surface(context).withValues(alpha: _surfaceA),
-          border: Border.all(color: AppColors.overlay(context, _borderA)),
+          color: AppColors.surface(context).withValues(alpha: alphaSurface),
+          border: Border.all(color: AppColors.overlay(context, alphaBorder)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: AppSpacing.xl, color: muted),
-            const SizedBox(width: AppSpacing.s6),
+            Icon(icon, size: 16, color: muted),
+            const SizedBox(width: AppSpacing.xs),
             Flexible(
               child: Text(
                 text,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: muted,
-                  fontWeight: FontWeight.w900,
-                ),
+                      color: muted,
+                      fontWeight: FontWeight.w800,
+                    ),
               ),
             ),
           ],
@@ -373,13 +401,15 @@ class _Timeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
     final keys = StatusBadgeMap.timelineStatuses(StatusDomain.maintenance);
 
     if (keys.isEmpty) {
       return Text(
         '—',
-        style: t.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w900),
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: AppColors.textMuted(context),
+            ),
       );
     }
 
@@ -397,44 +427,129 @@ class _Timeline extends StatelessWidget {
             i <= currentIdx && raw != 'cancelled' && current != 'cancelled';
         final isCancelled = current == 'cancelled';
 
-        final bg = isCancelled
-            ? AppColors.textMuted(context).withValues(alpha: 0.18)
-            : done
-            ? AppColors.brandGreen.withValues(alpha: 0.18)
-            : AppColors.surface(context).withValues(alpha: 0.18);
+        // Colors
+        final alphaBg = AppSpacing.lg / (AppSpacing.xxxl + AppSpacing.lg);
+        final activeColor = isCancelled
+            ? AppColors.danger
+            : (done ? AppColors.brandGreen : AppColors.textMuted(context));
 
-        final border = isCancelled
-            ? AppColors.textMuted(context).withValues(alpha: 0.22)
-            : done
-            ? AppColors.brandGreen.withValues(alpha: 0.22)
-            : AppColors.overlay(context, 0.10);
+        final bg = activeColor.withValues(alpha: done ? alphaBg : 0.1);
+        final border = activeColor.withValues(alpha: 0.2);
+        final textC =
+            done ? AppColors.textPrimary(context) : AppColors.textMuted(context);
 
-        return ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 260,
-          ), // ✅ prevents overflow
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadii.pill),
-              color: bg,
-              border: Border.all(color: border),
-            ),
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: t.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary(context),
-              ),
-            ),
+        return Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            color: bg,
+            border: Border.all(color: border),
+          ),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: textC,
+                ),
           ),
         );
       }),
+    );
+  }
+}
+
+class _SecondaryPillButton extends StatelessWidget {
+  const _SecondaryPillButton({
+    required this.text,
+    required this.onTap,
+    this.icon,
+  });
+
+  final String text;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final alphaSurface = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    
+    return Material(
+      color: AppColors.surface(context).withValues(alpha: alphaSurface),
+      borderRadius: BorderRadius.circular(AppRadii.pill),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        child: Container(
+          height: AppSizes.pillButtonHeight,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            border: Border.all(
+              color: AppColors.overlay(context, 0.15),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 18, color: AppColors.textPrimary(context)),
+                const SizedBox(width: AppSpacing.sm),
+              ],
+              Text(
+                text,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary(context),
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({
+    required this.text,
+    required this.onPressed,
+    this.isDestructive = false,
+  });
+
+  final String text;
+  final VoidCallback? onPressed;
+  final bool isDestructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive ? AppColors.danger : AppColors.brandGreenDeep;
+    
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color.withValues(alpha: 0.95),
+          foregroundColor: AppColors.textLight,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.lg), // Rounded rect for primary actions
+          ),
+        ),
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textLight,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+              ),
+        ),
+      ),
     );
   }
 }

@@ -5,7 +5,11 @@ import '../../../../core/ui/scaffold/app_scaffold.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radii.dart';
+import '../../../../core/theme/app_shadows.dart';
+import '../../../../core/theme/app_sizes.dart';
 import '../../../../core/theme/app_spacing.dart';
+
+import '../../../../core/utils/money_format.dart';
 
 class PaymentSuccessScreen extends StatelessWidget {
   const PaymentSuccessScreen({
@@ -19,163 +23,302 @@ class PaymentSuccessScreen extends StatelessWidget {
   final String title;
   final int amountNgn;
 
-  String _fmt(int v) {
-    final s = v.toString();
-    final buf = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      final idxFromEnd = s.length - i;
-      buf.write(s[i]);
-      if (idxFromEnd > 1 && idxFromEnd % 3 == 1) {
-        buf.write(",");
-      }
-    }
-    return "₦$buf";
+  // ---------- Explore-style computed alphas ----------
+  double get _alphaSurfaceStrong =>
+      AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaBorderSoft =>
+      AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+  double get _alphaShadowSoft => AppSpacing.xs / AppSpacing.xxxl;
+
+  String _fmtNow(BuildContext context) {
+    final when = DateTime.now();
+    final loc = MaterialLocalizations.of(context);
+
+    // Ex: "Feb 2, 2026 • 10:45 AM"
+    final date = loc.formatShortMonthDay(when);
+    final time = loc.formatTimeOfDay(
+      TimeOfDay.fromDateTime(when),
+      alwaysUse24HourFormat: false,
+    );
+    return "$date • $time";
   }
 
   @override
   Widget build(BuildContext context) {
-    final when = DateTime.now();
-    final mo = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ][when.month - 1];
-    final hour12 = (when.hour % 12 == 0) ? 12 : (when.hour % 12);
-    final ampm = when.hour >= 12 ? "PM" : "AM";
-    final time =
-        "$mo ${when.day}, ${when.year} at $hour12:${when.minute.toString().padLeft(2, "0")} $ampm";
+    final paidText = fmtMoneyCompact(amountNgn, currencyCode: 'NGN');
 
-    return AppScaffold(
-      topBar: const AppTopBar(title: 'Payment Success'),
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.tenantBgTop, AppColors.tenantBgBottom],
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: AppColors.pageBgGradient(context),
+            ),
           ),
         ),
-        child: SafeArea(
-          child: Padding(
+        AppScaffold(
+          backgroundColor: Colors.transparent,
+          safeAreaTop: true,
+          safeAreaBottom: false,
+          topBar: const AppTopBar(title: 'Payment Success'),
+          child: ListView(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.screenH,
+              AppSpacing.sm,
               AppSpacing.screenH,
-              AppSpacing.screenH,
-              AppSpacing.screenH,
+              AppSizes.screenBottomPad,
             ),
-            child: Column(
-              children: [
-                const SizedBox(height: AppSpacing.md),
-                const CircleAvatar(
-                  radius: 26,
-                  backgroundColor: AppColors.tenantActionGreen,
-                  child: Icon(
+            children: [
+              const SizedBox(height: AppSpacing.lg),
+
+              // ✅ Success icon (Explore-style surface + border + shadow)
+              Center(
+                child: Container(
+                  height: AppSpacing.xxxl + AppSpacing.lg,
+                  width: AppSpacing.xxxl + AppSpacing.lg,
+                  decoration: BoxDecoration(
+                    color: AppColors.brandGreenDeep.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.overlay(context, _alphaBorderSoft),
+                    ),
+                    boxShadow: AppShadows.lift(
+                      context,
+                      blur: AppSpacing.xxxl,
+                      y: AppSpacing.xl,
+                      alpha: _alphaShadowSoft,
+                    ),
+                  ),
+                  child: const Icon(
                     Icons.check_rounded,
-                    color: AppColors.white,
-                    size: 28,
+                    color: AppColors.brandGreenDeep,
+                    size: 44,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.screenV),
-                Text(
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              Center(
+                child: Text(
                   "Payment Successful",
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.navy,
-                  ),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.textPrimary(context),
+                      ),
                 ),
-                const SizedBox(height: AppSpacing.s10),
-                Text(
+              ),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              Center(
+                child: Text(
                   "Receipt ID: $receiptId",
+                  textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textMutedLight,
-                  ),
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMuted(context).withValues(alpha: 0.92),
+                      ),
                 ),
-                const SizedBox(height: AppSpacing.s6),
-                Text(
-                  time,
+              ),
+
+              const SizedBox(height: AppSpacing.s6),
+
+              Center(
+                child: Text(
+                  _fmtNow(context),
+                  textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textMutedLight,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMuted(context).withValues(alpha: 0.92),
+                      ),
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              // ✅ Frost card summary (Explore style)
+              _FrostCard(
+                alphaSurface: _alphaSurfaceStrong,
+                alphaBorder: _alphaBorderSoft,
+                alphaShadow: _alphaShadowSoft,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Paid",
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary(context),
+                            ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        paidText,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.brandGreenDeep,
+                            ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textSecondary(context),
+                            ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.screenH),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.tenantActionBlue,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.screenV,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.sm),
-                      ),
-                    ),
-                    child: const Text(
-                      "Download receipt",
-                      style: TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.screenV,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.sm),
-                      ),
-                    ),
-                    child: const Text(
-                      "View transactions",
-                      style: TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () =>
-                        Navigator.of(context).popUntil((r) => r.isFirst),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.screenV,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.sm),
-                      ),
-                    ),
-                    child: const Text(
-                      "Back to tenancy",
-                      style: TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  "Paid: ${_fmt(amountNgn)} • $title",
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              // ✅ Buttons (Explore-like pill buttons)
+              _PrimaryPillButton(
+                text: "Download receipt",
+                onTap: () {},
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _SecondaryPillButton(
+                text: "View transactions",
+                onTap: () {},
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _SecondaryPillButton(
+                text: "Back to tenancy",
+                onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
+              ),
+
+              const SizedBox(height: AppSpacing.lg),
+
+              Center(
+                child: Text(
+                  "Paid: $paidText • $title",
+                  textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textMutedLight,
-                  ),
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textMuted(context).withValues(alpha: 0.92),
+                      ),
                 ),
-              ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------- Explore-style UI helpers ----------------
+
+class _FrostCard extends StatelessWidget {
+  const _FrostCard({
+    required this.child,
+    required this.alphaSurface,
+    required this.alphaBorder,
+    required this.alphaShadow,
+  });
+
+  final Widget child;
+  final double alphaSurface;
+  final double alphaBorder;
+  final double alphaShadow;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface(context).withValues(alpha: alphaSurface),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        border: Border.all(
+          color: AppColors.overlay(context, alphaBorder),
+        ),
+        boxShadow: AppShadows.lift(
+          context,
+          blur: AppSpacing.xxxl,
+          y: AppSpacing.xl,
+          alpha: alphaShadow,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _PrimaryPillButton extends StatelessWidget {
+  const _PrimaryPillButton({required this.text, required this.onTap});
+
+  final String text;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onTap == null;
+
+    return Material(
+      color: disabled
+          ? AppColors.tenantBorderMuted.withValues(alpha: 0.28)
+          : AppColors.brandGreenDeep.withValues(alpha: 0.80),
+      borderRadius: BorderRadius.circular(AppRadii.button),
+      child: InkWell(
+        onTap: disabled ? null : onTap,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        child: SizedBox(
+          height: AppSizes.pillButtonHeight,
+          width: double.infinity,
+          child: Center(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: disabled ? AppColors.mutedMid : AppColors.white,
+                  ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SecondaryPillButton extends StatelessWidget {
+  const _SecondaryPillButton({required this.text, required this.onTap});
+
+  final String text;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final a = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
+    final b = AppSpacing.xs / (AppSpacing.xxxl + AppSpacing.xs);
+
+    return Material(
+      color: AppColors.surface(context).withValues(alpha: a),
+      borderRadius: BorderRadius.circular(AppRadii.button),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.button),
+        child: Container(
+          height: AppSizes.pillButtonHeight,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.button),
+            border: Border.all(color: AppColors.overlay(context, b)),
+          ),
+          child: Center(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary(context),
+                  ),
             ),
           ),
         ),

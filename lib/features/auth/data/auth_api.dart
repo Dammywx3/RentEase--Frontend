@@ -1,5 +1,7 @@
+// lib/features/auth/data/auth_api.dart
 import 'package:rentease_frontend/core/config/api_endpoints.dart';
 import 'package:rentease_frontend/core/network/api_client.dart';
+import 'package:rentease_frontend/core/network/token_store.dart';
 
 class AuthApi {
   AuthApi(this._client);
@@ -16,16 +18,36 @@ class AuthApi {
     );
   }
 
+  /// ✅ Step B: Confirm OTP -> SAVE JWT so interceptor can attach Authorization header
   Future<Map<String, dynamic>> loginConfirm({
     required String email,
     required String code,
-  }) {
-    return _client.post(
+  }) async {
+    final res = await _client.post(
       ApiEndpoints.loginConfirm,
       data: {'email': email.trim().toLowerCase(), 'code': code.trim()},
     );
+
+    // Backend returns: { ok: true, token, user: {...} }
+    if (res['ok'] == true) {
+      final token = (res['token'] ?? '').toString().trim();
+      if (token.isNotEmpty) {
+        await TokenStore.writeToken(token);
+
+        // Optional debug (safe)
+        final saved = await TokenStore.readToken();
+        // ignore: avoid_print
+        print('[AUTH] token saved? ${saved != null && saved.isNotEmpty}');
+      } else {
+        // If ok=true but no token, treat as error
+        throw Exception('Login confirm succeeded but token is missing.');
+      }
+    }
+
+    return res;
   }
 
+  /// ✅ Optional: call after register if you want to save token too
   Future<Map<String, dynamic>> register({
     required String organizationId,
     required String fullName,
@@ -33,8 +55,8 @@ class AuthApi {
     String? phone,
     required String password,
     required String role, // tenant | landlord | agent | admin
-  }) {
-    return _client.post(
+  }) async {
+    final res = await _client.post(
       ApiEndpoints.register,
       data: {
         'organizationId': organizationId.trim(),
@@ -45,10 +67,26 @@ class AuthApi {
         'role': role,
       },
     );
+
+    // If your register endpoint returns token, save it
+    if (res['ok'] == true) {
+      final token = (res['token'] ?? '').toString().trim();
+      if (token.isNotEmpty) {
+        await TokenStore.writeToken(token);
+        // ignore: avoid_print
+        print('[AUTH] token saved from register');
+      }
+    }
+
+    return res;
   }
 
   Future<Map<String, dynamic>> me() {
     return _client.get(ApiEndpoints.me);
+  }
+
+  Future<void> logout() async {
+    await TokenStore.clear();
   }
 
   // Password reset (2-step)

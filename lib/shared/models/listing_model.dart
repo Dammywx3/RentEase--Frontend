@@ -1,3 +1,5 @@
+// lib/shared/models/listing_model.dart
+
 class ListingModel {
   const ListingModel({
     required this.id,
@@ -5,14 +7,18 @@ class ListingModel {
     required this.price,
     required this.currency,
     required this.location,
-    required this.status,
+    required this.status, // listing_status
     this.beds,
     this.baths,
     this.type,
     this.mediaUrls = const [],
-    this.propertyStatus,
+    this.propertyStatus, // property_status
     this.ownerName,
     this.ownerId,
+
+    // ✅ IDs used for viewing/inspection booking (backend create)
+    this.listingId,
+    this.propertyId,
   });
 
   final String id;
@@ -28,6 +34,12 @@ class ListingModel {
   final String? propertyStatus; // property_status (available/occupied/...)
   final String? ownerName;
   final String? ownerId;
+
+  /// ✅ Optional IDs for backend viewings create
+  /// - listingId: some APIs return a distinct listingId (or listing_id)
+  /// - propertyId: property being viewed/inspected
+  final String? listingId;
+  final String? propertyId;
 
   factory ListingModel.fromMap(Map<String, dynamic> map) {
     // ---------- helpers ----------
@@ -55,11 +67,9 @@ class ListingModel {
     }
 
     String _buildLocation(Map<String, dynamic> m) {
-      // If explicit location/address exists, prefer it.
       final direct = (m['location'] ?? m['address'])?.toString();
       if (direct != null && direct.trim().isNotEmpty) return direct.trim();
 
-      // Otherwise build from city/state/country (marketplace response style).
       final city = m['city']?.toString();
       final state = m['state']?.toString();
       final country = m['country']?.toString();
@@ -85,49 +95,49 @@ class ListingModel {
         case 'long_lease':
           return 'Rent';
         default:
-          return propertyType; // fallback
+          return propertyType;
       }
     }
 
+    String? _readString(dynamic v) {
+      final s = v?.toString();
+      if (s == null) return null;
+      final t = s.trim();
+      return t.isEmpty ? null : t;
+    }
+
     // ---------- media parsing ----------
-    // Support:
-    // - your old 'media_urls' or 'mediaUrls' (list)
-    // - marketplace 'coverUrl' / 'coverThumb' (single strings)
     final urls = <String>[];
 
     final media = (map['media_urls'] ?? map['mediaUrls']);
     if (media is List) {
       for (final x in media) {
-        if (x != null && x.toString().trim().isNotEmpty) {
-          urls.add(x.toString().trim());
-        }
+        final s = _readString(x);
+        if (s != null) urls.add(s);
       }
     }
 
-    final coverUrl = map['coverUrl']?.toString();
-    if (coverUrl != null && coverUrl.trim().isNotEmpty) {
-      urls.insert(0, coverUrl.trim());
+    final coverUrl = _readString(map['coverUrl'] ?? map['cover_url']);
+    if (coverUrl != null) {
+      urls.insert(0, coverUrl);
     }
 
-    // if you ever want to use thumb too:
-    // final coverThumb = map['coverThumb']?.toString();
-    // if (coverThumb != null && coverThumb.trim().isNotEmpty) urls.add(coverThumb.trim());
-
     // ---------- core fields ----------
-    final id = (map['id'] ?? map['listingId'] ?? '').toString();
+    // ✅ IMPORTANT: support id / listing_id / listingId
+    final id = _readString(map['id']) ??
+        _readString(map['listing_id']) ??
+        _readString(map['listingId']) ??
+        '';
+
     final title = (map['title'] ?? map['name'] ?? '').toString();
 
     final price = (map.containsKey('price'))
         ? _parseNum(map['price'])
-        : _parseNum(map['listedPrice']);
+        : _parseNum(map['listedPrice'] ?? map['listed_price']);
 
-    // Prefer currency from backend (marketplace returns "NGN")
     final currency = (map['currency'] ?? 'NGN').toString();
-
-    // status from marketplace: "active" etc
     final status = (map['status'] ?? 'draft').toString();
 
-    // beds/baths from either old keys or marketplace keys
     final beds = map.containsKey('beds')
         ? _parseInt(map['beds'])
         : _parseInt(map['bedrooms']);
@@ -136,8 +146,24 @@ class ListingModel {
         ? _parseInt(map['baths'])
         : _parseInt(map['bathrooms']);
 
-    // type from old 'type' OR from marketplace 'propertyType'
-    final type = map['type']?.toString() ?? _mapPropertyTypeToUiType(map['propertyType']?.toString());
+    final type = map['type']?.toString() ??
+        _mapPropertyTypeToUiType(map['propertyType']?.toString());
+
+    // ---------- IDs for backend viewings ----------
+    // ✅ listingId may come as listingId or listing_id; fallback to id.
+    final listingId =
+        _readString(map['listingId']) ?? _readString(map['listing_id']) ?? id;
+
+    // ✅ propertyId can appear in multiple shapes
+    String? propertyId = _readString(map['propertyId']) ??
+        _readString(map['property_id']);
+
+    // sometimes nested: property: { id: ... }
+    final propAny = map['property'];
+    if (propertyId == null && propAny is Map) {
+      propertyId =
+          _readString(propAny['id']) ?? _readString(propAny['propertyId']);
+    }
 
     return ListingModel(
       id: id,
@@ -150,9 +176,13 @@ class ListingModel {
       baths: baths,
       type: type,
       mediaUrls: urls,
-      propertyStatus: map['property_status']?.toString() ?? map['propertyStatus']?.toString(),
-      ownerName: map['owner_name']?.toString() ?? map['ownerName']?.toString(),
+      propertyStatus: map['property_status']?.toString() ??
+          map['propertyStatus']?.toString(),
+      ownerName:
+          map['owner_name']?.toString() ?? map['ownerName']?.toString(),
       ownerId: map['owner_id']?.toString() ?? map['ownerId']?.toString(),
+      listingId: listingId,
+      propertyId: propertyId,
     );
   }
 
@@ -170,5 +200,11 @@ class ListingModel {
         'property_status': propertyStatus,
         'owner_name': ownerName,
         'owner_id': ownerId,
+
+        // keep both styles for compatibility
+        'listingId': listingId,
+        'listing_id': listingId,
+        'propertyId': propertyId,
+        'property_id': propertyId,
       };
 }
