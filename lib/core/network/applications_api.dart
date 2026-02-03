@@ -69,8 +69,13 @@ class ApplicationsApi {
     String id, {
     PatchApplicationInput? patch,
     bool includeStatus = false, // set true for admin UI
+    bool allowNulls = false, // set true only when you intentionally want to clear fields
   }) async {
-    final body = patch?.toJson(includeStatus: includeStatus) ?? <String, dynamic>{};
+    final body = patch?.toJson(
+          includeStatus: includeStatus,
+          allowNulls: allowNulls,
+        ) ??
+        <String, dynamic>{};
 
     final res = await _client.patch(
       '${ApiEndpoints.applications}/$id',

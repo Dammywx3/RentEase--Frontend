@@ -142,8 +142,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     return widget.listing.id.trim();
   }
 
-  // ✅ Property id (if you have it). If not available yet, we safely fallback to listingId.
-  String _safePropertyId({required String fallbackListingId}) {
+  // ✅ Property id (ONLY if it exists). Never guess. Never fallback to listingId.
+  // If not available, return "" and let backend derive it (or UI can refresh details).
+  String _safePropertyId() {
     try {
       final dynamic any = widget.listing;
       final v = any.propertyId ?? any.property_id ?? any.propertyID;
@@ -153,7 +154,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         if (s.isNotEmpty) return s;
       }
     } catch (_) {}
-    return fallbackListingId;
+    return "";
   }
 
   int _priceToIntNgn() {
@@ -177,9 +178,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final isUrl = cover.startsWith('http://') || cover.startsWith('https://');
 
     final listingId = _safeListingId().trim();
-
-    // If listingId is empty somehow, do nothing (avoid sending bad request)
     if (listingId.isEmpty) return;
+
+    // ✅ DO NOT GUESS propertyId
+    final propertyId = _safePropertyId().trim();
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -192,13 +194,15 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             photoAssetPath: isAsset ? cover : null,
             photoUrl: isUrl ? cover : null,
             locationTitle: location.isEmpty ? 'Location' : location,
-            addressLine: location.isEmpty ? 'Open in Maps to view address' : location,
+            addressLine: location.isEmpty
+                ? 'Open in Maps to view address'
+                : location,
 
             // ✅ REQUIRED by booking + backend
             listingId: listingId,
 
-            // ✅ Optional now (backend derives propertyId)
-            propertyId: "",
+            // ✅ Optional: only pass if real; otherwise empty
+            propertyId: propertyId,
           ),
           instantBooking: false,
         ),
@@ -213,19 +217,21 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final listingId = _safeListingId().trim();
     if (listingId.isEmpty) return;
 
-    final propertyId = _safePropertyId(fallbackListingId: listingId);
+    // ✅ DO NOT fallback to listingId.
+    // If missing, pass empty and let backend derive.
+    final propertyId = _safePropertyId().trim();
 
-    final title = widget.listing.title.trim().isEmpty ? "Listing" : widget.listing.title.trim();
-    final location =
-        widget.listing.location.trim().isEmpty ? "Location" : widget.listing.location.trim();
+    final title = widget.listing.title.trim().isEmpty
+        ? "Listing"
+        : widget.listing.title.trim();
 
-    // ✅ Use actual rent price (numeric) if you have it, else parse from UI text
+    final location = widget.listing.location.trim().isEmpty
+        ? "Location"
+        : widget.listing.location.trim();
+
     final rentNgn = _priceToIntNgn();
-
-    // ✅ For ApplyListingVM, we keep priceText as your formatted price line
     final priceText = _priceText.trim().isEmpty ? "₦0" : _priceText.trim();
 
-    // ✅ Cover image -> ApplyListingVM expects ASSET path only (so use it if it’s an asset).
     final cover = _media.isNotEmpty ? _media.first.trim() : '';
     final photoAssetPath = cover.startsWith('assets/') ? cover : null;
 
@@ -234,7 +240,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         builder: (_) => ApplyPreCheckScreen(
           listing: ApplyListingVM(
             listingId: listingId,
-            propertyId: propertyId,
+            propertyId: propertyId, // ✅ "" if missing, never listingId
             title: title,
             location: location,
             rentPerMonthNgn: rentNgn,
@@ -443,7 +449,8 @@ class _GalleryHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final headerH =
-        (MediaQuery.of(context).size.width * AppSizes.featuredCardAspect) + (AppSpacing.xxxl + AppSpacing.lg);
+        (MediaQuery.of(context).size.width * AppSizes.featuredCardAspect) +
+            (AppSpacing.xxxl + AppSpacing.lg);
 
     final countText = '${(index + 1).clamp(1, total)}/$total';
 
@@ -707,8 +714,7 @@ class _PriceInfoCard extends StatelessWidget {
             runSpacing: AppSpacing.sm,
             children: [
               if (showBedsBaths) _MiniChip(icon: Icons.bed_rounded, text: '${beds ?? 0} Beds'),
-              if (showBedsBaths)
-                _MiniChip(icon: Icons.bathtub_rounded, text: '${baths ?? 0} Baths'),
+              if (showBedsBaths) _MiniChip(icon: Icons.bathtub_rounded, text: '${baths ?? 0} Baths'),
               _MiniChip(icon: Icons.square_foot_rounded, text: sizeLabel),
               if (kind == ListingKind.land)
                 const _MiniChip(icon: Icons.description_rounded, text: 'Title docs'),
@@ -1203,7 +1209,7 @@ class _StickyActions extends StatelessWidget {
               const SizedBox(width: 12),
               SecondaryButton(
                 label: 'Apply Now',
-                onPressed: onSecondary, // ✅ now wired
+                onPressed: onSecondary,
                 fullWidth: false,
               ),
             ],

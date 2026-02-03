@@ -1,3 +1,4 @@
+// lib/features/tenant/applications/apply_application_flow.dart
 import "package:flutter/material.dart";
 
 import "../../../core/ui/scaffold/app_scaffold.dart";
@@ -9,9 +10,11 @@ import "../../../core/theme/app_radii.dart";
 import "../../../core/theme/app_spacing.dart";
 import "../../../core/theme/app_sizes.dart";
 
+import "../../../core/network/api_client.dart";
+import "../../../core/network/applications_api.dart";
+
 import "../../../shared/models/application_form_models.dart";
 import "../../../shared/models/application_model.dart";
-
 
 /// ------------------------------------------------------------
 /// Application Apply Flow (Precheck -> Step1 -> Step2 -> Step3 -> Review -> Success)
@@ -162,8 +165,6 @@ class ApplyPreCheckScreen extends StatelessWidget {
         proofOfAddressUploaded: false,
       ),
       acceptTerms: false,
-
-      // ✅ shared model supports these (optional)
       message: null,
       moveInDate: null,
     );
@@ -355,8 +356,7 @@ class _ApplicationStep1ScreenState extends State<ApplicationStep1Screen> {
                         if (_guarantorCtrls.length > 1)
                           Text(
                             "Guarantor ${i + 1}",
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w900,
                                   color: AppColors.textPrimary(context),
                                 ),
@@ -380,8 +380,7 @@ class _ApplicationStep1ScreenState extends State<ApplicationStep1Screen> {
                             value: c.relationship,
                             items: RelationshipKind.values,
                             label: (v) => v.label,
-                            onChanged: (v) =>
-                                setState(() => c.relationship = v),
+                            onChanged: (v) => setState(() => c.relationship = v),
                           ),
                         ),
                         const SizedBox(height: AppSpacing.sm),
@@ -632,8 +631,7 @@ class _ApplicationStep2ScreenState extends State<ApplicationStep2Screen> {
 
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) =>
-                        ApplicationStep3DocumentsScreen(draft: next),
+                    builder: (_) => ApplicationStep3DocumentsScreen(draft: next),
                   ),
                 );
               },
@@ -741,8 +739,7 @@ class _ApplicationStep3DocumentsScreenState
             ),
             const SizedBox(height: AppSpacing.sm),
             _DocTile(
-              title:
-                  "Guarantor ID (${_guarantorRequired ? "required" : "optional"})",
+              title: "Guarantor ID (${_guarantorRequired ? "required" : "optional"})",
               subtitle: "Upload guarantor ID",
               uploaded: _draft.docs.guarantorIdUploaded,
               onTap: () => _toggle("guarantorId"),
@@ -791,8 +788,7 @@ class ApplicationReviewScreen extends StatefulWidget {
   final ApplicationDraftVM draft;
 
   @override
-  State<ApplicationReviewScreen> createState() =>
-      _ApplicationReviewScreenState();
+  State<ApplicationReviewScreen> createState() => _ApplicationReviewScreenState();
 }
 
 class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
@@ -801,6 +797,8 @@ class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
 
   final _message = TextEditingController();
   final _moveInDate = TextEditingController();
+
+  late final ApplicationsApi _api = ApplicationsApi(ApiClient());
 
   @override
   void initState() {
@@ -822,8 +820,7 @@ class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
 
     final next = _draft.copyWith(
       message: _message.text.trim().isEmpty ? null : _message.text.trim(),
-      moveInDate:
-          _moveInDate.text.trim().isEmpty ? null : _moveInDate.text.trim(),
+      moveInDate: _moveInDate.text.trim().isEmpty ? null : _moveInDate.text.trim(),
     );
 
     if (!next.acceptTerms) {
@@ -831,16 +828,12 @@ class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
       return;
     }
 
-    // ✅ Build backend payload using your shared model -> CreateApplicationInput
-    // (status should be omitted for tenant)
     final createInput = next.toCreateInput(status: null);
 
     setState(() => _submitting = true);
 
     try {
-      // ✅ Plug your API client here:
-      // await _client.post(ApiEndpoints.applications, data: createInput.toJson());
-      await Future.delayed(const Duration(milliseconds: 650));
+      await _api.create(createInput);
 
       if (!mounted) return;
 
@@ -849,7 +842,7 @@ class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      _toast(context, "Failed to submit. Please try again.");
+      _toast(context, "Failed to submit: $e");
       setState(() => _submitting = false);
     }
   }
@@ -899,27 +892,11 @@ class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _kv(
-                                context,
-                                "Name",
-                                x.fullName.isEmpty ? "—" : x.fullName,
-                              ),
+                              _kv(context, "Name", x.fullName.isEmpty ? "—" : x.fullName),
                               _kv(context, "Relationship", x.relationship.label),
-                              _kv(
-                                context,
-                                "Email",
-                                x.email.isEmpty ? "—" : x.email,
-                              ),
-                              _kv(
-                                context,
-                                "Phone",
-                                x.phone.isEmpty ? "—" : x.phone,
-                              ),
-                              _kv(
-                                context,
-                                "Address",
-                                x.address.isEmpty ? "—" : x.address,
-                              ),
+                              _kv(context, "Email", x.email.isEmpty ? "—" : x.email),
+                              _kv(context, "Phone", x.phone.isEmpty ? "—" : x.phone),
+                              _kv(context, "Address", x.address.isEmpty ? "—" : x.address),
                             ],
                           ),
                         ),
@@ -931,25 +908,11 @@ class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
                     const _SectionTitle("Employment"),
                     const SizedBox(height: AppSpacing.sm),
                     _kv(context, "Status", _draft.employment.status.label),
-                    _kv(
-                      context,
-                      "Monthly income",
-                      "₦${_draft.employment.monthlyIncomeNgn}",
-                    ),
-                    _kv(
-                      context,
-                      "Employer",
-                      _draft.employment.employerName.isEmpty
-                          ? "—"
-                          : _draft.employment.employerName,
-                    ),
-                    _kv(
-                      context,
-                      "Job title",
-                      _draft.employment.jobTitle.isEmpty
-                          ? "—"
-                          : _draft.employment.jobTitle,
-                    ),
+                    _kv(context, "Monthly income", "₦${_draft.employment.monthlyIncomeNgn}"),
+                    _kv(context, "Employer",
+                        _draft.employment.employerName.isEmpty ? "—" : _draft.employment.employerName),
+                    _kv(context, "Job title",
+                        _draft.employment.jobTitle.isEmpty ? "—" : _draft.employment.jobTitle),
 
                     const SizedBox(height: AppSpacing.lg),
 
@@ -978,9 +941,7 @@ class _ApplicationReviewScreenState extends State<ApplicationReviewScreen> {
                     _CheckRow(
                       value: _draft.acceptTerms,
                       label: "I agree to the terms and conditions",
-                      onChanged: (v) => setState(
-                        () => _draft = _draft.copyWith(acceptTerms: v),
-                      ),
+                      onChanged: (v) => setState(() => _draft = _draft.copyWith(acceptTerms: v)),
                     ),
                   ],
                 ),
@@ -1091,8 +1052,7 @@ class ApplicationSuccessScreen extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textMuted(context)
-                                  .withValues(alpha: 0.92),
+                              color: AppColors.textMuted(context).withValues(alpha: 0.92),
                             ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
@@ -1112,7 +1072,7 @@ class ApplicationSuccessScreen extends StatelessWidget {
   }
 }
 
-/// ---------------- Gradient wrapper (ExploreScreen pattern) ----------------
+/// ---------------- Gradient wrapper ----------------
 
 class _PageGradient extends StatelessWidget {
   const _PageGradient({required this.child});
@@ -1692,8 +1652,7 @@ class _GuarantorControllers {
       address: addr,
       sameAddressAsApplicant: sameAddress,
       employmentStatus: empStatus,
-      monthlyIncomeNgn:
-          income.text.trim().isEmpty ? null : _parseIncome(income.text),
+      monthlyIncomeNgn: income.text.trim().isEmpty ? null : _parseIncome(income.text),
     );
   }
 

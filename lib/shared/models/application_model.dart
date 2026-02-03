@@ -179,20 +179,40 @@ class CreateApplicationInput {
   }
 }
 
+/// Sentinel to distinguish "not provided" from explicit null for PATCH.
+class _Unset {
+  const _Unset();
+}
+
+const _unset = _Unset();
+
 @immutable
 class PatchApplicationInput {
   const PatchApplicationInput({
     this.status, // admin-only
-    this.message, // nullable allowed
-    this.monthlyIncome, // nullable allowed
-    this.moveInDate, // nullable allowed
-  });
+    Object? message = _unset, // String? or null
+    Object? monthlyIncome = _unset, // num? or null
+    Object? moveInDate = _unset, // String? or null
+  })  : _message = message,
+        _monthlyIncome = monthlyIncome,
+        _moveInDate = moveInDate;
 
   final ApplicationStatus? status;
-  final String? message; // if you want "clear", send explicit null from API call
-  final num? monthlyIncome; // same
-  final String? moveInDate; // same
 
+  final Object? _message;
+  final Object? _monthlyIncome;
+  final Object? _moveInDate;
+
+  /// Convenience getters (read-only)
+  String? get message => _message is _Unset ? null : _message as String?;
+  num? get monthlyIncome =>
+      _monthlyIncome is _Unset ? null : _monthlyIncome as num?;
+  String? get moveInDate =>
+      _moveInDate is _Unset ? null : _moveInDate as String?;
+
+  /// Build JSON:
+  /// - default: omit fields that are not provided
+  /// - allowNulls=true: include provided fields even if null (for clearing)
   Map<String, dynamic> toJson({
     bool includeStatus = false,
     bool allowNulls = false,
@@ -203,18 +223,22 @@ class PatchApplicationInput {
       m["status"] = status!.toApi();
     }
 
-    // For PATCH schema, you support nullable.
-    // If allowNulls=true, caller may pass message/monthlyIncome/moveInDate as null explicitly.
-    if (allowNulls) {
-      if (message != null || message == null) m["message"] = message;
-      if (monthlyIncome != null || monthlyIncome == null) m["monthlyIncome"] = monthlyIncome;
-      if (moveInDate != null || moveInDate == null) m["moveInDate"] = moveInDate;
-      return m;
+    void put(String key, Object? v) {
+      final provided = v is! _Unset;
+      if (!provided) return;
+
+      if (allowNulls) {
+        // include even when null
+        m[key] = v;
+      } else {
+        // include only when non-null
+        if (v != null) m[key] = v;
+      }
     }
 
-    if (message != null) m["message"] = message;
-    if (monthlyIncome != null) m["monthlyIncome"] = monthlyIncome;
-    if (moveInDate != null) m["moveInDate"] = moveInDate;
+    put("message", _message);
+    put("monthlyIncome", _monthlyIncome);
+    put("moveInDate", _moveInDate);
 
     return m;
   }

@@ -1,11 +1,11 @@
 // lib/features/tenant/applications/my_applications_screen.dart
 // ignore_for_file: unnecessary_underscores
 
+import "dart:math" as math;
 import "package:flutter/material.dart";
 
 import "../../../core/ui/scaffold/app_scaffold.dart";
 import "../../../core/ui/scaffold/app_top_bar.dart";
-import "../../../core/ui/nav/tenant_nav.dart"; // Assuming existance based on Explore
 
 import "../../../core/theme/app_colors.dart";
 import "../../../core/theme/app_radii.dart";
@@ -35,14 +35,19 @@ class MyApplicationsScreen extends StatefulWidget {
 }
 
 class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
-  // ✅ Single source of truth
   late final ApplicationsApi _api = ApplicationsApi(ApiClient());
 
   late ApplicationsTab _currentTab = widget.initialTab;
-  
-  // Maps Enum to UI Chip index
+
   int get _activeChipIndex => ApplicationsTab.values.indexOf(_currentTab);
-  final List<String> _chips = const ['All', 'Pending', 'Approved', 'Rejected', 'Withdrawn'];
+
+  final List<String> _chips = const [
+    'All',
+    'Pending',
+    'Approved',
+    'Rejected',
+    'Withdrawn'
+  ];
 
   bool _loading = true;
   String? _error;
@@ -65,9 +70,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
 
   void _setTabFromChip(int index) {
     if (index >= 0 && index < ApplicationsTab.values.length) {
-      setState(() {
-        _currentTab = ApplicationsTab.values[index];
-      });
+      setState(() => _currentTab = ApplicationsTab.values[index]);
     }
   }
 
@@ -75,16 +78,11 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
     setState(() {
       _loading = true;
       _error = null;
-      // Note: We don't clear items immediately to avoid flicker if just switching tabs locally,
-      // but if fetching fresh from API, clearing is safer for consistency.
-      _items = []; 
     });
 
     try {
-      // Fetching "All" and filtering locally for now, similar to original logic.
-      // If API supports filtering, pass _currentTab params here.
       final rows = await _api.listMyApplications(limit: 60, offset: 0);
-      
+
       if (!mounted) return;
       setState(() {
         _items = rows;
@@ -158,7 +156,6 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
       if (!mounted) return;
 
       setState(() {
-        // Update item in local list
         final index = _items.indexWhere((x) => x.id == a.id);
         if (index != -1) {
           final newItems = [..._items];
@@ -179,7 +176,6 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
   }
 
   void _openDetails(ApplicationModel a) {
-    // Keeping navigation logic consistent
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ApplicationDetailScreen(
@@ -200,9 +196,9 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
         backgroundColor: Colors.transparent,
         safeAreaTop: true,
         safeAreaBottom: false,
-        appBar: AppTopBar(
+        topBar: AppTopBar(
           title: "My Applications",
-          subtitle: "${displayItems.length} ${_chips[_activeChipIndex]} items",
+          subtitle: "${displayItems.length} ${_chips[_activeChipIndex]}",
           leadingIcon: Icons.arrow_back_rounded,
           onLeadingTap: () => Navigator.of(context).maybePop(),
           actions: [
@@ -237,25 +233,22 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
             ),
           ],
         ),
-        scroll: true,
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screenH,
-          AppSpacing.sm,
-          AppSpacing.screenH,
-          AppSizes.screenBottomPad,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenH,
+            AppSpacing.sm,
+            AppSpacing.screenH,
+            AppSizes.screenBottomPad,
+          ),
           children: [
             const SizedBox(height: AppSpacing.sm),
-            
-            // Replaced custom Tab Row with Explore-style ChipRow
+
             _ChipRow(
               chips: _chips,
               activeIndex: _activeChipIndex,
               onTap: _setTabFromChip,
             ),
-            
+
             const SizedBox(height: AppSpacing.lg),
 
             if (_loading && displayItems.isEmpty) ...[
@@ -274,24 +267,20 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
               _InfoBox(
                 title: 'No applications',
                 message: 'No applications found in this category.',
-                onAction: () => _setTabFromChip(0), // Go to All
+                onAction: () => _setTabFromChip(0),
                 actionText: 'View All',
               ),
             ] else ...[
-               ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: displayItems.length,
-                separatorBuilder: (_, __) =>
-                    const SizedBox(height: AppSpacing.md),
-                itemBuilder: (context, i) {
-                  final item = displayItems[i];
-                  final date = _dateLabel(context, item);
+              ...List.generate(displayItems.length, (i) {
+                final item = displayItems[i];
+                final date = _dateLabel(context, item);
+                final meta = "Prop: ${item.propertyId}";
 
-                  // Formatting details for the "Meta" line
-                  final meta = "Prop: ${item.propertyId}";
-
-                  return _ApplicationRowCard(
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: i == displayItems.length - 1 ? 0 : AppSpacing.md,
+                  ),
+                  child: _ApplicationRowCard(
                     title: "Application",
                     subtitle: "Listing: ${item.listingId}",
                     meta: meta,
@@ -301,12 +290,10 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                     onWithdraw: item.status == ApplicationStatus.pending
                         ? () => _withdraw(item)
                         : null,
-                  );
-                },
-              ),
+                  ),
+                );
+              }),
             ],
-            
-            const SizedBox(height: AppSpacing.lg),
           ],
         ),
       ),
@@ -314,7 +301,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
   }
 }
 
-// ---------------- UI widgets (Consolidated from Explore Screen) ----------------
+// ---------------- UI widgets ----------------
 
 class _ChipRow extends StatelessWidget {
   const _ChipRow({
@@ -417,7 +404,6 @@ class _ApplicationRowCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Thumbnail / Icon
             Container(
               height: AppSizes.listThumbSize,
               width: AppSizes.listThumbSize,
@@ -429,8 +415,6 @@ class _ApplicationRowCard extends StatelessWidget {
               child: const Icon(Icons.assignment_rounded, color: AppColors.brandBlueSoft),
             ),
             const SizedBox(width: AppSpacing.md),
-            
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -457,17 +441,20 @@ class _ApplicationRowCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   Row(
                     children: [
-                      Text(
-                        meta,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textMuted(context),
-                              fontWeight: FontWeight.w700,
-                            ),
+                      Flexible(
+                        child: Text(
+                          meta,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textMuted(context),
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Text(
                         "•  $date",
-                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.textMuted(context),
                               fontWeight: FontWeight.w700,
                             ),
@@ -478,34 +465,34 @@ class _ApplicationRowCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.md),
-            
-            // Status & Action
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 _StatusBadge(status: status),
-                
                 if (onWithdraw != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   InkWell(
                     onTap: onWithdraw,
                     borderRadius: BorderRadius.circular(AppRadii.pill),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: AppSpacing.xs,
+                      ),
                       child: Text(
                         "Withdraw",
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.danger,
-                          fontWeight: FontWeight.w900,
-                          decoration: TextDecoration.underline,
-                          decorationColor: AppColors.danger
-                        ),
+                              color: AppColors.danger,
+                              fontWeight: FontWeight.w900,
+                              decoration: TextDecoration.underline,
+                              decorationColor: AppColors.danger,
+                            ),
                       ),
                     ),
                   ),
                 ] else ...[
-                   const SizedBox(height: AppSpacing.sm),
-                   Icon(
+                  const SizedBox(height: AppSpacing.sm),
+                  Icon(
                     Icons.chevron_right_rounded,
                     color: AppColors.textMuted(context),
                     size: 20,
@@ -539,7 +526,7 @@ class _StatusBadge extends StatelessWidget {
         label = "Approved";
         break;
       case ApplicationStatus.rejected:
-        color = AppColors.danger; // Using Danger for consistency
+        color = AppColors.danger;
         label = "Rejected";
         break;
       case ApplicationStatus.withdrawn:
@@ -549,6 +536,7 @@ class _StatusBadge extends StatelessWidget {
     }
 
     final alphaBg = AppSpacing.sm / (AppSpacing.xxxl + AppSpacing.sm);
+    final borderAlpha = math.min(1.0, alphaBg + 0.10);
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -558,14 +546,14 @@ class _StatusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: alphaBg),
         borderRadius: BorderRadius.circular(AppRadii.pill),
-        border: Border.all(color: color.withValues(alpha: alphaBg + 0.1)),
+        border: Border.all(color: color.withValues(alpha: borderAlpha)),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w900,
               color: color,
-              fontSize: 10, // Slightly smaller for badge
+              fontSize: 10,
             ),
       ),
     );

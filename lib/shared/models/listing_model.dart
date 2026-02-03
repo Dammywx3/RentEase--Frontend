@@ -16,7 +16,9 @@ class ListingModel {
     this.ownerName,
     this.ownerId,
 
-    // ✅ IDs used for viewing/inspection booking (backend create)
+    /// ✅ IDs used for viewing/inspection booking + apply
+    /// - listingId: property_listings.id (or listing_id) used by backend routes
+    /// - propertyId: actual properties.id (may be missing in list responses)
     this.listingId,
     this.propertyId,
   });
@@ -35,10 +37,11 @@ class ListingModel {
   final String? ownerName;
   final String? ownerId;
 
-  /// ✅ Optional IDs for backend viewings create
-  /// - listingId: some APIs return a distinct listingId (or listing_id)
-  /// - propertyId: property being viewed/inspected
+  /// ✅ Optional IDs for backend actions
   final String? listingId;
+
+  /// ✅ IMPORTANT: Keep ONLY ONCE, nullable.
+  /// DO NOT fallback propertyId to listingId.
   final String? propertyId;
 
   factory ListingModel.fromMap(Map<String, dynamic> map) {
@@ -149,20 +152,23 @@ class ListingModel {
     final type = map['type']?.toString() ??
         _mapPropertyTypeToUiType(map['propertyType']?.toString());
 
-    // ---------- IDs for backend viewings ----------
-    // ✅ listingId may come as listingId or listing_id; fallback to id.
+    // ---------- IDs for backend actions ----------
+    // ✅ listingId may come as listingId or listing_id.
+    // If missing, fallback to id (safe for viewings create).
     final listingId =
         _readString(map['listingId']) ?? _readString(map['listing_id']) ?? id;
 
     // ✅ propertyId can appear in multiple shapes
-    String? propertyId = _readString(map['propertyId']) ??
-        _readString(map['property_id']);
+    // IMPORTANT: do NOT fallback to listingId.
+    String? propertyId =
+        _readString(map['propertyId']) ?? _readString(map['property_id']);
 
     // sometimes nested: property: { id: ... }
     final propAny = map['property'];
     if (propertyId == null && propAny is Map) {
-      propertyId =
-          _readString(propAny['id']) ?? _readString(propAny['propertyId']);
+      propertyId = _readString(propAny['id']) ??
+          _readString(propAny['propertyId']) ??
+          _readString(propAny['property_id']);
     }
 
     return ListingModel(
@@ -176,13 +182,12 @@ class ListingModel {
       baths: baths,
       type: type,
       mediaUrls: urls,
-      propertyStatus: map['property_status']?.toString() ??
-          map['propertyStatus']?.toString(),
-      ownerName:
-          map['owner_name']?.toString() ?? map['ownerName']?.toString(),
-      ownerId: map['owner_id']?.toString() ?? map['ownerId']?.toString(),
+      propertyStatus:
+          (map['property_status'] ?? map['propertyStatus'])?.toString(),
+      ownerName: (map['owner_name'] ?? map['ownerName'])?.toString(),
+      ownerId: (map['owner_id'] ?? map['ownerId'])?.toString(),
       listingId: listingId,
-      propertyId: propertyId,
+      propertyId: propertyId, // ✅ may be null
     );
   }
 

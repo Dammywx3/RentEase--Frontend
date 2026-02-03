@@ -20,7 +20,7 @@ import "../../../core/theme/app_radii.dart";
 import "../../../core/theme/app_spacing.dart";
 import "../../../core/theme/app_sizes.dart";
 
-import "../../../shared/models/application_form_models.dart";
+import "../../../shared/models/application_form_models.dart" show ApplyListingVM;
 
 class ViewingsScreen extends StatefulWidget {
   const ViewingsScreen({
@@ -403,7 +403,8 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
                                   final showApplyNow =
                                       v.status == ViewingStatus.completed;
 
-                                  final canReschedule = _canReschedule(v) && !busy;
+                                  final canReschedule =
+                                      _canReschedule(v) && !busy;
                                   final canCancel = _canCancel(v) && !busy;
 
                                   final who = (v.landlordName == null ||
@@ -423,40 +424,41 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
                                     busy: busy,
                                     showApplyNow: showApplyNow,
                                     onApplyNow: () {
-                                      // ✅ Build ApplyListingVM from v (ViewingModel)
-                                      final listingId =
-                                          (v.listingId ?? "").trim().isNotEmpty
-                                              ? v.listingId!.trim()
-                                              : v.id;
+  final listingId = (v.listingId ?? "").trim();
 
-                                      // Backend requires propertyId.
-                                      // If API didn't return it, fallback so screen compiles.
-                                      final propertyId =
-                                          (v.propertyId ?? "").trim().isNotEmpty
-                                              ? v.propertyId!.trim()
-                                              : listingId;
+  if (listingId.isEmpty) {
+    _toast("Missing listingId. Refresh and try again.");
+    return;
+  }
 
-                                      final priceText = (v.priceText ?? "").trim();
-                                      final rentNgn = _parseMonthlyRent(priceText);
+  final propertyId = (v.propertyId ?? "").trim();
 
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => ApplyPreCheckScreen(
-                                            listing: ApplyListingVM(
-                                              listingId: listingId,
-                                              propertyId: propertyId,
-                                              title: v.listingTitle.trim(),
-                                              location: v.location.trim(),
-                                              rentPerMonthNgn: rentNgn,
-                                              priceText:
-                                                  priceText.isEmpty ? "₦0" : priceText,
-                                              photoAssetPath: null,
-                                            ),
-                                            guarantorRequiredThresholdNgn: 500000,
-                                          ),
-                                        ),
-                                      );
-                                    },
+  // ✅ STOP if missing (do not navigate)
+  if (propertyId.isEmpty) {
+    _toast("This viewing is missing propertyId. Refresh and try again.");
+    return;
+  }
+
+  final priceText = (v.priceText ?? "").trim();
+  final rentNgn = _parseMonthlyRent(priceText);
+
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => ApplyPreCheckScreen(
+        listing: ApplyListingVM(
+          listingId: listingId,
+          propertyId: propertyId, // ✅ always real UUID now
+          title: v.listingTitle.trim(),
+          location: v.location.trim(),
+          rentPerMonthNgn: rentNgn,
+          priceText: priceText.isEmpty ? "₦0" : priceText,
+          photoAssetPath: null,
+        ),
+        guarantorRequiredThresholdNgn: 500000,
+      ),
+    ),
+  );
+},
                                     onTap: () async {
                                       final changed =
                                           await Navigator.of(context).push<bool>(
@@ -471,10 +473,12 @@ class _ViewingsScreenState extends State<ViewingsScreen> {
                                       }
                                     },
                                     onDirections: () {},
-                                    onReschedule:
-                                        canReschedule ? () => _handleReschedule(v) : null,
-                                    onCancel:
-                                        canCancel ? () => _handleCancel(v) : null,
+                                    onReschedule: canReschedule
+                                        ? () => _handleReschedule(v)
+                                        : null,
+                                    onCancel: canCancel
+                                        ? () => _handleCancel(v)
+                                        : null,
                                   );
                                 },
                               ),
@@ -957,7 +961,6 @@ class _PillButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final disabled = onTap == null;
 
-    // ✅ Avoid theme tokens that may not exist in AppColors
     final alphaBg = AppSpacing.sm / (AppSpacing.xxxl + AppSpacing.sm);
     final alphaStrong = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
 

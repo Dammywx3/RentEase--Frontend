@@ -22,112 +22,113 @@ class ApplicationDetailScreen extends StatelessWidget {
   final ApplicationModel application;
   final VoidCallback? onWithdraw;
 
-  _Badge _badge(ApplicationStatus s) {
+  _Badge _badge(BuildContext context, ApplicationStatus s) {
     switch (s) {
       case ApplicationStatus.pending:
         return const _Badge(label: "Pending", color: AppColors.brandBlueSoft);
       case ApplicationStatus.approved:
         return const _Badge(label: "Approved", color: AppColors.brandGreenDeep);
       case ApplicationStatus.rejected:
-        return const _Badge(label: "Rejected", color: AppColors.tenantDangerSoft);
+        return const _Badge(label: "Rejected", color: AppColors.danger);
       case ApplicationStatus.withdrawn:
-        return const _Badge(label: "Withdrawn", color: AppColors.textMutedLight);
+        return _Badge(label: "Withdrawn", color: AppColors.textMuted(context));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final badge = _badge(application.status);
+    final badge = _badge(context, application.status);
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: AppColors.pageBgGradient(context),
-            ),
-          ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: AppColors.pageBgGradient(context),
+      ),
+      child: AppScaffold(
+        backgroundColor: Colors.transparent,
+        safeAreaTop: true,
+        safeAreaBottom: false,
+        topBar: AppTopBar(
+          title: "Application",
+          leadingIcon: Icons.arrow_back_rounded,
+          onLeadingTap: () => Navigator.of(context).maybePop(),
         ),
-        AppScaffold(
-          backgroundColor: Colors.transparent,
-          safeAreaTop: true,
-          safeAreaBottom: false,
-          topBar: AppTopBar(
-            title: "Application",
-            leadingIcon: Icons.arrow_back_rounded,
-            onLeadingTap: () => Navigator.of(context).maybePop(),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenV,
+            AppSpacing.sm,
+            AppSpacing.screenV,
+            AppSizes.screenBottomPad,
           ),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenV,
-              AppSpacing.sm,
-              AppSpacing.screenV,
-              AppSizes.screenBottomPad,
-            ),
-            children: [
-              _FrostCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              "Application Details",
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.textPrimary(context),
-                              ),
-                            ),
+          children: [
+            _FrostCard(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            "Application Details",
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textPrimary(context),
+                                ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.s10,
-                              vertical: AppSpacing.s7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: badge.color.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(AppRadii.pill),
-                              border: Border.all(color: badge.color.withValues(alpha: 0.22)),
-                            ),
-                            child: Text(
-                              badge.label,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                color: badge.color,
-                              ),
-                            ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.s10,
+                            vertical: AppSpacing.s7,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      _kv(context, "ID", application.id),
-                      _kv(context, "Listing ID", application.listingId),
-                      _kv(context, "Property ID", application.propertyId),
-                      _kv(context, "Applicant ID", application.applicantId),
-                      _kv(context, "Status", application.status.label),
-                      _kv(context, "Move-in date", application.moveInDate ?? "—"),
-                      _kv(context, "Monthly income", application.monthlyIncome?.toString() ?? "—"),
-                      _kv(context, "Message", (application.message?.trim().isNotEmpty ?? false) ? application.message!.trim() : "—"),
-                      _kv(context, "Created", application.createdAt?.toIso8601String() ?? "—"),
-                    ],
-                  ),
+                          decoration: BoxDecoration(
+                            color: badge.color.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(AppRadii.pill),
+                            border:
+                                Border.all(color: badge.color.withValues(alpha: 0.22)),
+                          ),
+                          child: Text(
+                            badge.label,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  color: badge.color,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _kv(context, "ID", application.id),
+                    _kv(context, "Listing ID", application.listingId),
+                    _kv(context, "Property ID", application.propertyId),
+                    _kv(context, "Applicant ID", application.applicantId),
+                    _kv(context, "Status", application.status.label),
+                    _kv(context, "Move-in date", application.moveInDate ?? "—"),
+                    _kv(context, "Monthly income", application.monthlyIncome?.toString() ?? "—"),
+                    _kv(
+                      context,
+                      "Message",
+                      (application.message?.trim().isNotEmpty ?? false)
+                          ? application.message!.trim()
+                          : "—",
+                    ),
+                    _kv(context, "Created", application.createdAt?.toIso8601String() ?? "—"),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              if (onWithdraw != null)
-                _PillButton(
-                  text: "Withdraw",
-                  filled: false,
-                  color: AppColors.tenantDangerSoft,
-                  onTap: onWithdraw!,
-                ),
-            ],
-          ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (onWithdraw != null)
+              _PillButton(
+                text: "Withdraw",
+                filled: false,
+                color: AppColors.danger,
+                onTap: onWithdraw!,
+              ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -141,9 +142,9 @@ class ApplicationDetailScreen extends StatelessWidget {
             child: Text(
               k,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: AppColors.textMuted(context),
-              ),
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textMuted(context),
+                  ),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -152,9 +153,9 @@ class ApplicationDetailScreen extends StatelessWidget {
               v,
               textAlign: TextAlign.right,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.navy,
-              ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary(context),
+                  ),
             ),
           ),
         ],
@@ -198,9 +199,9 @@ class _PillButton extends StatelessWidget {
         child: Text(
           text,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w900,
-            color: filled ? AppColors.white : AppColors.navy,
-          ),
+                fontWeight: FontWeight.w900,
+                color: filled ? AppColors.white : AppColors.textPrimary(context),
+              ),
         ),
       ),
     );

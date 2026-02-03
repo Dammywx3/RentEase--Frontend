@@ -1,36 +1,7 @@
 // lib/shared/models/application_form_models.dart
-import 'package:flutter/foundation.dart';
-
 import 'application_model.dart';
 
-@immutable
-class ApplyListingVM {
-  const ApplyListingVM({
-    required this.listingId,
-    required this.propertyId,
-    required this.title,
-    required this.location,
-    required this.rentPerMonthNgn,
-    required this.priceText,
-    this.photoAssetPath,
-  });
-
-  final String listingId;
-  final String propertyId;
-
-  final String title;
-  final String location;
-  final int rentPerMonthNgn;
-  final String priceText;
-  final String? photoAssetPath;
-
-  /// ✅ Backward compatibility for old code that expects listing.id
-  @Deprecated("Use listingId")
-  String get id => listingId;
-}
-
-enum RelationshipKind { parent, sibling, friend, employer, other }
-
+enum RelationshipKind { parent, sibling, spouse, friend, colleague, other }
 extension RelationshipKindX on RelationshipKind {
   String get label {
     switch (this) {
@@ -38,18 +9,19 @@ extension RelationshipKindX on RelationshipKind {
         return "Parent";
       case RelationshipKind.sibling:
         return "Sibling";
+      case RelationshipKind.spouse:
+        return "Spouse";
       case RelationshipKind.friend:
         return "Friend";
-      case RelationshipKind.employer:
-        return "Employer";
+      case RelationshipKind.colleague:
+        return "Colleague";
       case RelationshipKind.other:
         return "Other";
     }
   }
 }
 
-enum EmploymentStatus { employed, selfEmployed, unemployed, student, other }
-
+enum EmploymentStatus { employed, selfEmployed, unemployed, student, retired }
 extension EmploymentStatusX on EmploymentStatus {
   String get label {
     switch (this) {
@@ -61,13 +33,57 @@ extension EmploymentStatusX on EmploymentStatus {
         return "Unemployed";
       case EmploymentStatus.student:
         return "Student";
-      case EmploymentStatus.other:
-        return "Other";
+      case EmploymentStatus.retired:
+        return "Retired";
     }
   }
 }
 
-@immutable
+/// ✅ IMPORTANT: Apply flow must carry listingId AND propertyId
+class ApplyListingVM {
+  const ApplyListingVM({
+    required this.listingId,
+    required this.propertyId,
+    required this.title,
+    required this.location,
+    required this.priceText,
+    required this.rentPerMonthNgn,
+    this.photoAssetPath,
+  });
+
+  final String listingId;
+  final String propertyId;
+
+  final String title;
+  final String location;
+  final String priceText;
+
+  /// used for guarantor rule
+  final int rentPerMonthNgn;
+
+  final String? photoAssetPath;
+
+  ApplyListingVM copyWith({
+    String? listingId,
+    String? propertyId,
+    String? title,
+    String? location,
+    String? priceText,
+    int? rentPerMonthNgn,
+    String? photoAssetPath,
+  }) {
+    return ApplyListingVM(
+      listingId: listingId ?? this.listingId,
+      propertyId: propertyId ?? this.propertyId,
+      title: title ?? this.title,
+      location: location ?? this.location,
+      priceText: priceText ?? this.priceText,
+      rentPerMonthNgn: rentPerMonthNgn ?? this.rentPerMonthNgn,
+      photoAssetPath: photoAssetPath ?? this.photoAssetPath,
+    );
+  }
+}
+
 class ApplicantVM {
   const ApplicantVM({
     required this.fullName,
@@ -80,9 +96,22 @@ class ApplicantVM {
   final String email;
   final String phone;
   final String address;
+
+  ApplicantVM copyWith({
+    String? fullName,
+    String? email,
+    String? phone,
+    String? address,
+  }) {
+    return ApplicantVM(
+      fullName: fullName ?? this.fullName,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      address: address ?? this.address,
+    );
+  }
 }
 
-@immutable
 class GuarantorVM {
   const GuarantorVM({
     required this.fullName,
@@ -104,9 +133,30 @@ class GuarantorVM {
 
   final EmploymentStatus? employmentStatus;
   final int? monthlyIncomeNgn;
+
+  GuarantorVM copyWith({
+    String? fullName,
+    RelationshipKind? relationship,
+    String? email,
+    String? phone,
+    String? address,
+    bool? sameAddressAsApplicant,
+    EmploymentStatus? employmentStatus,
+    int? monthlyIncomeNgn,
+  }) {
+    return GuarantorVM(
+      fullName: fullName ?? this.fullName,
+      relationship: relationship ?? this.relationship,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      address: address ?? this.address,
+      sameAddressAsApplicant: sameAddressAsApplicant ?? this.sameAddressAsApplicant,
+      employmentStatus: employmentStatus ?? this.employmentStatus,
+      monthlyIncomeNgn: monthlyIncomeNgn ?? this.monthlyIncomeNgn,
+    );
+  }
 }
 
-@immutable
 class EmploymentIncomeVM {
   const EmploymentIncomeVM({
     required this.status,
@@ -119,9 +169,22 @@ class EmploymentIncomeVM {
   final int monthlyIncomeNgn;
   final String employerName;
   final String jobTitle;
+
+  EmploymentIncomeVM copyWith({
+    EmploymentStatus? status,
+    int? monthlyIncomeNgn,
+    String? employerName,
+    String? jobTitle,
+  }) {
+    return EmploymentIncomeVM(
+      status: status ?? this.status,
+      monthlyIncomeNgn: monthlyIncomeNgn ?? this.monthlyIncomeNgn,
+      employerName: employerName ?? this.employerName,
+      jobTitle: jobTitle ?? this.jobTitle,
+    );
+  }
 }
 
-@immutable
 class DocumentsVM {
   const DocumentsVM({
     required this.applicantIdUploaded,
@@ -150,13 +213,11 @@ class DocumentsVM {
       guarantorIdUploaded: guarantorIdUploaded ?? this.guarantorIdUploaded,
       guarantorPassportUploaded:
           guarantorPassportUploaded ?? this.guarantorPassportUploaded,
-      proofOfAddressUploaded:
-          proofOfAddressUploaded ?? this.proofOfAddressUploaded,
+      proofOfAddressUploaded: proofOfAddressUploaded ?? this.proofOfAddressUploaded,
     );
   }
 }
 
-@immutable
 class ApplicationDraftVM {
   const ApplicationDraftVM({
     required this.listing,
@@ -166,8 +227,8 @@ class ApplicationDraftVM {
     required this.employment,
     required this.docs,
     required this.acceptTerms,
-    this.message,
-    this.moveInDate, // YYYY-MM-DD
+    required this.message,
+    required this.moveInDate,
   });
 
   final ApplyListingVM listing;
@@ -175,15 +236,14 @@ class ApplicationDraftVM {
 
   final ApplicantVM applicant;
   final List<GuarantorVM> guarantors;
-
   final EmploymentIncomeVM employment;
   final DocumentsVM docs;
 
   final bool acceptTerms;
 
-  /// ✅ These are the ONLY extra fields that backend supports.
+  /// Optional fields sent to backend
   final String? message;
-  final String? moveInDate;
+  final String? moveInDate; // YYYY-MM-DD
 
   ApplicationDraftVM copyWith({
     ApplyListingVM? listing,
@@ -209,13 +269,13 @@ class ApplicationDraftVM {
     );
   }
 
-  /// ✅ Convert UI draft into backend create input (matches Zod)
+  /// ✅ The important part: use listing.listingId and listing.propertyId
   CreateApplicationInput toCreateInput({ApplicationStatus? status}) {
     return CreateApplicationInput(
       listingId: listing.listingId,
       propertyId: listing.propertyId,
       message: message,
-      monthlyIncome: employment.monthlyIncomeNgn > 0 ? employment.monthlyIncomeNgn : null,
+      monthlyIncome: employment.monthlyIncomeNgn,
       moveInDate: moveInDate,
       status: status,
     );

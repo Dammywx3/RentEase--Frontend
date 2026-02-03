@@ -285,32 +285,41 @@ class _ViewingDetailScreenState extends State<ViewingDetailScreen> {
   }
 
   void _openApply(ViewingModel v) {
-    // ✅ ApplyListingVM now requires listingId + propertyId + title/location/rent/priceText
-    final listingId = (v.listingId ?? "").trim().isNotEmpty ? v.listingId!.trim() : v.id;
-    final propertyId = (v.propertyId ?? "").trim().isNotEmpty ? v.propertyId!.trim() : listingId;
+  final listingId = (v.listingId ?? "").trim();
 
-    final priceText = (v.priceText ?? "").trim();
-    final rentNgn = _parseMonthlyRent(priceText);
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ApplyPreCheckScreen(
-          listing: ApplyListingVM(
-            listingId: listingId,
-            propertyId: propertyId,
-            title: v.listingTitle.trim(),
-            location: v.location.trim(),
-            rentPerMonthNgn: rentNgn,
-            priceText: priceText.isEmpty ? "₦0" : priceText,
-            // You only have thumbnailUrl (network). ApplyListingVM expects asset path.
-            photoAssetPath: null,
-          ),
-          guarantorRequiredThresholdNgn: 500000,
-        ),
-      ),
-    );
+  if (listingId.isEmpty) {
+    _toast("Missing listingId for this visit. Refresh and try again.");
+    return;
   }
 
+  final propertyId = (v.propertyId ?? "").trim();
+
+  // ✅ STOP if missing (do not navigate)
+  if (propertyId.isEmpty) {
+    _toast("This viewing is missing propertyId. Refresh and try again.");
+    return;
+  }
+
+  final priceText = (v.priceText ?? "").trim();
+  final rentNgn = _parseMonthlyRent(priceText);
+
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => ApplyPreCheckScreen(
+        listing: ApplyListingVM(
+          listingId: listingId,
+          propertyId: propertyId,
+          title: v.listingTitle.trim(),
+          location: v.location.trim(),
+          rentPerMonthNgn: rentNgn,
+          priceText: priceText.isEmpty ? "₦0" : priceText,
+          photoAssetPath: null,
+        ),
+        guarantorRequiredThresholdNgn: 500000,
+      ),
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
     final v = _viewing;
@@ -338,7 +347,6 @@ class _ViewingDetailScreenState extends State<ViewingDetailScreen> {
             ),
           ),
         ),
-
         AppScaffold(
           backgroundColor: Colors.transparent,
           safeAreaTop: true,
@@ -357,7 +365,6 @@ class _ViewingDetailScreenState extends State<ViewingDetailScreen> {
               AppSizes.screenBottomPad,
             ),
             children: [
-              // Hero image
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadii.card),
                 child: Container(
@@ -417,7 +424,6 @@ class _ViewingDetailScreenState extends State<ViewingDetailScreen> {
               ),
               const SizedBox(height: AppSpacing.screenV),
 
-              // Title + badge
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -459,7 +465,6 @@ class _ViewingDetailScreenState extends State<ViewingDetailScreen> {
               ),
               const SizedBox(height: AppSpacing.s10),
 
-              // Date card + add to calendar
               _ExploreSurfaceCard(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.screenV),
@@ -491,7 +496,6 @@ class _ViewingDetailScreenState extends State<ViewingDetailScreen> {
 
               const SizedBox(height: AppSpacing.md),
 
-              // Location
               Text(
                 "Location",
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -580,7 +584,6 @@ class _ViewingDetailScreenState extends State<ViewingDetailScreen> {
 
               const SizedBox(height: AppSpacing.screenV),
 
-              // Contact (agent + landlord)
               Text(
                 "Contact",
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -641,7 +644,6 @@ class _ViewingDetailScreenState extends State<ViewingDetailScreen> {
 
               const SizedBox(height: AppSpacing.screenV),
 
-              // Timeline
               _ExploreSurfaceCard(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
@@ -678,7 +680,6 @@ class _ViewingDetailScreenState extends State<ViewingDetailScreen> {
 
               const SizedBox(height: AppSpacing.screenV),
 
-              // Bottom actions
               if (isCompleted) ...[
                 _PillButton(
                   text: "Apply Now  ›",
@@ -709,7 +710,6 @@ class _ViewingDetailScreenState extends State<ViewingDetailScreen> {
             ],
           ),
         ),
-
         if (_busy)
           Positioned.fill(
             child: IgnorePointer(
@@ -801,7 +801,6 @@ class _PillButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final disabled = onTap == null;
 
-    // ✅ Avoid tokens that may not exist (like mutedMid / tenantBorderMuted)
     final alphaBg = AppSpacing.sm / (AppSpacing.xxxl + AppSpacing.sm);
     final alphaFill = AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.sm);
 

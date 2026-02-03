@@ -3,6 +3,10 @@
 
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_client.dart';
+import '../../../core/network/applications_api.dart';
+import '../../../shared/models/application_model.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radii.dart';
 import '../../../core/theme/app_shadows.dart';
@@ -29,7 +33,6 @@ class RentingToolsScreen extends StatefulWidget {
 
 class _RentingToolsScreenState extends State<RentingToolsScreen> {
   // ---------- Explore-style alpha helpers ----------
-  // Matches ExploreScreen & MoreScreen exactly
   double get _alphaSurfaceStrong =>
       AppSpacing.xxxl / (AppSpacing.xxxl + AppSpacing.xs);
 
@@ -50,22 +53,40 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
   String? _viewingsError;
   List<ViewingModel> _myViewings = const [];
 
-  int get _upcomingCount {
+  int get _upcomingViewingsCount {
     return _myViewings.where((v) =>
         v.status == ViewingStatus.requested ||
         v.status == ViewingStatus.confirmed).length;
   }
 
-  int get _completedCount {
+  int get _completedViewingsCount {
     return _myViewings.where((v) =>
         v.status == ViewingStatus.completed ||
         v.status == ViewingStatus.cancelled ||
         v.status == ViewingStatus.rejected).length;
   }
 
+  // -------- Applications (REAL) --------
+  late final ApplicationsApi _appsApi = ApplicationsApi(ApiClient());
+  bool _appsLoading = false;
+  String? _appsError;
+  List<ApplicationModel> _myApps = const [];
+
+  int get _pendingAppsCount {
+    return _myApps.where((a) => a.status == ApplicationStatus.pending).length;
+  }
+
+  // -------- Data Loading --------
+
+  Future<void> _loadAll() async {
+    await Future.wait([
+      _loadMyViewings(),
+      _loadMyApplications(),
+    ]);
+  }
+
   Future<void> _loadMyViewings() async {
     if (_viewingsLoading) return;
-
     setState(() {
       _viewingsLoading = true;
       _viewingsError = null;
@@ -74,7 +95,6 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
     try {
       final list = await _viewingsApi.listMy(limit: 50, offset: 0);
       if (!mounted) return;
-
       setState(() {
         _myViewings = list;
         _viewingsLoading = false;
@@ -88,7 +108,30 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
     }
   }
 
-  // Demo (wire from backend later)
+  Future<void> _loadMyApplications() async {
+    if (_appsLoading) return;
+    setState(() {
+      _appsLoading = true;
+      _appsError = null;
+    });
+
+    try {
+      final list = await _appsApi.listMyApplications(limit: 50, offset: 0);
+      if (!mounted) return;
+      setState(() {
+        _myApps = list;
+        _appsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _appsError = e.toString();
+        _appsLoading = false;
+      });
+    }
+  }
+
+  // Demo Tenancies (wire from backend later)
   late final List<TenancyCardVM> _active = const [
     TenancyCardVM(
       id: 't1',
@@ -148,7 +191,7 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadMyViewings();
+    _loadAll();
   }
 
   String _fmtNaira(int v) {
@@ -176,14 +219,16 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
     );
   }
 
-  void _openApplications() {
-    Navigator.of(context).push(
+  void _openApplications() async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => const MyApplicationsScreen(
           initialTab: ApplicationsTab.pending,
         ),
       ),
     );
+    // Refresh count when returning
+    _loadMyApplications();
   }
 
   void _openViewings() async {
@@ -193,7 +238,7 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
 
     if (!mounted) return;
 
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ViewingsScreen(
           title: "My Visits",
@@ -202,6 +247,8 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
         ),
       ),
     );
+    // Refresh count when returning
+    _loadMyViewings();
   }
 
   void _payRent(TenancyCardVM t) {
@@ -222,11 +269,16 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
     final thumbW = (AppSpacing.xxxl * 3) + AppSpacing.md;
     final thumbR = AppRadii.button;
 
+    // Status Pills
     final viewingsPill = _viewingsLoading
         ? "Loading…"
         : (_viewingsError != null
             ? "Tap to retry"
-            : "${_upcomingCount} Upcoming");
+            : "${_upcomingViewingsCount} Upcoming");
+
+    final appsPill = _appsLoading
+        ? "Loading…"
+        : (_appsError != null ? "Tap to retry" : "${_pendingAppsCount} Pending");
 
     return DecoratedBox(
       decoration: BoxDecoration(gradient: AppColors.pageBgGradient(context)),
@@ -237,9 +289,9 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
         topBar: const AppTopBar(title: 'Renting Tools', subtitle: ''),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screenH, // ✅ Aligned to Explore (Horizontal spacing)
+            AppSpacing.screenH,
             AppSpacing.sm,
-            AppSpacing.screenH, // ✅ Aligned to Explore (Horizontal spacing)
+            AppSpacing.screenH,
             AppSizes.screenBottomPad,
           ),
           children: [
@@ -410,16 +462,37 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
 
+            // ✅ REAL Application Data
             _ToolTile(
               icon: Icons.description_rounded,
               title: 'My Applications',
               subtitle: 'Submitted, In Review, Approved, Rejected',
-              pillText: '2 Pending',
+              pillText: appsPill,
               pillTone: _PillTone.warning,
-              onTap: _openApplications,
+              onTap: () async {
+                if (_appsError != null) {
+                  await _loadMyApplications(); // retry
+                  return;
+                }
+                _openApplications();
+              },
             ),
 
+            if (_appsError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: Text(
+                  _appsError!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textMuted(context)
+                            .withValues(alpha: 0.92),
+                      ),
+                ),
+              ),
+
             const SizedBox(height: AppSpacing.md),
+
             _ToolTile(
               icon: Icons.remove_red_eye_rounded,
               title: 'My Viewings',
@@ -450,7 +523,7 @@ class _RentingToolsScreenState extends State<RentingToolsScreen> {
             ] else ...[
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'My Viewings: ${_upcomingCount} upcoming • ${_completedCount} completed',
+                'My Viewings: ${_upcomingViewingsCount} upcoming • ${_completedViewingsCount} completed',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w800,
                       color:
@@ -590,7 +663,6 @@ class _PillButton extends StatelessWidget {
       case _PillTone.green:
         return AppColors.brandGreenDeep;
       case _PillTone.warning:
-        // Safe fallback if AppColors.brandOrange missing
         return Colors.orange;
     }
   }
@@ -602,9 +674,9 @@ class _PillButton extends StatelessWidget {
 
     return Material(
       color: c.withValues(alpha: aFill),
-      borderRadius: BorderRadius.circular(AppRadii.pill), // ✅ Aligned to Pill
+      borderRadius: BorderRadius.circular(AppRadii.pill),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadii.pill), // ✅ Aligned to Pill
+        borderRadius: BorderRadius.circular(AppRadii.pill),
         onTap: onTap,
         child: SizedBox(
           height: AppSizes.pillButtonHeight,
